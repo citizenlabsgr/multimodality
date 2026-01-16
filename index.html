@@ -31,6 +31,9 @@
         <!-- Day and Time -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 class="font-semibold text-lg">When are you arriving?</h2>
+          <p class="text-sm text-slate-600 mt-1">
+            If your schedule is flexible, this may open up cheaper and easier ways of getting to your destination.
+          </p>
 
           <label class="block mt-4 text-sm font-medium">Day</label>
           <select
@@ -97,6 +100,9 @@
       <!-- Step 2: Mode + People -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 class="font-semibold text-lg">How are you leaving home?</h2>
+          <p class="text-sm text-slate-600 mt-1">
+            This can be combined with a secondary mode of transportation to save you time or money.
+          </p>
 
           <label class="block mt-4 text-sm font-medium">Mode</label>
           <div class="mt-2 grid grid-cols-2 gap-2">
@@ -147,9 +153,9 @@
 
       <!-- Step 3: Sliders -->
         <section id="preferencesSection" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <h2 class="font-semibold text-lg">Preferences</h2>
+          <h2 id="preferencesHeading" class="font-semibold text-lg">What is your time and money budget?</h2>
           <p class="text-sm text-slate-600 mt-1">
-            Tune this until it feels "worth it."
+            Adjust these limits to find the best options for you.
           </p>
 
           <!-- Walk distance -->
@@ -206,6 +212,61 @@
               step="0.25"
               class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
+          </div>
+        </section>
+
+        <!-- Other Modes -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 id="otherModesHeading" class="font-semibold text-lg">Are you open to a secondary mode?</h2>
+          <p id="otherModesDescription" class="text-sm text-slate-600 mt-1">
+            In addition to {mode}, you can use these to potentially save time or money.
+          </p>
+
+          <div class="mt-4 space-y-3">
+            <label id="willingDashLabel" class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                id="willingDash"
+                class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🚐</span>
+                <div>
+                  <div class="font-medium">DASH</div>
+                  <div class="text-sm text-slate-600">Free downtown shuttle</div>
+                </div>
+              </div>
+            </label>
+
+            <label id="willingRapidLabel" class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                id="willingRapid"
+                class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🚌</span>
+                <div>
+                  <div class="font-medium">The Rapid</div>
+                  <div class="text-sm text-slate-600">Public transit system</div>
+                </div>
+              </div>
+            </label>
+
+            <label id="willingLimeLabel" class="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                id="willingLime"
+                class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+              <div class="flex items-center gap-2">
+                <span class="text-xl">🛴</span>
+                <div>
+                  <div class="font-medium">Lime</div>
+                  <div class="text-sm text-slate-600">Scooter or bike rental</div>
+                </div>
+          </div>
+            </label>
         </div>
       </section>
 
@@ -283,6 +344,9 @@
         walkMiles: 0.5,
         parkingMins: 10,
         costDollars: 1.75,
+        willingToUseDash: false,
+        willingToUseRapid: false,
+        willingToUseLime: false,
       };
 
       // Valid modes
@@ -347,6 +411,19 @@
       // Update results whenever state changes
       function updateResults() {
         renderResults();
+      }
+
+      // Get mode display name
+      function getModeLabel(mode) {
+        const labels = {
+          drive: "driving",
+          rideshare: "rideshare",
+          transit: "The Rapid",
+          bike: "biking",
+          micromobility: "Lime",
+          walk: "walking"
+        };
+        return labels[mode] || mode;
       }
 
       // Get cost label based on mode
@@ -417,6 +494,70 @@
         
         // Update cost label based on mode
         costLabel.textContent = getCostLabel(state.mode);
+        
+        // Gray out entire section if all preferences are disabled (e.g., walk mode)
+        const allDisabled = parkingDisabled && walkDisabled && costDisabled;
+        const preferencesSection = document.getElementById("preferencesSection");
+        const preferencesHeading = document.getElementById("preferencesHeading");
+        if (preferencesSection) {
+          preferencesSection.classList.toggle("opacity-50", allDisabled);
+        }
+        if (preferencesHeading) {
+          preferencesHeading.classList.toggle("opacity-50", allDisabled);
+        }
+        
+        // Other modes checkboxes: only enabled for drive and transit
+        const otherModesEnabled = state.mode === "drive" || state.mode === "transit";
+        const willingDash = document.getElementById("willingDash");
+        const willingRapid = document.getElementById("willingRapid");
+        const willingLime = document.getElementById("willingLime");
+        const willingDashLabel = document.getElementById("willingDashLabel");
+        const willingRapidLabel = document.getElementById("willingRapidLabel");
+        const willingLimeLabel = document.getElementById("willingLimeLabel");
+        
+        if (willingDash) {
+          willingDash.disabled = !otherModesEnabled;
+          if (willingDashLabel) {
+            willingDashLabel.classList.toggle("opacity-50", !otherModesEnabled);
+            willingDashLabel.classList.toggle("cursor-not-allowed", !otherModesEnabled);
+            willingDashLabel.classList.toggle("cursor-pointer", otherModesEnabled);
+          }
+        }
+        
+        if (willingRapid) {
+          // Disable if other modes are disabled OR if transit is the current mode
+          const rapidDisabled = !otherModesEnabled || state.mode === "transit";
+          willingRapid.disabled = rapidDisabled;
+          if (willingRapidLabel) {
+            willingRapidLabel.classList.toggle("opacity-50", rapidDisabled);
+            willingRapidLabel.classList.toggle("cursor-not-allowed", rapidDisabled);
+            willingRapidLabel.classList.toggle("cursor-pointer", !rapidDisabled);
+          }
+        }
+        
+        if (willingLime) {
+          willingLime.disabled = !otherModesEnabled;
+          if (willingLimeLabel) {
+            willingLimeLabel.classList.toggle("opacity-50", !otherModesEnabled);
+            willingLimeLabel.classList.toggle("cursor-not-allowed", !otherModesEnabled);
+            willingLimeLabel.classList.toggle("cursor-pointer", otherModesEnabled);
+          }
+        }
+        
+        // Gray out heading and description when disabled
+        const otherModesHeading = document.getElementById("otherModesHeading");
+        const otherModesDescription = document.getElementById("otherModesDescription");
+        if (otherModesHeading) {
+          otherModesHeading.classList.toggle("opacity-50", !otherModesEnabled);
+        }
+        if (otherModesDescription) {
+          otherModesDescription.classList.toggle("opacity-50", !otherModesEnabled);
+          // Update description text
+          if (otherModesEnabled) {
+            const modeLabel = getModeLabel(state.mode);
+            otherModesDescription.textContent = `In addition to ${modeLabel}, you can use these to potentially save time or money.`;
+          }
+        }
       }
 
       // Set mode and update UI
@@ -424,14 +565,18 @@
         if (!validModes.includes(mode)) return;
         state.mode = mode;
         // Set default cost based on mode
-        if (mode === "micromobility" && state.costDollars === 1.75) {
-          // If switching from transit default, set to micromobility default
+        if (mode === "micromobility" && (state.costDollars === 1.75 || state.costDollars === 15)) {
+          // If switching from transit or rideshare default, set to micromobility default
           state.costDollars = 4;
           costSlider.value = 4;
-        } else if (mode === "transit" && state.costDollars === 4) {
-          // If switching from micromobility default, set to transit default
+        } else if (mode === "transit" && (state.costDollars === 4 || state.costDollars === 15)) {
+          // If switching from micromobility or rideshare default, set to transit default
           state.costDollars = 1.75;
           costSlider.value = 1.75;
+        } else if (mode === "rideshare" && (state.costDollars === 1.75 || state.costDollars === 4)) {
+          // If switching from transit or micromobility default, set to rideshare default
+          state.costDollars = 15;
+          costSlider.value = 15;
         }
         highlightMode();
         updatePreferencesVisibility();
@@ -571,6 +716,26 @@
         updateResults();
       });
 
+      // Other modes checkboxes
+      const willingDash = document.getElementById("willingDash");
+      const willingRapid = document.getElementById("willingRapid");
+      const willingLime = document.getElementById("willingLime");
+
+      willingDash.addEventListener("change", (e) => {
+        state.willingToUseDash = e.target.checked;
+        updateResults();
+      });
+
+      willingRapid.addEventListener("change", (e) => {
+        state.willingToUseRapid = e.target.checked;
+        updateResults();
+      });
+
+      willingLime.addEventListener("change", (e) => {
+        state.willingToUseLime = e.target.checked;
+        updateResults();
+      });
+
       function renderResults() {
         const resultsEl = document.getElementById("results");
         resultsEl.innerHTML = "";
@@ -585,6 +750,7 @@
           card.innerHTML = `
             <div class="flex items-start justify-between gap-3">
               <div>
+                ${rec.subheading ? `<div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${rec.subheading}</div>` : ''}
                 <div class="font-semibold">${rec.title}</div>
                 <div class="text-sm text-slate-600 mt-1">${rec.body}</div>
                 <div class="text-xs text-slate-500 mt-2">${rec.meta}</div>
@@ -612,6 +778,7 @@
         if (mode === "drive") {
           if (walkMiles >= 0.5) {
             recs.push({
+              subheading: "Parking Strategy",
               title: "Park once, walk the last bit",
               body:
                 "Skip the closest blocks. Aim for a spot that's reliably available, then walk in.",
@@ -620,6 +787,7 @@
             });
           } else {
             recs.push({
+              subheading: "Parking Strategy",
               title: "Quick park scan, then commit",
               body:
                 "Do one pass near the destination. If you don't get a spot fast, immediately switch to a farther zone.",
@@ -631,9 +799,10 @@
           // 2) Paid lot suggestion
           if (costDollars >= 8) {
             recs.push({
+              subheading: "Paid Option",
               title: "Pay to stop thinking about it",
               body:
-                "If you’re willing to pay a bit, choose a paid lot/garage and skip the spiral entirely.",
+                "If you're willing to pay a bit, choose a paid lot/garage and skip the spiral entirely.",
               meta: `Budget: $${costDollars} • Group size: ${people}`,
               badge: "Guaranteed-ish",
             });
@@ -642,6 +811,7 @@
           // 3) Drop-off loop idea
           if (people >= 2) {
             recs.push({
+              subheading: "Group Strategy",
               title: "Drop-off + driver parks farther",
               body:
                 "One person gets dropped close. Driver parks somewhere easy and walks in.",
@@ -654,6 +824,7 @@
         // 4) Non-driving modes
         if (mode === "walk") {
           recs.push({
+            subheading: "Walking Strategy",
             title: "Just walk it (but pick the best path)",
             body:
               "Since you're starting on foot, optimize for comfort + safety instead of parking proximity.",
@@ -664,6 +835,7 @@
 
         if (mode === "bike") {
           recs.push({
+            subheading: "Biking Strategy",
             title: "Bike in, lock up near the entrance",
             body:
               "Avoid parking entirely. Lock up close and spend your time on the fun part.",
@@ -674,6 +846,7 @@
 
         if (mode === "transit") {
           recs.push({
+            subheading: "Transit Strategy",
             title: "The Rapid + short walk",
             body:
               "Pick a stop on The Rapid that avoids transfers, then walk the last few minutes.",
@@ -684,6 +857,7 @@
 
         if (mode === "rideshare") {
           recs.push({
+            subheading: "Drop-off Strategy",
             title: "Rideshare drop-off strategy",
             body:
               "Have the driver drop you close, then they can find parking elsewhere or continue on.",
@@ -692,6 +866,7 @@
           });
           if (people >= 2) {
             recs.push({
+              subheading: "Group Strategy",
               title: "Split the ride",
               body:
                 "One group gets dropped at the destination, another group can arrive separately or park farther.",
@@ -703,6 +878,7 @@
 
         if (mode === "micromobility") {
           recs.push({
+            subheading: "Rental Strategy",
             title: "Find a Lime near you, ride to destination",
             body:
               "Use the app to locate the nearest available scooter or bike, then ride directly to your destination.",
@@ -711,6 +887,7 @@
           });
           if (totalCost >= 10) {
             recs.push({
+              subheading: "Rental Strategy",
               title: "Ride the whole way",
               body:
                 "If you're willing to pay, ride directly to the destination without worrying about parking.",
@@ -722,6 +899,7 @@
 
         // Always include a "sanity" option
         recs.push({
+          subheading: "General Rule",
           title: "Set a time limit (don't spiral)",
           body:
             "Decide your max hunt time upfront. When it hits zero, switch strategies immediately.",
@@ -747,10 +925,15 @@
         // Set default cost based on mode
         if (state.mode === "micromobility" && state.costDollars === 1.75) {
           state.costDollars = 4;
+        } else if (state.mode === "rideshare" && state.costDollars === 1.75) {
+          state.costDollars = 15;
         }
       } else if (state.mode === "micromobility") {
         // If default mode is micromobility, set cost to $4
         state.costDollars = 4;
+      } else if (state.mode === "rideshare") {
+        // If default mode is rideshare, set cost to $15
+        state.costDollars = 15;
       }
       if (params.day) {
         state.day = params.day;
@@ -773,6 +956,11 @@
       daySelect.value = state.day;
       timeSelect.value = state.time;
         document.getElementById("peopleCount").textContent = state.people;
+
+      // Initialize other modes checkboxes
+      if (willingDash) willingDash.checked = state.willingToUseDash;
+      if (willingRapid) willingRapid.checked = state.willingToUseRapid;
+      if (willingLime) willingLime.checked = state.willingToUseLime;
         costSlider.value = state.costDollars;
       earlySlider.value = state.flexibilityEarlyMins;
       lateSlider.value = state.flexibilityLateMins;
