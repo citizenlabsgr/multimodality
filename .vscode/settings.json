@@ -1,5 +1,9 @@
 {
   "editor.formatOnSave": true,
-  "cSpell.words": ["plangr"],
+  "cSpell.words": [
+    "micromobility",
+    "plangr",
+    "rideshare"
+  ],
   "djlint.showInstallError": false
 }

@@ -49,11 +49,11 @@
           </select>
 
           <label class="block mt-4 text-sm font-medium">Time</label>
-          <input
-            id="timeInput"
-            type="time"
+          <select
+            id="timeSelect"
             class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
-          />
+          >
+          </select>
 
           <label class="block mt-4 text-sm font-medium">Flexibility</label>
           
@@ -79,7 +79,7 @@
             <div class="flex items-center justify-between">
               <label class="text-sm font-medium">Willing to arrive late</label>
               <span class="text-sm text-slate-600">
-                <span id="lateValue">15</span> min
+                <span id="lateValue">0</span> min
               </span>
             </div>
             <input
@@ -88,7 +88,7 @@
               min="0"
               max="60"
               step="5"
-              value="15"
+              value="0"
               class="w-full mt-2"
             />
           </div>
@@ -112,7 +112,7 @@
             <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="bike">
               🚲 Bike
             </button>
-            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="lime">
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="micromobility">
               🛴 Lime
             </button>
             <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="walk">
@@ -176,7 +176,7 @@
             <div class="flex items-center justify-between">
               <label class="text-sm font-medium">Willing to hunt for parking</label>
               <span class="text-sm text-slate-600">
-                <span id="parkingValue">6</span><span id="parkingUnit"> min</span>
+                <span id="parkingValue">10</span><span id="parkingUnit"> min</span>
               </span>
             </div>
             <input
@@ -184,7 +184,7 @@
               type="range"
               min="0"
               max="20"
-              value="6"
+              value="10"
               class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
@@ -194,15 +194,15 @@
             <div class="flex items-center justify-between">
               <label class="text-sm font-medium">Willing to pay</label>
               <span class="text-sm text-slate-600">
-                <span id="costPrefix">$</span><span id="costValue">5</span>
+                <span id="costPrefix">$</span><span id="costValue">20</span>
               </span>
             </div>
             <input
               id="costSlider"
               type="range"
               min="0"
-              max="25"
-              value="5"
+              max="50"
+              value="20"
               step="1"
               class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
@@ -222,17 +222,52 @@
     </main>
 
     <script>
-      // Calculate default time: current time + 2 hours, rounded to nearest hour
+      // Calculate default time: current time + 2 hours, rounded to nearest half hour
+      // Minimum time is 5pm (17:00), maximum is 11pm (23:00)
       function getDefaultTime() {
         const now = new Date();
         const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
         let hour = twoHoursLater.getHours();
-        const minutes = twoHoursLater.getMinutes();
-        // Round to nearest hour: if minutes >= 30, round up
-        if (minutes >= 30) {
+        let minutes = twoHoursLater.getMinutes();
+        // Round to nearest half hour
+        if (minutes < 15) {
+          minutes = 0;
+        } else if (minutes < 45) {
+          minutes = 30;
+        } else {
+          minutes = 0;
           hour = (hour + 1) % 24;
         }
-        return String(hour).padStart(2, '0') + ':00';
+        // Ensure time is between 5pm and 11pm
+        if (hour < 17) {
+          hour = 17;
+          minutes = 0;
+        } else if (hour > 23 || (hour === 23 && minutes > 0)) {
+          hour = 23;
+          minutes = 0;
+        }
+        return String(hour).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
+      }
+
+      // Generate time options for dropdown (half-hour increments, starting at 5pm, ending at 11pm)
+      function generateTimeOptions() {
+        const timeSelect = document.getElementById("timeSelect");
+        const options = [];
+        // Start at 5pm (17:00) and go through 11pm (23:00)
+        for (let hour = 17; hour <= 23; hour++) {
+          for (let minute of [0, 30]) {
+            // Skip 11:30pm, only go up to 11:00pm
+            if (hour === 23 && minute === 30) break;
+            const timeValue = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
+            const timeDisplay = new Date(`2000-01-01T${timeValue}`).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+            options.push(`<option value="${timeValue}">${timeDisplay}</option>`);
+          }
+        }
+        timeSelect.innerHTML = options.join('');
       }
 
       const defaultTime = getDefaultTime();
@@ -242,16 +277,16 @@
         day: "today",
         time: defaultTime,
         flexibilityEarlyMins: 15,
-        flexibilityLateMins: 15,
+        flexibilityLateMins: 0,
         mode: "drive",
         people: 1,
         walkMiles: 0.5,
-        parkingMins: 6,
-        costDollars: 5,
+        parkingMins: 10,
+        costDollars: 20,
       };
 
       // Valid modes
-      const validModes = ["drive", "rideshare", "transit", "bike", "lime", "walk"];
+      const validModes = ["drive", "rideshare", "transit", "bike", "micromobility", "walk"];
 
       // Read mode from URL fragment
       function getModeFromFragment() {
@@ -395,7 +430,7 @@
 
       // Day and Time inputs
       const daySelect = document.getElementById("daySelect");
-      const timeInput = document.getElementById("timeInput");
+      const timeSelect = document.getElementById("timeSelect");
       const earlySlider = document.getElementById("earlySlider");
       const lateSlider = document.getElementById("lateSlider");
 
@@ -404,7 +439,7 @@
         updateResults();
       });
 
-      timeInput.addEventListener("change", (e) => {
+      timeSelect.addEventListener("change", (e) => {
         state.time = e.target.value;
         updateResults();
       });
@@ -439,7 +474,7 @@
                 <div class="text-sm text-slate-600 mt-1">${rec.body}</div>
                 <div class="text-xs text-slate-500 mt-2">${rec.meta}</div>
               </div>
-              <div class="text-xs font-semibold rounded-full px-2 py-1 bg-white border border-slate-200">
+              <div class="text-xs font-semibold rounded-full px-3 py-1.5 bg-slate-100 text-slate-700 whitespace-nowrap">
                 ${rec.badge}
               </div>
             </div>
@@ -469,7 +504,7 @@
               title: "Quick park scan, then commit",
               body:
                 "Do one pass near the destination. If you don't get a spot fast, immediately switch to a farther zone.",
-              meta: `Parking hunt: ${parkingMins} milesn • Walk: ${walkMiles.toFixed(1)} miles`,
+              meta: `Parking hunt: ${parkingMins} miles • Walk: ${walkMiles.toFixed(1)} miles`,
               badge: "Fast",
             });
           }
@@ -547,7 +582,7 @@
           }
         }
 
-        if (mode === "lime") {
+        if (mode === "micromobility") {
           recs.push({
             title: "Find a Lime near you, ride to destination",
             body:
@@ -574,7 +609,7 @@
           meta:
             mode === "drive"
               ? `Parking hunt limit: ${parkingMins} min`
-              : mode === "rideshare" || mode === "lime"
+              : mode === "rideshare" || mode === "micromobility"
               ? `Budget limit: $${costDollars}`
               : `Walk limit: ${walkMiles.toFixed(1)} miles`,
           badge: "Rule",
@@ -590,9 +625,10 @@
         state.mode = fragmentMode;
       }
       
-      // Initialize inputs
+      // Generate time options and initialize inputs
+      generateTimeOptions();
       daySelect.value = state.day;
-      timeInput.value = state.time;
+      timeSelect.value = state.time;
       earlySlider.value = state.flexibilityEarlyMins;
       lateSlider.value = state.flexibilityLateMins;
       document.getElementById("earlyValue").textContent = `-${state.flexibilityEarlyMins}`;
@@ -611,10 +647,6 @@
       highlightMode();
       updatePreferencesVisibility();
       renderResults();
-      // Update fragment if it wasn't set (to show default mode in URL)
-      if (!fragmentMode) {
-        updateFragment();
-      }
     </script>
   </body>
 </html>
