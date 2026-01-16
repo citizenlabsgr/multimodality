@@ -1,7 +1,620 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
   <head>
-    <title>Multimodal Grand Rapids</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Multi-Modal Grand Rapids</title>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body></body>
+
+  <body class="bg-slate-50 text-slate-900">
+    <main class="max-w-md mx-auto px-4 py-6">
+
+
+      <div class="space-y-4">
+        <!-- Step 1: Destination -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 class="font-semibold text-lg">Where are you going?</h2>
+          <p class="text-sm text-slate-600 mt-1 italic">
+            The is hard-coded for this prototype.
+          </p>
+
+          <label class="block mt-4 text-sm font-medium">Destination</label>
+          <input
+            id="destination"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-slate-100"
+            value="Founders Brewing Co."
+            disabled
+          />
+        </section>
+
+        <!-- Day and Time -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 class="font-semibold text-lg">When are you arriving?</h2>
+
+          <label class="block mt-4 text-sm font-medium">Day</label>
+          <select
+            id="daySelect"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
+          >
+            <option value="today">Today</option>
+            <option value="tomorrow">Tomorrow</option>
+            <option value="monday">Monday</option>
+            <option value="tuesday">Tuesday</option>
+            <option value="wednesday">Wednesday</option>
+            <option value="thursday">Thursday</option>
+            <option value="friday">Friday</option>
+            <option value="saturday">Saturday</option>
+            <option value="sunday">Sunday</option>
+          </select>
+
+          <label class="block mt-4 text-sm font-medium">Time</label>
+          <input
+            id="timeInput"
+            type="time"
+            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
+          />
+
+          <label class="block mt-4 text-sm font-medium">Flexibility</label>
+          
+          <div class="mt-2">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Willing to arrive early</label>
+              <span class="text-sm text-slate-600">
+                <span id="earlyValue">-15</span> min
+              </span>
+            </div>
+            <input
+              id="earlySlider"
+              type="range"
+              min="0"
+              max="60"
+              step="5"
+              value="15"
+              class="w-full mt-2"
+            />
+          </div>
+
+          <div class="mt-4">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Willing to arrive late</label>
+              <span class="text-sm text-slate-600">
+                <span id="lateValue">15</span> min
+              </span>
+            </div>
+            <input
+              id="lateSlider"
+              type="range"
+              min="0"
+              max="60"
+              step="5"
+              value="15"
+              class="w-full mt-2"
+            />
+          </div>
+        </section>
+
+        <!-- Step 2: Mode + People -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 class="font-semibold text-lg">How are you leaving home?</h2>
+
+          <label class="block mt-4 text-sm font-medium">Mode</label>
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="drive">
+              🚗 Drive
+            </button>
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="rideshare">
+              🚕 Rideshare
+            </button>
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="transit">
+              🚌 The Rapid
+            </button>
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="bike">
+              🚲 Bike
+            </button>
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="lime">
+              🛴 Lime
+            </button>
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="walk">
+              🚶 Walk
+            </button>
+          </div>
+
+          <label class="block mt-4 text-sm font-medium">People</label>
+          <div class="mt-2 flex items-center gap-2">
+            <button
+              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+              onclick="adjustPeople(-1)"
+              aria-label="Decrease people"
+            >
+              −
+            </button>
+            <div
+              id="peopleCount"
+              class="flex-1 text-center font-semibold text-lg"
+            >
+              1
+            </div>
+            <button
+              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+              onclick="adjustPeople(1)"
+              aria-label="Increase people"
+            >
+              +
+            </button>
+          </div>
+        </section>
+
+        <!-- Step 3: Sliders -->
+        <section id="preferencesSection" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 class="font-semibold text-lg">Preferences</h2>
+          <p class="text-sm text-slate-600 mt-1">
+            Tune this until it feels "worth it."
+          </p>
+
+          <!-- Walk distance -->
+          <div id="walkBlock" class="mt-4">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Willing to walk</label>
+              <span class="text-sm text-slate-600">
+                <span id="walkValue">0.5</span><span id="walkUnit"> miles</span>
+              </span>
+            </div>
+            <input
+              id="walkSlider"
+              type="range"
+              min="0"
+              max="1.5"
+              step="0.1"
+              value="0.5"
+              class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <!-- Parking time (only if driving) -->
+          <div id="parkingBlock" class="mt-4">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Willing to hunt for parking</label>
+              <span class="text-sm text-slate-600">
+                <span id="parkingValue">6</span><span id="parkingUnit"> min</span>
+              </span>
+            </div>
+            <input
+              id="parkingSlider"
+              type="range"
+              min="0"
+              max="20"
+              value="6"
+              class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <!-- Cost -->
+          <div class="mt-4">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Willing to pay</label>
+              <span class="text-sm text-slate-600">
+                <span id="costPrefix">$</span><span id="costValue">5</span>
+              </span>
+            </div>
+            <input
+              id="costSlider"
+              type="range"
+              min="0"
+              max="25"
+              value="5"
+              step="1"
+              class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+        </section>
+
+        <!-- Step 4: Results -->
+        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 class="font-semibold text-lg">Try this instead</h2>
+          <p class="text-sm text-slate-600 mt-1">
+            Based on your inputs, here are better "arrival strategies."
+          </p>
+
+          <div id="results" class="mt-4 space-y-3"></div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      // Calculate default time: current time + 2 hours, rounded to nearest hour
+      function getDefaultTime() {
+        const now = new Date();
+        const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+        let hour = twoHoursLater.getHours();
+        const minutes = twoHoursLater.getMinutes();
+        // Round to nearest hour: if minutes >= 30, round up
+        if (minutes >= 30) {
+          hour = (hour + 1) % 24;
+        }
+        return String(hour).padStart(2, '0') + ':00';
+      }
+
+      const defaultTime = getDefaultTime();
+
+      const state = {
+        destination: "Founders Brewing Co.",
+        day: "today",
+        time: defaultTime,
+        flexibilityEarlyMins: 15,
+        flexibilityLateMins: 15,
+        mode: "drive",
+        people: 1,
+        walkMiles: 0.5,
+        parkingMins: 6,
+        costDollars: 5,
+      };
+
+      // Valid modes
+      const validModes = ["drive", "rideshare", "transit", "bike", "lime", "walk"];
+
+      // Read mode from URL fragment
+      function getModeFromFragment() {
+        const hash = window.location.hash.slice(1); // Remove the #
+        if (hash && validModes.includes(hash)) {
+          return hash;
+        }
+        return null;
+      }
+
+      // Update URL fragment with current mode
+      function updateFragment() {
+        window.location.hash = state.mode;
+      }
+
+      // Update results whenever state changes
+      function updateResults() {
+        renderResults();
+      }
+
+      // Update preferences visibility based on mode
+      function updatePreferencesVisibility() {
+        const walkSlider = document.getElementById("walkSlider");
+        const parkingSlider = document.getElementById("parkingSlider");
+        const costSlider = document.getElementById("costSlider");
+        const walkValue = document.getElementById("walkValue");
+        const walkUnit = document.getElementById("walkUnit");
+        const parkingValue = document.getElementById("parkingValue");
+        const parkingUnit = document.getElementById("parkingUnit");
+        const costValue = document.getElementById("costValue");
+        const costPrefix = document.getElementById("costPrefix");
+        
+        // Parking slider: only enabled for drive mode
+        const parkingDisabled = state.mode !== "drive";
+        parkingSlider.disabled = parkingDisabled;
+        if (parkingDisabled) {
+          parkingValue.textContent = "—";
+          parkingUnit.textContent = "";
+        } else {
+          parkingValue.textContent = state.parkingMins;
+          parkingUnit.textContent = " min";
+        }
+        
+        // Walk slider: disabled for rideshare and walk modes
+        const walkDisabled = state.mode === "rideshare" || state.mode === "walk";
+        walkSlider.disabled = walkDisabled;
+        if (walkDisabled) {
+          walkValue.textContent = "—";
+          walkUnit.textContent = "";
+        } else {
+          walkValue.textContent = state.walkMiles.toFixed(1);
+          walkUnit.textContent = " miles";
+        }
+        
+        // Cost slider: disabled for walk mode
+        const costDisabled = state.mode === "walk";
+        costSlider.disabled = costDisabled;
+        if (costDisabled) {
+          costValue.textContent = "—";
+          costPrefix.textContent = "";
+        } else {
+          costValue.textContent = state.costDollars;
+          costPrefix.textContent = "$";
+        }
+      }
+
+      // Set mode and update UI
+      function setMode(mode) {
+        if (!validModes.includes(mode)) return;
+        state.mode = mode;
+        highlightMode();
+        updatePreferencesVisibility();
+        updateResults();
+        updateFragment();
+      }
+
+      // Handle browser back/forward navigation
+      window.addEventListener("hashchange", () => {
+        const fragmentMode = getModeFromFragment();
+        if (fragmentMode && fragmentMode !== state.mode) {
+          state.mode = fragmentMode;
+          highlightMode();
+          updatePreferencesVisibility();
+          updateResults();
+          // Don't update fragment here to avoid loop
+        }
+      });
+
+      function highlightMode() {
+        document.querySelectorAll(".modeBtn").forEach((btn) => {
+          const active = btn.dataset.mode === state.mode;
+          btn.classList.toggle("bg-slate-900", active);
+          btn.classList.toggle("text-white", active);
+          btn.classList.toggle("border-slate-900", active);
+        });
+      }
+
+      function adjustPeople(delta) {
+        state.people = Math.max(1, Math.min(6, state.people + delta));
+        document.getElementById("peopleCount").textContent = state.people;
+        updateResults();
+      }
+
+      // Sliders
+      const walkSlider = document.getElementById("walkSlider");
+      const parkingSlider = document.getElementById("parkingSlider");
+      const costSlider = document.getElementById("costSlider");
+
+      walkSlider.addEventListener("input", (e) => {
+        state.walkMiles = Number(e.target.value);
+        const walkValue = document.getElementById("walkValue");
+        const walkUnit = document.getElementById("walkUnit");
+        if (!walkSlider.disabled) {
+          walkValue.textContent = state.walkMiles.toFixed(1);
+          walkUnit.textContent = " miles";
+        }
+        updateResults();
+      });
+
+      parkingSlider.addEventListener("input", (e) => {
+        state.parkingMins = Number(e.target.value);
+        const parkingValue = document.getElementById("parkingValue");
+        const parkingUnit = document.getElementById("parkingUnit");
+        if (!parkingSlider.disabled) {
+          parkingValue.textContent = state.parkingMins;
+          parkingUnit.textContent = " min";
+        }
+        updateResults();
+      });
+
+      costSlider.addEventListener("input", (e) => {
+        state.costDollars = Number(e.target.value);
+        const costValue = document.getElementById("costValue");
+        const costPrefix = document.getElementById("costPrefix");
+        if (!costSlider.disabled) {
+          costValue.textContent = state.costDollars;
+          costPrefix.textContent = "$";
+        }
+        updateResults();
+      });
+
+      // Day and Time inputs
+      const daySelect = document.getElementById("daySelect");
+      const timeInput = document.getElementById("timeInput");
+      const earlySlider = document.getElementById("earlySlider");
+      const lateSlider = document.getElementById("lateSlider");
+
+      daySelect.addEventListener("change", (e) => {
+        state.day = e.target.value;
+        updateResults();
+      });
+
+      timeInput.addEventListener("change", (e) => {
+        state.time = e.target.value;
+        updateResults();
+      });
+
+      earlySlider.addEventListener("input", (e) => {
+        state.flexibilityEarlyMins = Number(e.target.value);
+        document.getElementById("earlyValue").textContent = `-${state.flexibilityEarlyMins}`;
+        updateResults();
+      });
+
+      lateSlider.addEventListener("input", (e) => {
+        state.flexibilityLateMins = Number(e.target.value);
+        document.getElementById("lateValue").textContent = state.flexibilityLateMins;
+        updateResults();
+      });
+
+      function renderResults() {
+        const resultsEl = document.getElementById("results");
+        resultsEl.innerHTML = "";
+
+        const recs = buildRecommendations();
+
+        recs.forEach((rec) => {
+          const card = document.createElement("div");
+          card.className =
+            "rounded-xl border border-slate-200 bg-slate-50 p-3";
+
+          card.innerHTML = `
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="font-semibold">${rec.title}</div>
+                <div class="text-sm text-slate-600 mt-1">${rec.body}</div>
+                <div class="text-xs text-slate-500 mt-2">${rec.meta}</div>
+              </div>
+              <div class="text-xs font-semibold rounded-full px-2 py-1 bg-white border border-slate-200">
+                ${rec.badge}
+              </div>
+            </div>
+          `;
+
+          resultsEl.appendChild(card);
+        });
+      }
+
+      function buildRecommendations() {
+        const { mode, people, walkMiles, parkingMins, costDollars } = state;
+
+        const recs = [];
+
+        // 1) Park once + walk
+        if (mode === "drive") {
+          if (walkMiles >= 0.5) {
+            recs.push({
+              title: "Park once, walk the last bit",
+              body:
+                "Skip the closest blocks. Aim for a spot that's reliably available, then walk in.",
+              meta: `Walk: up to ${walkMiles.toFixed(1)} miles • Pay: up to $${costDollars}`,
+              badge: "Low stress",
+            });
+          } else {
+            recs.push({
+              title: "Quick park scan, then commit",
+              body:
+                "Do one pass near the destination. If you don't get a spot fast, immediately switch to a farther zone.",
+              meta: `Parking hunt: ${parkingMins} milesn • Walk: ${walkMiles.toFixed(1)} miles`,
+              badge: "Fast",
+            });
+          }
+
+          // 2) Paid lot suggestion
+          if (costDollars >= 8) {
+            recs.push({
+              title: "Pay to stop thinking about it",
+              body:
+                "If you’re willing to pay a bit, choose a paid lot/garage and skip the spiral entirely.",
+              meta: `Budget: $${costDollars} • Group size: ${people}`,
+              badge: "Guaranteed-ish",
+            });
+          }
+
+          // 3) Drop-off loop idea
+          if (people >= 2) {
+            recs.push({
+              title: "Drop-off + driver parks farther",
+              body:
+                "One person gets dropped close. Driver parks somewhere easy and walks in.",
+              meta: `People: ${people} • Walk tolerance: ${walkMiles.toFixed(1)} miles`,
+              badge: "Group hack",
+            });
+          }
+        }
+
+        // 4) Non-driving modes
+        if (mode === "walk") {
+          recs.push({
+            title: "Just walk it (but pick the best path)",
+            body:
+              "Since you're starting on foot, optimize for comfort + safety instead of parking proximity.",
+            meta: `Walk tolerance: ${walkMiles.toFixed(1)} miles • People: ${people}`,
+            badge: "Simple",
+          });
+        }
+
+        if (mode === "bike") {
+          recs.push({
+            title: "Bike in, lock up near the entrance",
+            body:
+              "Avoid parking entirely. Lock up close and spend your time on the fun part.",
+            meta: `Pay: up to $${costDollars} • Walk: ${walkMiles.toFixed(1)} miles`,
+            badge: "No parking",
+          });
+        }
+
+        if (mode === "transit") {
+          recs.push({
+            title: "The Rapid + short walk",
+            body:
+              "Pick a stop on The Rapid that avoids transfers, then walk the last few minutes.",
+            meta: `Walk tolerance: ${walkMiles.toFixed(1)} miles • People: ${people}`,
+            badge: "Chill",
+          });
+        }
+
+        if (mode === "rideshare") {
+          recs.push({
+            title: "Rideshare drop-off strategy",
+            body:
+              "Have the driver drop you close, then they can find parking elsewhere or continue on.",
+            meta: `People: ${people} • Budget: $${costDollars}`,
+            badge: "Door-to-door",
+          });
+          if (people >= 2) {
+            recs.push({
+              title: "Split the ride",
+              body:
+                "One group gets dropped at the destination, another group can arrive separately or park farther.",
+              meta: `People: ${people} • Walk tolerance: ${walkMiles.toFixed(1)} miles`,
+              badge: "Flexible",
+            });
+          }
+        }
+
+        if (mode === "lime") {
+          recs.push({
+            title: "Find a Lime near you, ride to destination",
+            body:
+              "Use the app to locate the nearest available scooter or bike, then ride directly to your destination.",
+            meta: `Budget: $${costDollars} • Walk: ${walkMiles.toFixed(1)} miles`,
+            badge: "On-demand",
+          });
+          if (costDollars >= 10) {
+            recs.push({
+              title: "Ride the whole way",
+              body:
+                "If you're willing to pay, ride directly to the destination without worrying about parking.",
+              meta: `Budget: $${costDollars}`,
+              badge: "Convenient",
+            });
+          }
+        }
+
+        // Always include a "sanity" option
+        recs.push({
+          title: "Set a time limit (don't spiral)",
+          body:
+            "Decide your max hunt time upfront. When it hits zero, switch strategies immediately.",
+          meta:
+            mode === "drive"
+              ? `Parking hunt limit: ${parkingMins} min`
+              : mode === "rideshare" || mode === "lime"
+              ? `Budget limit: $${costDollars}`
+              : `Walk limit: ${walkMiles.toFixed(1)} miles`,
+          badge: "Rule",
+        });
+
+        return recs.slice(0, 4); // keep it short for prototype
+      }
+
+      // init
+      // Read mode from URL fragment or use default
+      const fragmentMode = getModeFromFragment();
+      if (fragmentMode) {
+        state.mode = fragmentMode;
+      }
+      
+      // Initialize inputs
+      daySelect.value = state.day;
+      timeInput.value = state.time;
+      earlySlider.value = state.flexibilityEarlyMins;
+      lateSlider.value = state.flexibilityLateMins;
+      document.getElementById("earlyValue").textContent = `-${state.flexibilityEarlyMins}`;
+      document.getElementById("lateValue").textContent = state.flexibilityLateMins;
+      
+      // Attach mode button event listeners
+      document.querySelectorAll(".modeBtn").forEach((btn) => {
+        btn.addEventListener("click", function() {
+          const mode = this.dataset.mode;
+          if (mode) {
+            setMode(mode);
+          }
+        });
+      });
+      
+      highlightMode();
+      updatePreferencesVisibility();
+      renderResults();
+      // Update fragment if it wasn't set (to show default mode in URL)
+      if (!fragmentMode) {
+        updateFragment();
+      }
+    </script>
+  </body>
 </html>
