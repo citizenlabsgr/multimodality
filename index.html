@@ -15,9 +15,6 @@
       <!-- Step 1: Destination -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 class="font-semibold text-lg">Where are you going?</h2>
-          <p class="text-sm text-slate-600 mt-1 italic">
-            The is hard-coded for this prototype.
-          </p>
 
           <label class="block mt-4 text-sm font-medium">Destination</label>
           <input
@@ -31,9 +28,6 @@
         <!-- Day and Time -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 class="font-semibold text-lg">When are you arriving?</h2>
-          <p class="text-sm text-slate-600 mt-1">
-            If your schedule is flexible, this may open up cheaper and easier ways of getting to your destination.
-          </p>
 
           <label class="block mt-4 text-sm font-medium">Day</label>
           <select
@@ -58,51 +52,57 @@
           >
           </select>
 
-          <label class="block mt-4 text-sm font-medium">Flexibility</label>
+          <button
+            type="button"
+            id="flexibilityToggle"
+            class="mt-4 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
+          >
+            <span>Flexibility</span>
+            <span id="flexibilityArrow">▼</span>
+          </button>
           
-          <div class="mt-2">
-            <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">Willing to arrive early</label>
-              <span class="text-sm text-slate-600">
-                <span id="earlyValue">-15</span> min
-              </span>
+          <div id="flexibilityContent" class="hidden mt-4">
+            <div class="mt-2">
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium">Willing to arrive early</label>
+                <span class="text-sm text-slate-600">
+                  <span id="earlyValue">-15</span> min
+                </span>
+              </div>
+              <input
+                id="earlySlider"
+                type="range"
+                min="0"
+                max="60"
+                step="5"
+                value="15"
+                class="w-full mt-2"
+              />
             </div>
-            <input
-              id="earlySlider"
-              type="range"
-              min="0"
-              max="60"
-              step="5"
-              value="15"
-              class="w-full mt-2"
-            />
-          </div>
 
-          <div class="mt-4">
-            <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">Willing to arrive late</label>
-              <span class="text-sm text-slate-600">
-                <span id="lateValue">+0</span> min
-              </span>
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium">Willing to arrive late</label>
+                <span class="text-sm text-slate-600">
+                  <span id="lateValue">+0</span> min
+                </span>
+              </div>
+              <input
+                id="lateSlider"
+                type="range"
+                min="0"
+                max="60"
+                step="5"
+                value="0"
+                class="w-full mt-2"
+              />
             </div>
-            <input
-              id="lateSlider"
-              type="range"
-              min="0"
-              max="60"
-              step="5"
-              value="0"
-              class="w-full mt-2"
-            />
-        </div>
+          </div>
       </section>
 
       <!-- Step 2: Mode + People -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 class="font-semibold text-lg">How are you leaving home?</h2>
-          <p class="text-sm text-slate-600 mt-1">
-            This can be combined with a secondary mode of transportation to save you time or money.
-          </p>
 
           <label class="block mt-4 text-sm font-medium">Mode</label>
           <div class="mt-2 grid grid-cols-2 gap-2">
@@ -126,37 +126,44 @@
             </button>
           </div>
 
-          <label class="block mt-4 text-sm font-medium">People</label>
-          <div class="mt-2 flex items-center gap-2">
-            <button
-              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
-              onclick="adjustPeople(-1)"
-              aria-label="Decrease people"
-            >
-              −
-            </button>
-            <div
-              id="peopleCount"
-              class="flex-1 text-center font-semibold text-lg"
-            >
-              1
+          <button
+            type="button"
+            id="peopleToggle"
+            class="mt-4 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
+          >
+            <span>People</span>
+            <span id="peopleArrow">▼</span>
+          </button>
+          
+          <div id="peopleContent" class="hidden mt-4">
+            <div class="flex items-center gap-2">
+              <button
+                class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+                onclick="adjustPeople(-1)"
+                aria-label="Decrease people"
+              >
+                −
+              </button>
+              <div
+                id="peopleCount"
+                class="flex-1 text-center font-semibold text-lg"
+              >
+                1
+              </div>
+              <button
+                class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+                onclick="adjustPeople(1)"
+                aria-label="Increase people"
+              >
+                +
+              </button>
             </div>
-            <button
-              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
-              onclick="adjustPeople(1)"
-              aria-label="Increase people"
-            >
-              +
-            </button>
-        </div>
+          </div>
       </section>
 
       <!-- Step 3: Sliders -->
         <section id="preferencesSection" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 id="preferencesHeading" class="font-semibold text-lg">What is your time and money budget?</h2>
-          <p class="text-sm text-slate-600 mt-1">
-            Adjust these limits to find the best options for you.
-          </p>
 
           <!-- Walk distance -->
           <div id="walkBlock" class="mt-4">
@@ -218,9 +225,6 @@
         <!-- Other Modes -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 id="otherModesHeading" class="font-semibold text-lg">Are you open to a secondary mode?</h2>
-          <p id="otherModesDescription" class="text-sm text-slate-600 mt-1">
-            In addition to {mode}, you can use these to potentially save time or money.
-          </p>
 
           <div class="mt-4 space-y-3">
             <label id="willingDashLabel" class="flex items-center gap-3 cursor-pointer">
@@ -589,17 +593,8 @@
         
         // Gray out heading and description when disabled
         const otherModesHeading = document.getElementById("otherModesHeading");
-        const otherModesDescription = document.getElementById("otherModesDescription");
         if (otherModesHeading) {
           otherModesHeading.classList.toggle("opacity-50", !otherModesEnabled);
-        }
-        if (otherModesDescription) {
-          otherModesDescription.classList.toggle("opacity-50", !otherModesEnabled);
-          // Update description text
-          if (otherModesEnabled) {
-            const modeLabel = getModeLabel(state.mode);
-            otherModesDescription.textContent = `In addition to ${modeLabel}, you can use these to potentially save time or money.`;
-          }
         }
       }
 
@@ -745,6 +740,42 @@
         timeChanged = true;
         updateFragment();
         updateResults();
+      });
+
+      // Flexibility toggle
+      const flexibilityToggle = document.getElementById("flexibilityToggle");
+      const flexibilityContent = document.getElementById("flexibilityContent");
+      const flexibilityArrow = document.getElementById("flexibilityArrow");
+      
+      flexibilityToggle.addEventListener("click", () => {
+        const isHidden = flexibilityContent.classList.toggle("hidden");
+        flexibilityArrow.textContent = isHidden ? "▼" : "▲";
+        // Change text color: gray when collapsed, black when expanded
+        if (isHidden) {
+          flexibilityToggle.classList.remove("text-slate-900");
+          flexibilityToggle.classList.add("text-slate-500");
+        } else {
+          flexibilityToggle.classList.remove("text-slate-500");
+          flexibilityToggle.classList.add("text-slate-900");
+        }
+      });
+
+      // People toggle
+      const peopleToggle = document.getElementById("peopleToggle");
+      const peopleContent = document.getElementById("peopleContent");
+      const peopleArrow = document.getElementById("peopleArrow");
+      
+      peopleToggle.addEventListener("click", () => {
+        const isHidden = peopleContent.classList.toggle("hidden");
+        peopleArrow.textContent = isHidden ? "▼" : "▲";
+        // Change text color: gray when collapsed, black when expanded
+        if (isHidden) {
+          peopleToggle.classList.remove("text-slate-900");
+          peopleToggle.classList.add("text-slate-500");
+        } else {
+          peopleToggle.classList.remove("text-slate-500");
+          peopleToggle.classList.add("text-slate-900");
+        }
       });
 
       earlySlider.addEventListener("input", (e) => {
