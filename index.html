@@ -12,22 +12,30 @@
   <body class="bg-slate-50 text-slate-900">
     <main class="max-w-md mx-auto px-4 py-6">
       <div class="space-y-4">
-      <!-- Step 1: Destination -->
+      <!-- Step 1: Destination, Day and Time -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <h2 class="font-semibold text-lg">Where are you going?</h2>
 
           <label class="block mt-4 text-sm font-medium">Destination</label>
+          <div class="mt-1 relative">
           <input
             id="destination"
-            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-slate-100"
-            value="Founders Brewing Co."
+              class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 bg-slate-100"
+              value="Van Andel Arena"
             disabled
           />
-        </section>
+            <button
+              type="button"
+              id="resetButton"
+              class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200"
+              aria-label="Reset all settings"
+              title="Reset all settings"
+            >
+              <span class="text-lg leading-none">×</span>
+            </button>
+          </div>
 
-        <!-- Day and Time -->
-        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <h2 class="font-semibold text-lg">When are you arriving?</h2>
+          <h2 class="font-semibold text-lg mt-6">When are you arriving?</h2>
 
           <label class="block mt-4 text-sm font-medium">Day</label>
           <select
@@ -52,10 +60,11 @@
           >
           </select>
 
+            <!-- TODO: Show flexibility toggle when ready -->
             <button
             type="button"
             id="flexibilityToggle"
-            class="mt-4 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
+            class="hidden mt-4 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
             >
             <span>Flexibility</span>
             <span id="flexibilityArrow">▼</span>
@@ -68,7 +77,7 @@
                 <span class="text-sm text-slate-600">
                   <span id="earlyValue">-15</span> min
                 </span>
-              </div>
+          </div>
               <input
                 id="earlySlider"
                 type="range"
@@ -78,92 +87,55 @@
                 value="15"
                 class="w-full mt-2"
               />
-            </div>
+        </div>
 
-            <div class="mt-4">
-              <div class="flex items-center justify-between">
+          <div class="mt-4">
+            <div class="flex items-center justify-between">
                 <label class="text-sm font-medium">Willing to arrive late</label>
-                <span class="text-sm text-slate-600">
+              <span class="text-sm text-slate-600">
                   <span id="lateValue">+0</span> min
-                </span>
-              </div>
-              <input
+              </span>
+            </div>
+            <input
                 id="lateSlider"
-                type="range"
-                min="0"
+              type="range"
+              min="0"
                 max="60"
                 step="5"
                 value="0"
-                class="w-full mt-2"
-              />
+              class="w-full mt-2"
+            />
             </div>
-        </div>
+          </div>
       </section>
 
-      <!-- Step 2: Mode + People -->
-        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <h2 class="font-semibold text-lg">How are you leaving home?</h2>
+      <!-- Step 2: Mode + People + Sliders -->
+        <section id="preferencesSection" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <h2 class="font-semibold text-lg">Which modes are you open to?</h2>
 
-          <label class="block mt-4 text-sm font-medium">Mode</label>
+          <label class="block mt-4 text-sm font-medium">Modes</label>
           <div class="mt-2 grid grid-cols-2 gap-2">
             <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="drive">
               🚗 Drive
             </button>
             <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="rideshare">
-              🚕 Rideshare
+              🚕 Uber/Lyft
             </button>
             <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="transit">
               🚌 The Rapid
             </button>
-            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="bike">
-              🚲 Bike
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="shuttle">
+              🚐 DASH
             </button>
             <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="micromobility">
               🛴 Lime
             </button>
-            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="walk">
-              🚶 Walk
+            <button type="button" class="modeBtn rounded-lg border border-slate-300 py-2" data-mode="bike">
+              🚲 Bike
             </button>
           </div>
 
-          <button
-            type="button"
-            id="peopleToggle"
-            class="mt-4 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
-          >
-            <span>People</span>
-            <span id="peopleArrow">▼</span>
-          </button>
-          
-          <div id="peopleContent" class="hidden mt-4">
-            <div class="flex items-center gap-2">
-            <button
-              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
-              onclick="adjustPeople(-1)"
-              aria-label="Decrease people"
-            >
-              −
-            </button>
-            <div
-              id="peopleCount"
-              class="flex-1 text-center font-semibold text-lg"
-            >
-              1
-            </div>
-            <button
-              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
-              onclick="adjustPeople(1)"
-              aria-label="Increase people"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </section>
-
-      <!-- Step 3: Sliders -->
-        <section id="preferencesSection" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <h2 id="preferencesHeading" class="font-semibold text-lg">What is your time and money budget?</h2>
+          <h2 id="preferencesHeading" class="font-semibold text-lg mt-6">What is your time and money budget?</h2>
 
           <!-- Walk distance -->
           <div id="walkBlock" class="mt-4">
@@ -190,75 +162,59 @@
             <div class="flex items-center justify-between">
               <label id="costLabel" class="text-sm font-medium">Willing to pay</label>
               <span class="text-sm text-slate-600">
-                <span id="costPrefix">$</span><span id="costValue">1.75</span>
+                <span id="costPrefix">$</span><span id="costValue">10</span>
               </span>
             </div>
             <input
               id="costSlider"
               type="range"
               min="0"
-              max="50"
-              value="1.75"
+              max="40"
+              value="10"
               step="0.25"
               class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
-        </section>
 
-        <!-- Other Modes -->
-        <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-          <h2 id="otherModesHeading" class="font-semibold text-lg">Are you open to a secondary mode?</h2>
-
-          <div class="mt-4 space-y-3">
-            <label id="willingDashLabel" class="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                id="willingDash"
-                class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <div class="flex items-center gap-2">
-                <span class="text-xl">🚐</span>
-                <div>
-                  <div class="font-medium">DASH</div>
-                  <div class="text-sm text-slate-600">Free downtown shuttle</div>
-                </div>
-              </div>
-            </label>
-
-            <label id="willingRapidLabel" class="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                id="willingRapid"
-                class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <div class="flex items-center gap-2">
-                <span class="text-xl">🚌</span>
-                <div>
-                  <div class="font-medium">The Rapid</div>
-                  <div class="text-sm text-slate-600">Public transit system</div>
-                </div>
-              </div>
-            </label>
-
-            <label id="willingLimeLabel" class="flex items-center gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                id="willingLime"
-                class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900 disabled:opacity-50 disabled:cursor-not-allowed"
-              />
-              <div class="flex items-center gap-2">
-                <span class="text-xl">🛴</span>
-                <div>
-                  <div class="font-medium">Lime</div>
-                  <div class="text-sm text-slate-600">Scooter or bike rental</div>
-                </div>
+          <!-- TODO: Show people toggle when ready -->
+            <button
+            type="button"
+            id="peopleToggle"
+            class="hidden mt-6 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
+            >
+            <span>People</span>
+            <span id="peopleArrow">▼</span>
+            </button>
+          
+          <div id="peopleContent" class="hidden mt-4">
+            <div class="flex items-center gap-2">
+            <button
+              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+              onclick="adjustPeople(-1)"
+              aria-label="Decrease people"
+            >
+              −
+            </button>
+            <div
+              id="peopleCount"
+              class="flex-1 text-center font-semibold text-lg"
+            >
+              1
           </div>
-            </label>
+            <button
+              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+              onclick="adjustPeople(1)"
+              aria-label="Increase people"
+            >
+              +
+            </button>
+          </div>
         </div>
       </section>
 
+
       <!-- Step 4: Results -->
-        <div class="mt-8 pt-8 border-t-2 border-slate-300 -mx-4">
+        <div class="mt-8 -mx-4">
           <div id="results" class="space-y-3"></div>
         </div>
         
@@ -317,43 +273,60 @@
       const defaultTime = getDefaultTime();
 
       const state = {
-        destination: "Founders Brewing Co.",
+        destination: "Van Andel Arena",
         day: "today",
         time: defaultTime,
         flexibilityEarlyMins: 15,
         flexibilityLateMins: 0,
-        mode: "drive",
+        modes: [], // Array of selected modes
         people: 1,
         walkMiles: 0.5,
         parkingMins: 10,
-        costDollars: 1.75,
-        willingToUseDash: false,
-        willingToUseRapid: false,
-        willingToUseLime: false,
+        costDollars: 10,
       };
 
       // Valid modes
-      const validModes = ["drive", "rideshare", "transit", "bike", "micromobility", "walk"];
+      const validModes = ["drive", "rideshare", "transit", "micromobility", "shuttle", "bike"];
 
       // Track if day/time/people have been changed from defaults
       let dayChanged = false;
       let timeChanged = false;
       let peopleChanged = false;
 
-      // Convert time from HH:MM to HHMM for URL (avoids %3A encoding)
+      // Convert time from HH:MM (24-hour) to HMM or HHMM (12-hour without colon) for URL
+      // Times are 5pm-10pm, so we use 12-hour format: 17:00 -> "500", 20:30 -> "830", 22:00 -> "1000"
       function timeToUrl(time) {
-        return time.replace(':', '');
+        const [hours, minutes] = time.split(':');
+        const hour24 = parseInt(hours, 10);
+        // Convert to 12-hour format (all times are PM since range is 5pm-10pm)
+        const hour12 = hour24 > 12 ? hour24 - 12 : hour24;
+        // Return without leading zero for single-digit hours (e.g., 8:30 PM -> "830", 5:00 PM -> "500")
+        return hour12.toString() + minutes;
       }
 
-      // Convert time from HHMM to HH:MM from URL
+      // Convert time from HMM or HHMM (12-hour) to HH:MM (24-hour) from URL
+      // All times are PM since the dropdown only has 5pm-10pm
       function timeFromUrl(urlTime) {
-        if (urlTime.length === 4) {
-          return urlTime.slice(0, 2) + ':' + urlTime.slice(2);
+        // Handle formats like "830" (8:30 PM = 20:30) or "500" (5:00 PM = 17:00) or "1000" (10:00 PM = 22:00)
+        if (urlTime.length === 3) {
+          // Format: HMM (e.g., "830" = 8:30 PM = 20:30)
+          const hour12 = parseInt(urlTime[0], 10);
+          const minutes = urlTime.slice(1);
+          // All times are PM (5pm-10pm range)
+          const hour24 = hour12 === 12 ? 12 : hour12 + 12;
+          return hour24.toString().padStart(2, '0') + ':' + minutes;
+        } else if (urlTime.length === 4) {
+          // Format: HHMM (e.g., "1000" = 10:00 PM = 22:00)
+          const hour12 = parseInt(urlTime.slice(0, 2), 10);
+          const minutes = urlTime.slice(2);
+          // All times are PM (5pm-10pm range)
+          const hour24 = hour12 === 12 ? 12 : hour12 + 12;
+          return hour24.toString().padStart(2, '0') + ':' + minutes;
         }
         return urlTime; // Fallback if already in HH:MM format
       }
 
-      // Parse URL fragment (format: #mode=drive&day=today&time=1800&people=2)
+      // Parse URL fragment (format: #modes=drive,transit&day=today&time=1800&people=2)
       function parseFragment() {
         const hash = window.location.hash.slice(1); // Remove the #
         if (!hash) return {};
@@ -376,7 +349,9 @@
       // Update URL fragment with current state
       function updateFragment() {
         const parts = [];
-        if (state.mode) parts.push(`mode=${encodeURIComponent(state.mode)}`);
+        if (state.modes.length > 0) {
+          parts.push(`modes=${state.modes.join(',')}`);
+        }
         // Only include day/time/people in fragment if they've been changed by user
         if (dayChanged && state.day) {
           parts.push(`day=${encodeURIComponent(state.day)}`);
@@ -401,11 +376,12 @@
       function getModeLabel(mode) {
         const labels = {
           drive: "driving",
-          rideshare: "rideshare",
+          rideshare: "Uber/Lyft",
           transit: "The Rapid",
           bike: "biking",
           micromobility: "Lime",
-          walk: "walking"
+          walk: "walking",
+          shuttle: "DASH"
         };
         return labels[mode] || mode;
       }
@@ -413,12 +389,13 @@
       // Get cost label based on mode
       function getCostLabel(mode) {
         const labels = {
-          drive: "Willing to pay for parking",
-          rideshare: "Willing to pay for ride",
-          transit: "Willing to pay for fare",
+          drive: "Willing to pay",
+          rideshare: "Willing to pay",
+          transit: "Willing to pay",
           bike: "Willing to pay",
-          micromobility: "Willing to pay for rental",
-          walk: "Willing to pay"
+          micromobility: "Willing to pay",
+          walk: "Willing to pay",
+          shuttle: "Willing to pay"
         };
         return labels[mode] || "Willing to pay";
       }
@@ -433,17 +410,13 @@
         let linkUrl = `https://www.google.com/maps/dir/?api=1&destination=${destination}`;
         let linkText = "Get directions on Google Maps";
 
-        // Update link based on mode
-        switch (state.mode) {
+        // Update link based on primary mode
+        const primaryMode = state.modes.length > 0 ? state.modes[0] : "drive";
+        switch (primaryMode) {
           case "drive":
             // Link to parking near destination
             linkUrl = `https://www.google.com/maps/search/?api=1&query=parking+near+${destination}`;
             linkText = "Find parking near destination";
-            break;
-          case "bike":
-            // Link to bike racks near destination
-            linkUrl = `https://www.google.com/maps/search/?api=1&query=bike+rack+near+${destination}`;
-            linkText = "Find bike rack near destination";
             break;
           case "transit":
             // Link to transit stops near destination
@@ -458,9 +431,15 @@
             // Link to destination (rideshare drop-off)
             linkText = "Get directions to destination";
             break;
-          case "walk":
-            // Link to destination
-            linkText = "Get directions to destination";
+          case "shuttle":
+            // Link to DASH stops near destination
+            linkUrl = `https://www.google.com/maps/search/?api=1&query=DASH+shuttle+stop+near+${destination}`;
+            linkText = "Find DASH stop near destination";
+            break;
+          case "bike":
+            // Link to bike racks near destination
+            linkUrl = `https://www.google.com/maps/search/?api=1&query=bike+rack+near+${destination}`;
+            linkText = "Find bike rack near destination";
             break;
           default:
             linkText = "Get directions on Google Maps";
@@ -479,8 +458,8 @@
         const costPrefix = document.getElementById("costPrefix");
         const costLabel = document.getElementById("costLabel");
         
-        // Walk slider: disabled for rideshare and walk modes
-        const walkDisabled = state.mode === "rideshare" || state.mode === "walk";
+        // Walk slider: disabled for rideshare mode (everyone can walk a little)
+        const walkDisabled = state.modes.includes("rideshare");
         const walkTime = document.getElementById("walkTime");
         const walkTimeValue = document.getElementById("walkTimeValue");
         walkSlider.disabled = walkDisabled;
@@ -497,15 +476,15 @@
           if (walkTime) walkTime.style.display = "inline";
         }
         
-        // Cost slider: disabled for walk and bike modes
-        const costDisabled = state.mode === "walk" || state.mode === "bike";
+        // Cost slider: disabled for bike mode
+        const costDisabled = state.modes.includes("bike");
         costSlider.disabled = costDisabled;
         if (costDisabled) {
           costValue.textContent = "—";
           costPrefix.textContent = "";
         } else {
           // For transit and micromobility, show total cost (per-person * people), otherwise show per-person cost
-          const displayCost = (state.mode === "transit" || state.mode === "micromobility")
+          const displayCost = (state.modes.includes("transit") || state.modes.includes("micromobility"))
             ? state.costDollars * state.people 
             : state.costDollars;
           // Format to 2 decimal places, but show as integer if it's a whole number
@@ -515,10 +494,11 @@
           costPrefix.textContent = "$";
         }
         
-        // Update cost label based on mode
-        costLabel.textContent = getCostLabel(state.mode);
+        // Update cost label based on primary mode
+        const primaryMode = state.modes.length > 0 ? state.modes[0] : "drive";
+        costLabel.textContent = getCostLabel(primaryMode);
         
-        // Gray out entire section if all preferences are disabled (e.g., walk mode)
+        // Gray out entire section if all preferences are disabled
         const allDisabled = walkDisabled && costDisabled;
         const preferencesSection = document.getElementById("preferencesSection");
         const preferencesHeading = document.getElementById("preferencesHeading");
@@ -529,70 +509,36 @@
           preferencesHeading.classList.toggle("opacity-50", allDisabled);
         }
         
-        // Other modes checkboxes: only enabled for drive and transit
-        const otherModesEnabled = state.mode === "drive" || state.mode === "transit";
-        const willingDash = document.getElementById("willingDash");
-        const willingRapid = document.getElementById("willingRapid");
-        const willingLime = document.getElementById("willingLime");
-        const willingDashLabel = document.getElementById("willingDashLabel");
-        const willingRapidLabel = document.getElementById("willingRapidLabel");
-        const willingLimeLabel = document.getElementById("willingLimeLabel");
-        
-        if (willingDash) {
-          willingDash.disabled = !otherModesEnabled;
-          if (willingDashLabel) {
-            willingDashLabel.classList.toggle("opacity-50", !otherModesEnabled);
-            willingDashLabel.classList.toggle("cursor-not-allowed", !otherModesEnabled);
-            willingDashLabel.classList.toggle("cursor-pointer", otherModesEnabled);
-          }
-        }
-        
-        if (willingRapid) {
-          // Disable if other modes are disabled OR if transit is the current mode
-          const rapidDisabled = !otherModesEnabled || state.mode === "transit";
-          willingRapid.disabled = rapidDisabled;
-          if (willingRapidLabel) {
-            willingRapidLabel.classList.toggle("opacity-50", rapidDisabled);
-            willingRapidLabel.classList.toggle("cursor-not-allowed", rapidDisabled);
-            willingRapidLabel.classList.toggle("cursor-pointer", !rapidDisabled);
-          }
-        }
-        
-        if (willingLime) {
-          willingLime.disabled = !otherModesEnabled;
-          if (willingLimeLabel) {
-            willingLimeLabel.classList.toggle("opacity-50", !otherModesEnabled);
-            willingLimeLabel.classList.toggle("cursor-not-allowed", !otherModesEnabled);
-            willingLimeLabel.classList.toggle("cursor-pointer", otherModesEnabled);
-          }
-        }
-        
-        // Gray out heading and description when disabled
-        const otherModesHeading = document.getElementById("otherModesHeading");
-        if (otherModesHeading) {
-          otherModesHeading.classList.toggle("opacity-50", !otherModesEnabled);
-        }
       }
 
-      // Set mode and update UI
-      function setMode(mode) {
+      // Toggle mode selection (multi-select)
+      function toggleMode(mode) {
         if (!validModes.includes(mode)) return;
-        state.mode = mode;
-        // Set default cost based on mode
-        if (mode === "micromobility" && (state.costDollars === 1.75 || state.costDollars === 15)) {
-          // If switching from transit or rideshare default, set to micromobility default
+        
+        const index = state.modes.indexOf(mode);
+        if (index > -1) {
+          // Remove mode if already selected
+          state.modes.splice(index, 1);
+        } else {
+          // Add mode if not selected
+          state.modes.push(mode);
+        }
+        
+        
+        // Set default cost based on first mode if cost is at a default value
+        const primaryMode = state.modes[0];
+        if (primaryMode === "micromobility" && (state.costDollars === 10 || state.costDollars === 15)) {
           state.costDollars = 4;
           costSlider.value = 4;
-        } else if (mode === "transit" && (state.costDollars === 4 || state.costDollars === 15)) {
-          // If switching from micromobility or rideshare default, set to transit default
+        } else if (primaryMode === "transit" && (state.costDollars === 4 || state.costDollars === 15)) {
           state.costDollars = 1.75;
           costSlider.value = 1.75;
-        } else if (mode === "rideshare" && (state.costDollars === 1.75 || state.costDollars === 4)) {
-          // If switching from transit or micromobility default, set to rideshare default
+        } else if (primaryMode === "rideshare" && (state.costDollars === 10 || state.costDollars === 4)) {
           state.costDollars = 15;
           costSlider.value = 15;
         }
-        highlightMode();
+        
+          highlightMode();
         updatePreferencesVisibility();
         updateResults();
         updateFragment();
@@ -601,16 +547,11 @@
       // Handle browser back/forward navigation
       window.addEventListener("hashchange", () => {
         const params = parseFragment();
-        if (params.mode !== undefined && params.mode !== state.mode) {
-          if (params.mode && validModes.includes(params.mode)) {
-            state.mode = params.mode;
-            highlightMode();
-            updatePreferencesVisibility();
-          } else if (!params.mode) {
-            state.mode = "";
+        if (params.modes !== undefined) {
+          const modesArray = params.modes ? params.modes.split(',').filter(m => validModes.includes(m)) : [];
+          state.modes = modesArray;
           highlightMode();
-            updatePreferencesVisibility();
-          }
+          updatePreferencesVisibility();
         }
         if (params.day !== undefined && params.day !== state.day) {
           state.day = params.day || "";
@@ -636,7 +577,7 @@
 
       function highlightMode() {
         document.querySelectorAll(".modeBtn").forEach((btn) => {
-          const active = btn.dataset.mode === state.mode;
+          const active = state.modes.includes(btn.dataset.mode);
           btn.classList.toggle("bg-slate-900", active);
           btn.classList.toggle("text-white", active);
           btn.classList.toggle("border-slate-900", active);
@@ -681,7 +622,7 @@
         const costPrefix = document.getElementById("costPrefix");
         if (!costSlider.disabled) {
           // For transit and micromobility, show total cost (per-person * people), otherwise show per-person cost
-          const displayCost = (state.mode === "transit" || state.mode === "micromobility")
+          const displayCost = (state.modes.includes("transit") || state.modes.includes("micromobility"))
             ? state.costDollars * state.people 
             : state.costDollars;
           // Format to 2 decimal places, but show as integer if it's a whole number
@@ -761,25 +702,6 @@
         updateResults();
       });
 
-      // Other modes checkboxes
-      const willingDash = document.getElementById("willingDash");
-      const willingRapid = document.getElementById("willingRapid");
-      const willingLime = document.getElementById("willingLime");
-
-      willingDash.addEventListener("change", (e) => {
-        state.willingToUseDash = e.target.checked;
-        updateResults();
-      });
-
-      willingRapid.addEventListener("change", (e) => {
-        state.willingToUseRapid = e.target.checked;
-        updateResults();
-      });
-
-      willingLime.addEventListener("change", (e) => {
-        state.willingToUseLime = e.target.checked;
-        updateResults();
-      });
 
       function renderResults() {
         const resultsEl = document.getElementById("results");
@@ -789,11 +711,14 @@
 
         if (!primary) return;
 
-        // Render primary recommendation (green or red if no options)
+        // Render primary recommendation (green, yellow if discouraged, or red if no options)
           const card = document.createElement("div");
         const isNoOptions = primary.isNoOptions;
+        const isDiscouraged = primary.isDiscouraged;
         card.className = isNoOptions 
           ? "rounded-none bg-red-50 border border-red-200 p-6"
+          : isDiscouraged
+          ? "rounded-none bg-yellow-50 border border-yellow-200 p-6"
           : "rounded-none bg-green-50 border border-green-200 p-6";
         
         const recommendation = primary;
@@ -810,10 +735,11 @@
             </div>
           `;
         } else if (recommendation.steps && recommendation.steps.length > 0) {
+          const strategyLabel = isDiscouraged ? "Alternative Strategy" : "Recommended Strategy";
           card.innerHTML = `
             <div class="space-y-4">
               <div>
-                <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Recommended Strategy</div>
+                <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">${strategyLabel}</div>
                 <h3 class="font-semibold text-xl">${recommendation.title}</h3>
                 ${recommendation.body ? `<p class="text-sm text-slate-600 mt-2">${recommendation.body}</p>` : ''}
               </div>
@@ -836,10 +762,11 @@
           `;
         } else {
           // Single step instruction format
+          const strategyLabel = isDiscouraged ? "Alternative Strategy" : "Recommended Strategy";
           card.innerHTML = `
             <div class="space-y-4">
               <div>
-                <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Recommended Strategy</div>
+                <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">${strategyLabel}</div>
                 <h3 class="font-semibold text-xl">${recommendation.title}</h3>
               </div>
               <div class="space-y-4">
@@ -913,142 +840,235 @@
       }
 
       function buildRecommendation() {
-        const { mode, people, walkMiles, parkingMins, costDollars, willingToUseDash, willingToUseRapid, willingToUseLime } = state;
+        const { modes, people, walkMiles, costDollars } = state;
         
-        if (!mode) return { primary: null, alternate: null };
-
-        // For transit and micromobility, calculate total cost (per-person * people)
-        const totalCost = (mode === "transit" || mode === "micromobility") 
-          ? costDollars * people 
-          : costDollars;
+        if (!modes || modes.length === 0) return { primary: null, alternate: null };
 
         const steps = [];
         let recommendation = {};
         let alternate = null;
+        
+        // Check which modes are selected
+        const hasDrive = modes.includes("drive");
+        const hasTransit = modes.includes("transit");
+        const hasRideshare = modes.includes("rideshare");
+        const hasMicromobility = modes.includes("micromobility");
+        const hasShuttle = modes.includes("shuttle");
+        const hasBike = modes.includes("bike");
 
-        // Build primary recommendation and steps based on mode
-        if (mode === "drive") {
-          if (willingToUseDash) {
-            recommendation = {
-              title: "Park farther, use DASH for last mile",
-              body: "Park in a less crowded area and take the free DASH shuttle to get closer to your destination.",
-              meta: `Walk: up to ${walkMiles.toFixed(1)} miles`,
-              badge: "Time saver",
-            };
-            steps.push(
-              { title: "Park farther from destination", description: `Find parking away from the destination where spots are easier to find. Look for areas with less competition.` },
-              { title: "Take the DASH shuttle", description: "Walk to the nearest DASH stop and board the free downtown shuttle. Ride it to get closer to your destination." }
-            );
-          } else if (willingToUseRapid) {
-            recommendation = {
-              title: "Park at Rapid stop, take transit",
-              body: "Park near a Rapid transit stop and take the bus to get closer to your destination.",
-              meta: `Walk: up to ${walkMiles.toFixed(1)} miles`,
-              badge: "Cost saver",
-            };
-            steps.push(
-              { title: "Park near a Rapid stop", description: `Find parking near a Rapid transit stop. This area will have more available parking.` },
-              { title: "Board The Rapid", description: "Walk to the Rapid stop and board the bus. Ride to a stop that's within walking distance of your destination." }
-            );
-          } else if (willingToUseLime) {
-            recommendation = {
-              title: "Park farther, use Lime for last mile",
-              body: "Park in a less crowded area and use a Lime scooter or bike for the final stretch.",
-              meta: `Walk: up to ${walkMiles.toFixed(1)} miles`,
-              badge: "Flexible",
-            };
-            steps.push(
-              { title: "Park farther from destination", description: `Find parking away from the destination where spots are easier to find. Look for areas with less competition.` },
-              { title: "Find and ride a Lime scooter or bike", description: "Open the Lime app and locate the nearest available scooter or bike. Unlock it and ride directly to your destination." }
-            );
-          } else {
-            // No secondary mode
+        // Build recommendation based on selected modes
+        // Priority: drive combinations > transit combinations > single modes
+        
+        if (hasDrive) {
+          // Drive mode combinations
+          if (hasShuttle) {
+            // Drive + Shuttle: Park farther, use DASH
             if (walkMiles === 0) {
-              // No walk distance and no secondary modes - no options available
               recommendation = {
                 title: "No options available",
-                body: "You're driving but not willing to walk any distance and haven't selected any secondary modes. Consider adjusting your preferences to see recommendations.",
+                body: "You're driving and using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+                isNoOptions: true
+              };
+          } else {
+              recommendation = {
+                title: "Park farther, use DASH for last mile",
+                body: "Park in a less crowded area and take the free DASH shuttle to get closer to your destination.",
+                badge: "Time saver",
+              };
+              steps.push(
+                { title: "Park farther from destination", description: `Find parking away from the destination where spots are easier to find. Look for areas with less competition.` },
+                { title: "Take the DASH shuttle", description: "Walk to the nearest DASH stop and board the free downtown shuttle. Ride it to get closer to your destination." }
+              );
+            }
+          } else if (hasTransit) {
+            // Drive + Transit: Park at Rapid stop, take transit
+            if (walkMiles === 0) {
+              recommendation = {
+                title: "No options available",
+                body: "You're driving and taking transit but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
                 isNoOptions: true
               };
             } else {
-              // Use Founders parking lot as primary
               recommendation = {
-                title: "Park at Founders parking lot",
-                body: "Use the Founders Brewing Co. parking lot and get your parking ticket validated at the destination.",
-                meta: ``,
-                badge: "Guaranteed",
+                title: "Park at Rapid stop, take transit",
+                body: "Park near a Rapid transit stop and take the bus to get closer to your destination.",
+                badge: "Cost saver",
               };
-              const foundersParkingUrl = "https://www.google.com/maps/dir/?api=1&destination=Founders+Brewing+Co.+Parking,+Grand+Rapids,+MI";
+              const transitUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(state.destination + ", Grand Rapids, MI")}&travelmode=transit`;
               steps.push(
-                { 
-                  title: "Get directions to Founders parking lot", 
-                  description: "Use Google Maps to navigate to the Founders Brewing Co. parking lot.",
-                  link: foundersParkingUrl,
-                  linkText: "Open in Google Maps"
-                },
-                { title: "Park in the lot", description: "Find an available parking spot in the Founders parking lot." },
-                { title: "Get parking validated", description: `Go to ${state.destination} and get your parking validated.` }
+                { title: "Park near a Rapid stop", description: `Find parking near a Rapid transit stop. This area will have more available parking.` },
+                { title: "Board The Rapid", description: "Walk to the Rapid stop and board the bus. Ride to a stop that's within walking distance of your destination.", link: transitUrl, linkText: "View transit route on Google Maps" }
               );
-              
-              // Alternate strategy: Park farther and walk (if willing to walk)
-              if (walkMiles > 0) {
+            }
+          } else if (hasMicromobility) {
+            // Drive + Micromobility: Park farther, use Lime
+            if (walkMiles === 0) {
+              recommendation = {
+                title: "No options available",
+                body: "You're driving and using micromobility but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+                isNoOptions: true
+              };
+            } else {
+              recommendation = {
+                title: "Park farther, use Lime for last mile",
+                body: "Park in a less crowded area and use a Lime scooter or bike for the final stretch.",
+                badge: "Flexible",
+              };
+              steps.push(
+                { title: "Park farther from destination", description: `Find parking away from the destination where spots are easier to find. Look for areas with less competition.` },
+                { title: "Find and ride a Lime scooter or bike", description: "Open the Lime app and locate the nearest available scooter or bike. Unlock it and ride directly to your destination." }
+              );
+            }
+          } else {
+            // Drive only
+            if (walkMiles === 0) {
+              recommendation = {
+                title: "No options available",
+                body: "You're driving but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+                isNoOptions: true
+              };
+            } else {
+              // Park near destination - prioritize cheaper options if willing to walk
+              // Parking rates for 4 hours: affordable lots $8-$10, premium ramps $20-$24
+              if (walkMiles > 0 && costDollars >= 8) {
+                // Willing to walk - always recommend cheaper lots to save money
+                recommendation = {
+                  title: "Park at affordable lot and walk",
+                  body: `Park at a more affordable lot (around $8-$10 for 4 hours) within ${walkMiles.toFixed(1)} miles of Van Andel Arena and walk the rest of the way. This saves money compared to premium ramps.`,
+                  badge: "Budget-friendly",
+                };
+                const affordableParkingUrl = "https://www.google.com/maps/search/?api=1&query=parking+lot+near+Ottawa+and+Fulton,+Grand+Rapids,+MI";
+                steps.push(
+                  { 
+                    title: "Find affordable parking lot", 
+                    description: "Look for parking lots near Ottawa and Fulton streets, or Market Street Lot. These typically cost $8-$10 for 4 hours and are within walking distance.",
+                    link: affordableParkingUrl,
+                    linkText: "Find lots on Google Maps"
+                  },
+                  { title: "Park and walk", description: `Park your car and walk up to ${walkMiles.toFixed(1)} miles to ${state.destination}.` }
+                );
+                
+                // Alternate: free street parking (discouraged - driving around)
                 const altSteps = [];
+                const streetParkingUrl = "https://www.google.com/maps/search/?api=1&query=street+parking+near+Van+Andel+Arena,+Grand+Rapids,+MI";
                 altSteps.push(
-                  { title: "Park farther from destination", description: "Find parking away from the destination where spots are easier to find. Look for areas with less competition." },
-                  { title: "Walk to destination", description: "Walk from your parking spot to your destination." }
+                  { 
+                    title: "Spend 15 minutes in traffic looking for free street parking", 
+                    description: "Circle the blocks near Van Andel Arena looking for free street parking. Meters are typically free after 7 PM on weekdays and all day on weekends. Be aware of odd-even parking restrictions from November 1 to April 1. This may take 15+ minutes of driving in traffic.",
+                    link: streetParkingUrl,
+                    linkText: "View area on Google Maps"
+                  },
+                  { title: "Park and walk", description: `Once you find a spot, park and walk up to ${walkMiles.toFixed(1)} miles to ${state.destination}.` }
                 );
                 alternate = {
-                  title: "Park farther and walk",
-                  body: "Park in a less crowded area and walk the rest of the way to your destination.",
+                  title: "Find free street parking",
+                  body: "Spend 15 minutes in traffic circling the area near Van Andel Arena to find free street parking. Meters are free after 7 PM on weekdays and all day on weekends.",
+                  steps: altSteps
+                };
+              } else if (costDollars < 8) {
+                // Too low for paid parking - free street parking is only option (but discouraged)
+                recommendation = {
+                  title: "Find free street parking",
+                  body: "Spend 15 minutes in traffic circling the area near Van Andel Arena to find free street parking. Meters are free after 7 PM on weekdays and all day on weekends.",
+                  badge: "Free",
+                  isDiscouraged: true, // Mark as discouraged (yellow card)
+                };
+                const streetParkingUrl = "https://www.google.com/maps/search/?api=1&query=street+parking+near+Van+Andel+Arena,+Grand+Rapids,+MI";
+                steps.push(
+                  { 
+                    title: "Spend 15 minutes in traffic looking for free street parking", 
+                    description: "Circle the blocks near Van Andel Arena looking for free street parking. Meters are typically free after 7 PM on weekdays and all day on weekends. Be aware of odd-even parking restrictions from November 1 to April 1. This may take 15+ minutes of driving in traffic.",
+                    link: streetParkingUrl,
+                    linkText: "View area on Google Maps"
+                  },
+                  { title: "Park and walk", description: `Once you find a spot, park and walk up to ${walkMiles.toFixed(1)} miles to ${state.destination}.` }
+                );
+              } else {
+                // Not willing to walk or budget >= $15 - recommend closer premium ramps
+                recommendation = {
+                  title: "Park at nearby ramp",
+                  body: `Park at a ramp close to Van Andel Arena (around $20-$24 for 4 hours) for convenient access.`,
+                  badge: "Convenient",
+                };
+                const premiumParkingUrl = "https://www.google.com/maps/search/?api=1&query=Studio+Park+Ramp+or+Louis+Campau+Ramp,+Grand+Rapids,+MI";
+                steps.push(
+                  { 
+                    title: "Park at nearby ramp", 
+                    description: "Use Studio Park Ramp, Louis Campau Ramp, or Ellis Parking ramps for close, convenient parking. Rates are typically $20-$24 for 4 hours, higher during events.",
+                    link: premiumParkingUrl,
+                    linkText: "Find ramps on Google Maps"
+                  },
+                  { title: "Walk to destination", description: `Walk from the ramp to ${state.destination}.` }
+                );
+                
+                // Alternate: free street parking (discouraged - driving around)
+                const altSteps = [];
+                const streetParkingUrl = "https://www.google.com/maps/search/?api=1&query=street+parking+near+Van+Andel+Arena,+Grand+Rapids,+MI";
+                altSteps.push(
+                  { 
+                    title: "Spend 15 minutes in traffic looking for free street parking", 
+                    description: "Circle the blocks near Van Andel Arena looking for free street parking. Meters are typically free after 7 PM on weekdays and all day on weekends. Be aware of odd-even parking restrictions from November 1 to April 1. This may take 15+ minutes of driving in traffic.",
+                    link: streetParkingUrl,
+                    linkText: "View area on Google Maps"
+                  },
+                  { title: "Park and walk", description: `Once you find a spot, park and walk to ${state.destination}.` }
+                );
+                alternate = {
+                  title: "Find free street parking",
+                  body: "Spend 15 minutes in traffic circling the area near Van Andel Arena to find free street parking. Meters are free after 7 PM on weekdays and all day on weekends.",
                   steps: altSteps
                 };
               }
+              
             }
           }
-        } else if (mode === "transit") {
+        } else if (hasTransit) {
+          // Transit mode
           const transitUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(state.destination + ", Grand Rapids, MI")}&travelmode=transit`;
-          if (costDollars === 0) {
-            // No budget for transit - no options available
-            recommendation = {
-              title: "No options available",
-              body: "You're taking The Rapid but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
-              isNoOptions: true
-            };
-          } else if (willingToUseDash) {
-            recommendation = {
-              title: "Take Rapid, then DASH",
-              body: "Ride The Rapid to downtown, then use the free DASH shuttle to get closer to your destination.",
-              meta: `Walk: up to ${walkMiles.toFixed(1)} miles • People: ${people}`,
-              badge: "Efficient",
-            };
-            steps.push(
-              { title: "Board The Rapid", description: "Go to your nearest Rapid stop and board the bus. Ride to a downtown stop that's near a DASH connection point.", link: transitUrl, linkText: "View transit route on Google Maps" },
-              { title: "Transfer to DASH", description: "Get off The Rapid and walk to the nearest DASH stop. Board the free DASH shuttle and ride it closer to your destination." }
-            );
-          } else if (willingToUseLime) {
-            recommendation = {
-              title: "Take Rapid, then Lime",
-              body: "Ride The Rapid to a stop near your destination, then use a Lime scooter or bike for the final stretch.",
-              meta: `Walk: up to ${walkMiles.toFixed(1)} miles • People: ${people}`,
-              badge: "Flexible",
-            };
-            steps.push(
-              { title: "Board The Rapid", description: `Go to your nearest Rapid stop and board the bus. Ride to a stop near your destination.`, link: transitUrl, linkText: "View transit route on Google Maps" },
-              { title: "Find and ride a Lime scooter or bike", description: "Get off The Rapid and open the Lime app. Locate the nearest available scooter or bike, unlock it, and ride to your destination." }
-            );
-          } else {
-            if (walkMiles === 0) {
-              // No walk distance and no secondary modes - no options available
+          if (hasShuttle) {
+            // Transit + Shuttle: Take Rapid, then DASH
+            if (costDollars === 0) {
               recommendation = {
                 title: "No options available",
-                body: "You're taking The Rapid but not willing to walk any distance and haven't selected any secondary modes. Consider adjusting your preferences to see recommendations.",
+                body: "You're taking The Rapid but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+                isNoOptions: true
+              };
+            } else if (walkMiles === 0) {
+              recommendation = {
+                title: "No options available",
+                body: "You're taking The Rapid and using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+                isNoOptions: true
+              };
+            } else {
+              recommendation = {
+                title: "Take Rapid, then DASH",
+                body: "Ride The Rapid to downtown, then use the free DASH shuttle to get closer to your destination.",
+                badge: "Efficient",
+              };
+              steps.push(
+                { title: "Board The Rapid", description: "Go to your nearest Rapid stop and board the bus. Ride to a downtown stop that's near a DASH connection point.", link: transitUrl, linkText: "View transit route on Google Maps" },
+                { title: "Transfer to DASH", description: "Get off The Rapid and walk to the nearest DASH stop. Board the free DASH shuttle and ride it closer to your destination." },
+                { title: "Walk to destination", description: "Get off the DASH shuttle and walk the remaining distance to your destination." }
+              );
+            }
+          } else {
+            // Transit only
+            if (costDollars === 0) {
+              recommendation = {
+                title: "No options available",
+                body: "You're taking The Rapid but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+                isNoOptions: true
+              };
+            } else if (walkMiles === 0) {
+              recommendation = {
+                title: "No options available",
+                body: "You're taking The Rapid but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
                 isNoOptions: true
               };
             } else {
               recommendation = {
                 title: "The Rapid + short walk",
                 body: `Plan your route to a Rapid stop near your destination. Avoid transfers if possible. After getting off, walk the remaining distance.`,
-                meta: `Walk tolerance: ${walkMiles.toFixed(1)} miles • People: ${people}`,
                 badge: "Chill",
               };
               steps.push(
@@ -1057,51 +1077,28 @@
               );
             }
           }
-        } else if (mode === "walk") {
-          recommendation = {
-            title: "Walk directly to your destination",
-            body: `Plan a route that prioritizes comfort and safety. Use sidewalks, crosswalks, and well-lit paths.`,
-            meta: `Walk tolerance: ${walkMiles.toFixed(1)} miles • People: ${people}`,
-            badge: "Simple",
-          };
-          steps.push(
-            { title: "Plan your walking route", description: `Choose a path that uses sidewalks, crosswalks, and well-lit areas. Prioritize safety and comfort.` },
-            { title: "Walk to destination", description: "Follow your planned route and walk directly to your destination." }
-          );
-        } else if (mode === "bike") {
-          recommendation = {
-            title: "Bike to your destination and lock up nearby",
-            body: `Ride your bike to your destination. Find a bike rack or secure post near the entrance to lock up. This avoids parking entirely.`,
-            meta: `Walk: ${walkMiles.toFixed(1)} miles`,
-            badge: "No parking",
-          };
-          steps.push(
-            { title: "Ride your bike to destination", description: `Ride your bike to your destination.` },
-            { title: "Lock up your bike", description: "Find a bike rack or secure post near the entrance and lock up your bike." }
-          );
-        } else if (mode === "rideshare") {
+        } else if (hasRideshare) {
+          // Rideshare mode
           if (costDollars === 0) {
-            // No budget for rideshare - no options available
             recommendation = {
               title: "No options available",
-              body: "You're requesting a rideshare but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+              body: "You're requesting an Uber/Lyft but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
               isNoOptions: true
             };
           } else {
             recommendation = {
-              title: "Request a rideshare to your destination",
-              body: `Request a rideshare and get dropped off at your destination.`,
-              meta: `People: ${people}`,
+              title: "Request an Uber/Lyft to your destination",
+              body: `Request an Uber or Lyft and get dropped off at your destination.`,
               badge: "Door-to-door",
             };
             steps.push(
-              { title: "Request a rideshare", description: `Open your rideshare app (Uber, Lyft, etc.) and request a ride. Set your destination and confirm the ride.` },
+              { title: "Request an Uber/Lyft", description: `Open your Uber or Lyft app and request a ride. Set your destination and confirm the ride.` },
               { title: "Arrive at destination", description: "Wait for your driver to arrive, then ride to your destination. The driver will drop you off as close as possible." }
             );
           }
-        } else if (mode === "micromobility") {
+        } else if (hasMicromobility) {
+          // Micromobility mode
           if (costDollars === 0) {
-            // No budget for micromobility - no options available
             recommendation = {
               title: "No options available",
               body: "You're looking for a Lime scooter or bike but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
@@ -1111,7 +1108,6 @@
             recommendation = {
               title: "Find and ride a Lime scooter or bike",
               body: `Open the Lime app and find the nearest available scooter or bike. Unlock it and ride directly to your destination.`,
-              meta: `Walk: ${walkMiles.toFixed(1)} miles`,
               badge: "On-demand",
             };
             steps.push(
@@ -1119,6 +1115,37 @@
               { title: "Ride to destination", description: "Unlock the scooter or bike and ride directly to your destination." }
             );
           }
+        } else if (hasShuttle) {
+          // Shuttle mode (DASH)
+          if (walkMiles === 0) {
+            recommendation = {
+              title: "No options available",
+              body: "You're using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+              isNoOptions: true
+            };
+          } else {
+            recommendation = {
+              title: "Take the DASH shuttle",
+              body: `Use the free DASH downtown shuttle to get closer to your destination, then walk the remaining distance.`,
+              badge: "Free",
+            };
+            steps.push(
+              { title: "Find a DASH stop", description: `Locate the nearest DASH shuttle stop near your starting location.` },
+              { title: "Board the DASH shuttle", description: "Wait for the next DASH shuttle and board it. The shuttle is free and runs through downtown Grand Rapids." },
+              { title: "Walk to destination", description: "Get off the DASH shuttle at a stop near your destination and walk the remaining distance." }
+            );
+          }
+        } else if (hasBike) {
+          // Bike mode
+          recommendation = {
+            title: "Bike to your destination and lock up nearby",
+            body: `Ride your bike to your destination. Find a bike rack or secure post near the entrance to lock up. This avoids parking entirely.`,
+            badge: "No parking",
+          };
+          steps.push(
+            { title: "Ride your bike to destination", description: `Ride your bike to your destination.` },
+            { title: "Lock up your bike", description: "Find a bike rack or secure post near the entrance and lock up your bike." }
+          );
         }
 
         recommendation.steps = steps;
@@ -1128,20 +1155,21 @@
       // init
       // Read from URL fragment
       const params = parseFragment();
-      if (params.mode && validModes.includes(params.mode)) {
-        state.mode = params.mode;
-        // Set default cost based on mode
-        if (state.mode === "micromobility" && state.costDollars === 1.75) {
-          state.costDollars = 4;
-        } else if (state.mode === "rideshare" && state.costDollars === 1.75) {
-          state.costDollars = 15;
+      if (params.modes) {
+        const modesArray = params.modes.split(',').filter(m => validModes.includes(m));
+        if (modesArray.length > 0) {
+          state.modes = modesArray;
         }
-      } else if (state.mode === "micromobility") {
-        // If default mode is micromobility, set cost to $4
+      }
+      
+      // Set default cost based on primary mode
+      const primaryMode = state.modes.length > 0 ? state.modes[0] : "drive";
+      if (primaryMode === "micromobility" && state.costDollars === 10) {
         state.costDollars = 4;
-      } else if (state.mode === "rideshare") {
-        // If default mode is rideshare, set cost to $15
+        costSlider.value = 4;
+      } else if (primaryMode === "rideshare" && state.costDollars === 10) {
         state.costDollars = 15;
+        costSlider.value = 15;
       }
       if (params.day) {
         state.day = params.day;
@@ -1172,10 +1200,6 @@
         walkTimeValue.textContent = walkMinutes;
       }
 
-      // Initialize other modes checkboxes
-      if (willingDash) willingDash.checked = state.willingToUseDash;
-      if (willingRapid) willingRapid.checked = state.willingToUseRapid;
-      if (willingLime) willingLime.checked = state.willingToUseLime;
         costSlider.value = state.costDollars;
       earlySlider.value = state.flexibilityEarlyMins;
       lateSlider.value = state.flexibilityLateMins;
@@ -1185,12 +1209,82 @@
       // Update Google Maps directions link
       updateDirectionsLink();
       
+      // Reset function to clear all URL fragments and reset state
+      function resetAll() {
+        // Reset state to defaults
+        const defaultTime = getDefaultTime();
+        state.destination = "Van Andel Arena";
+        state.day = "today";
+        state.time = defaultTime;
+        state.flexibilityEarlyMins = 15;
+        state.flexibilityLateMins = 0;
+        state.modes = [];
+        state.people = 1;
+        state.walkMiles = 0.5;
+        state.parkingMins = 10;
+        state.costDollars = 10;
+        
+        // Reset change flags
+        dayChanged = false;
+        timeChanged = false;
+        peopleChanged = false;
+        
+        // Clear URL fragment completely
+        if (window.history.replaceState) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        } else {
+          window.location.hash = '';
+        }
+        
+        // Reset UI elements
+        daySelect.value = state.day;
+        timeSelect.value = state.time;
+        document.getElementById("peopleCount").textContent = state.people;
+        costSlider.value = state.costDollars;
+        earlySlider.value = state.flexibilityEarlyMins;
+        lateSlider.value = state.flexibilityLateMins;
+        document.getElementById("earlyValue").textContent = `-${state.flexibilityEarlyMins}`;
+        document.getElementById("lateValue").textContent = `+${state.flexibilityLateMins}`;
+        
+        // Reset walk slider
+        walkSlider.value = state.walkMiles;
+        const walkValue = document.getElementById("walkValue");
+        const walkUnit = document.getElementById("walkUnit");
+        const walkTime = document.getElementById("walkTime");
+        const walkTimeValue = document.getElementById("walkTimeValue");
+        if (walkValue) walkValue.textContent = state.walkMiles.toFixed(1);
+        if (walkUnit) walkUnit.textContent = " miles";
+        if (walkTimeValue) {
+          const walkMinutes = Math.round(state.walkMiles * 20);
+          walkTimeValue.textContent = walkMinutes;
+        }
+        if (walkTime) walkTime.style.display = "inline";
+        
+        // Reset cost display
+        const costValue = document.getElementById("costValue");
+        const costPrefix = document.getElementById("costPrefix");
+        if (costValue) costValue.textContent = state.costDollars.toFixed(2);
+        if (costPrefix) costPrefix.textContent = "$";
+        
+        // Update UI
+        highlightMode();
+        updatePreferencesVisibility();
+        updateDirectionsLink();
+        renderResults();
+      }
+      
+      // Attach reset button event listener
+      const resetButton = document.getElementById("resetButton");
+      if (resetButton) {
+        resetButton.addEventListener("click", resetAll);
+      }
+      
       // Attach mode button event listeners
       document.querySelectorAll(".modeBtn").forEach((btn) => {
         btn.addEventListener("click", function() {
           const mode = this.dataset.mode;
           if (mode) {
-            setMode(mode);
+            toggleMode(mode);
           }
         });
       });
