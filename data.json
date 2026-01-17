@@ -1,0 +1,360 @@
+{
+  "destination": "Van Andel Arena",
+  "validModes": [
+    "drive",
+    "rideshare",
+    "transit",
+    "micromobility",
+    "shuttle",
+    "bike"
+  ],
+  "modeLabels": {
+    "drive": "driving",
+    "rideshare": "Uber/Lyft",
+    "transit": "The Rapid",
+    "bike": "biking",
+    "micromobility": "Lime",
+    "walk": "walking",
+    "shuttle": "DASH"
+  },
+  "costLabels": {
+    "drive": "Willing to pay",
+    "rideshare": "Willing to pay",
+    "transit": "Willing to pay",
+    "bike": "Willing to pay",
+    "micromobility": "Willing to pay",
+    "walk": "Willing to pay",
+    "shuttle": "Willing to pay"
+  },
+  "defaults": {
+    "day": "today",
+    "flexibilityEarlyMins": 15,
+    "flexibilityLateMins": 0,
+    "people": 1,
+    "walkMiles": 0.5,
+    "parkingMins": 10,
+    "costDollars": 10
+  },
+  "defaultCosts": {
+    "micromobility": 4,
+    "transit": 1.75,
+    "rideshare": 15
+  },
+  "recommendations": {
+    "drive+shuttle": {
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're driving and using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Park farther, use DASH for last mile",
+        "body": "Park in a less crowded area and take the free DASH shuttle to get closer to your destination.",
+        "badge": "Time saver",
+        "steps": [
+          {
+            "title": "Park farther from destination",
+            "description": "Find parking away from the destination where spots are easier to find. Look for areas with less competition."
+          },
+          {
+            "title": "Take the DASH shuttle",
+            "description": "Walk to the nearest DASH stop and board the free downtown shuttle. Ride it to get closer to your destination."
+          }
+        ]
+      }
+    },
+    "drive+transit": {
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're driving and taking transit but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Park at Rapid stop, take transit",
+        "body": "Park near a Rapid transit stop and take the bus to get closer to your destination.",
+        "badge": "Cost saver",
+        "steps": [
+          {
+            "title": "Park near a Rapid stop",
+            "description": "Find parking near a Rapid transit stop. This area will have more available parking."
+          },
+          {
+            "title": "Board The Rapid",
+            "description": "Walk to the Rapid stop and board the bus. Ride to a stop that's within walking distance of your destination.",
+            "linkTemplate": "https://www.google.com/maps/dir/?api=1&destination={destinationEncoded}&travelmode=transit",
+            "linkText": "View transit route on Google Maps"
+          }
+        ]
+      }
+    },
+    "drive+micromobility": {
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're driving and using micromobility but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Park farther, use Lime for last mile",
+        "body": "Park in a less crowded area and use a Lime scooter or bike for the final stretch.",
+        "badge": "Flexible",
+        "steps": [
+          {
+            "title": "Park farther from destination",
+            "description": "Find parking away from the destination where spots are easier to find. Look for areas with less competition."
+          },
+          {
+            "title": "Find and ride a Lime scooter or bike",
+            "description": "Open the Lime app and locate the nearest available scooter or bike. Unlock it and ride directly to your destination."
+          }
+        ]
+      }
+    },
+    "drive": {
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're driving but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "affordableLot": {
+        "title": "Park at affordable lot and walk",
+        "body": "Park at a more affordable lot (around $8-$10 for 4 hours) within {walkMiles} miles of {destination} and walk the rest of the way. This saves money compared to premium ramps.",
+        "badge": "Budget-friendly",
+        "steps": [
+          {
+            "title": "Find affordable parking lot",
+            "description": "Look for parking lots near Ottawa and Fulton streets, or Market Street Lot. These typically cost $8-$10 for 4 hours and are within walking distance.",
+            "link": "https://www.google.com/maps/search/?api=1&query=parking+lot+near+Ottawa+and+Fulton,+Grand+Rapids,+MI",
+            "linkText": "Find lots on Google Maps"
+          },
+          {
+            "title": "Park and walk",
+            "description": "Park your car and walk up to {walkMiles} miles to {destination}."
+          }
+        ],
+        "alternate": {
+          "title": "Find free street parking",
+          "body": "Spend 15 minutes in traffic circling the area near {destination} to find free street parking. Meters are free after 7 PM on weekdays and all day on weekends.",
+          "steps": [
+            {
+              "title": "Spend 15 minutes in traffic looking for free street parking",
+              "description": "Circle the blocks near {destination} looking for free street parking. Meters are typically free after 7 PM on weekdays and all day on weekends. Be aware of odd-even parking restrictions from November 1 to April 1. This may take 15+ minutes of driving in traffic.",
+              "link": "https://www.google.com/maps/search/?api=1&query=street+parking+near+Van+Andel+Arena,+Grand+Rapids,+MI",
+              "linkText": "View area on Google Maps"
+            },
+            {
+              "title": "Park and walk",
+              "description": "Once you find a spot, park and walk up to {walkMiles} miles to {destination}."
+            }
+          ]
+        }
+      },
+      "freeStreet": {
+        "title": "Find free street parking",
+        "body": "Spend 15 minutes in traffic circling the area near {destination} to find free street parking. Meters are free after 7 PM on weekdays and all day on weekends.",
+        "badge": "Free",
+        "isDiscouraged": true,
+        "steps": [
+          {
+            "title": "Spend 15 minutes in traffic looking for free street parking",
+            "description": "Circle the blocks near {destination} looking for free street parking. Meters are typically free after 7 PM on weekdays and all day on weekends. Be aware of odd-even parking restrictions from November 1 to April 1. This may take 15+ minutes of driving in traffic.",
+            "link": "https://www.google.com/maps/search/?api=1&query=street+parking+near+Van+Andel+Arena,+Grand+Rapids,+MI",
+            "linkText": "View area on Google Maps"
+          },
+          {
+            "title": "Park and walk",
+            "description": "Once you find a spot, park and walk up to {walkMiles} miles to {destination}."
+          }
+        ]
+      },
+      "premiumRamp": {
+        "title": "Park at nearby ramp",
+        "body": "Park at a ramp close to {destination} (around $20-$24 for 4 hours) for convenient access.",
+        "badge": "Convenient",
+        "steps": [
+          {
+            "title": "Park at nearby ramp",
+            "description": "Use Studio Park Ramp, Louis Campau Ramp, or Ellis Parking ramps for close, convenient parking. Rates are typically $20-$24 for 4 hours, higher during events.",
+            "link": "https://www.google.com/maps/search/?api=1&query=Studio+Park+Ramp+or+Louis+Campau+Ramp,+Grand+Rapids,+MI",
+            "linkText": "Find ramps on Google Maps"
+          },
+          {
+            "title": "Walk to destination",
+            "description": "Walk from the ramp to {destination}."
+          }
+        ],
+        "alternate": {
+          "title": "Find free street parking",
+          "body": "Spend 15 minutes in traffic circling the area near {destination} to find free street parking. Meters are free after 7 PM on weekdays and all day on weekends.",
+          "steps": [
+            {
+              "title": "Spend 15 minutes in traffic looking for free street parking",
+              "description": "Circle the blocks near {destination} looking for free street parking. Meters are typically free after 7 PM on weekdays and all day on weekends. Be aware of odd-even parking restrictions from November 1 to April 1. This may take 15+ minutes of driving in traffic.",
+              "link": "https://www.google.com/maps/search/?api=1&query=street+parking+near+Van+Andel+Arena,+Grand+Rapids,+MI",
+              "linkText": "View area on Google Maps"
+            },
+            {
+              "title": "Park and walk",
+              "description": "Once you find a spot, park and walk to {destination}."
+            }
+          ]
+        }
+      }
+    },
+    "transit+shuttle": {
+      "noCost": {
+        "title": "No options available",
+        "body": "You're taking The Rapid but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+        "isNoOptions": true
+      },
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're taking The Rapid and using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Take Rapid, then DASH",
+        "body": "Ride The Rapid to downtown, then use the free DASH shuttle to get closer to your destination.",
+        "badge": "Efficient",
+        "steps": [
+          {
+            "title": "Board The Rapid",
+            "description": "Go to your nearest Rapid stop and board the bus. Ride to a downtown stop that's near a DASH connection point.",
+            "linkTemplate": "https://www.google.com/maps/dir/?api=1&destination={destinationEncoded}&travelmode=transit",
+            "linkText": "View transit route on Google Maps"
+          },
+          {
+            "title": "Transfer to DASH",
+            "description": "Get off The Rapid and walk to the nearest DASH stop. Board the free DASH shuttle and ride it closer to your destination."
+          },
+          {
+            "title": "Walk to destination",
+            "description": "Get off the DASH shuttle and walk the remaining distance to your destination."
+          }
+        ]
+      }
+    },
+    "transit": {
+      "noCost": {
+        "title": "No options available",
+        "body": "You're taking The Rapid but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+        "isNoOptions": true
+      },
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're taking The Rapid but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "The Rapid + short walk",
+        "body": "Plan your route to a Rapid stop near your destination. Avoid transfers if possible. After getting off, walk the remaining distance.",
+        "badge": "Chill",
+        "steps": [
+          {
+            "title": "Take The Rapid",
+            "description": "Go to your nearest Rapid stop and board the bus. Ride to a stop near your destination. Avoid transfers if possible.",
+            "linkTemplate": "https://www.google.com/maps/dir/?api=1&destination={destinationEncoded}&travelmode=transit",
+            "linkText": "View transit route on Google Maps"
+          },
+          {
+            "title": "Walk to destination",
+            "description": "Get off The Rapid and walk the remaining distance to your destination."
+          }
+        ]
+      }
+    },
+    "rideshare": {
+      "noCost": {
+        "title": "No options available",
+        "body": "You're requesting an Uber/Lyft but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Request an Uber/Lyft to your destination",
+        "body": "Request an Uber or Lyft and get dropped off at your destination.",
+        "badge": "Door-to-door",
+        "steps": [
+          {
+            "title": "Request an Uber/Lyft",
+            "description": "Open your Uber or Lyft app and request a ride. Set your destination and confirm the ride."
+          },
+          {
+            "title": "Arrive at destination",
+            "description": "Wait for your driver to arrive, then ride to your destination. The driver will drop you off as close as possible."
+          }
+        ]
+      }
+    },
+    "micromobility": {
+      "noCost": {
+        "title": "No options available",
+        "body": "You're looking for a Lime scooter or bike but not willing to pay any amount. Consider adjusting your budget to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Find and ride a Lime scooter or bike",
+        "body": "Open the Lime app and find the nearest available scooter or bike. Unlock it and ride directly to your destination.",
+        "badge": "On-demand",
+        "steps": [
+          {
+            "title": "Find a Lime scooter or bike",
+            "description": "Open the Lime app and locate the nearest available scooter or bike near your starting location."
+          },
+          {
+            "title": "Ride to destination",
+            "description": "Unlock the scooter or bike and ride directly to your destination."
+          }
+        ]
+      }
+    },
+    "shuttle": {
+      "noWalk": {
+        "title": "No options available",
+        "body": "You're using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "isNoOptions": true
+      },
+      "default": {
+        "title": "Take the DASH shuttle",
+        "body": "Use the free DASH downtown shuttle to get closer to your destination, then walk the remaining distance.",
+        "badge": "Free",
+        "steps": [
+          {
+            "title": "Find a DASH stop",
+            "description": "Locate the nearest DASH shuttle stop near your starting location."
+          },
+          {
+            "title": "Board the DASH shuttle",
+            "description": "Wait for the next DASH shuttle and board it. The shuttle is free and runs through downtown Grand Rapids."
+          },
+          {
+            "title": "Walk to destination",
+            "description": "Get off the DASH shuttle at a stop near your destination and walk the remaining distance."
+          }
+        ]
+      }
+    },
+    "bike": {
+      "default": {
+        "title": "Bike to your destination and lock up nearby",
+        "body": "Ride your bike to your destination. Find a bike rack or secure post near the entrance to lock up. This avoids parking entirely.",
+        "badge": "No parking",
+        "steps": [
+          {
+            "title": "Ride your bike to destination",
+            "description": "Ride your bike to your destination."
+          },
+          {
+            "title": "Lock up your bike",
+            "description": "Find a bike rack or secure post near the entrance and lock up your bike."
+          }
+        ]
+      }
+    }
+  },
+  "linkTexts": {
+    "viewTransitRoute": "View transit route on Google Maps",
+    "findLots": "Find lots on Google Maps",
+    "viewArea": "View area on Google Maps",
+    "findRamps": "Find ramps on Google Maps",
+    "openLink": "Open link"
+  }
+}

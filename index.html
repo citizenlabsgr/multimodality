@@ -7,59 +7,119 @@
     <meta property="og:description" content="End the parking spiral." />
     <meta property="og:type" content="website" />
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="styles.css" />
   </head>
 
   <body class="bg-slate-50 text-slate-900">
     <main class="max-w-md mx-auto px-4 py-6">
-      <div class="space-y-4">
+      <div class="space-y-6">
         <!-- Step 1: Destination, Day and Time -->
         <section
-          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 relative"
         >
-          <h2 class="font-semibold text-lg">Where are you going?</h2>
-
-          <label class="block mt-4 text-sm font-medium">Destination</label>
-          <div class="mt-1 relative">
-            <input
-              id="destination"
-              class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 bg-slate-100"
-              value="Van Andel Arena"
-              disabled
-            />
-            <button
-              type="button"
-              id="resetButton"
-              class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200"
-              aria-label="Reset all settings"
-              title="Reset all settings"
+          <button
+            type="button"
+            id="whereWhenToggle"
+            class="absolute top-4 right-4 w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 hidden"
+            aria-label="Hide details"
+            title="Hide details"
+          >
+            <svg
+              id="whereWhenIcon"
+              class="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
             >
-              <span class="text-lg leading-none">×</span>
-            </button>
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              />
+            </svg>
+          </button>
+
+          <div id="whereWhenContent">
+            <h2 class="font-semibold text-lg">Where are you going?</h2>
+
+            <label class="block mt-4 text-sm font-medium">Destination</label>
+            <div class="mt-1 relative">
+              <input
+                id="destination"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-10 bg-slate-100"
+                value="Van Andel Arena"
+                disabled
+              />
+              <button
+                type="button"
+                id="resetButton"
+                class="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-200"
+                aria-label="Clear all settings"
+                title="Clear all settings"
+              >
+                <span class="text-lg leading-none">×</span>
+              </button>
+            </div>
+
+            <h2 class="font-semibold text-lg mt-6">When are you arriving?</h2>
+
+            <label class="block mt-4 text-sm font-medium">Day</label>
+            <select
+              id="daySelect"
+              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
+            >
+              <option value="today">Today</option>
+              <option value="tomorrow">Tomorrow</option>
+              <option value="monday">Monday</option>
+              <option value="tuesday">Tuesday</option>
+              <option value="wednesday">Wednesday</option>
+              <option value="thursday">Thursday</option>
+              <option value="friday">Friday</option>
+              <option value="saturday">Saturday</option>
+              <option value="sunday">Sunday</option>
+            </select>
+
+            <label class="block mt-4 text-sm font-medium">Time</label>
+            <select
+              id="timeSelect"
+              class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
+            ></select>
           </div>
 
-          <h2 class="font-semibold text-lg mt-6">When are you arriving?</h2>
-
-          <label class="block mt-4 text-sm font-medium">Day</label>
-          <select
-            id="daySelect"
-            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
-          >
-            <option value="today">Today</option>
-            <option value="tomorrow">Tomorrow</option>
-            <option value="monday">Monday</option>
-            <option value="tuesday">Tuesday</option>
-            <option value="wednesday">Wednesday</option>
-            <option value="thursday">Thursday</option>
-            <option value="friday">Friday</option>
-            <option value="saturday">Saturday</option>
-            <option value="sunday">Sunday</option>
-          </select>
-
-          <label class="block mt-4 text-sm font-medium">Time</label>
-          <select
-            id="timeSelect"
-            class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 bg-white"
-          ></select>
+          <div id="whereWhenMinimized" class="hidden">
+            <button
+              type="button"
+              id="whereWhenExpand"
+              class="w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer py-1"
+              aria-label="Edit details"
+              title="Edit details"
+            >
+              <div class="flex-1 text-left">
+                <div class="font-semibold text-slate-900 text-sm" id="minimizedDestination">Van Andel Arena</div>
+                <div class="text-xs text-slate-500 mt-0.5">
+                  <span id="minimizedDay">Today</span>
+                  <span id="minimizedTimeSeparator" class="mx-1 hidden">@</span>
+                  <span id="minimizedTime"></span>
+                </div>
+              </div>
+              <svg
+                class="ml-4 w-4 h-4 text-slate-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
+              </svg>
+            </button>
+          </div>
 
           <!-- TODO: Show flexibility toggle when ready -->
           <button
@@ -111,13 +171,14 @@
                 class="w-full mt-2"
               />
             </div>
+            </div>
           </div>
         </section>
 
         <!-- Step 2: Mode + People + Sliders -->
         <section
           id="preferencesSection"
-          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4"
+          class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-2"
         >
           <h2 class="font-semibold text-lg">Which modes are you open to?</h2>
 

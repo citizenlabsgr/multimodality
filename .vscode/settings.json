@@ -11,7 +11,5 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "djlint.showInstallError": false,
-  "cSpell.words": [
-    "Andel"
-  ]
+  "cSpell.words": ["Andel"]
 }
