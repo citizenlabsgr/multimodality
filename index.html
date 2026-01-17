@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Multi-Modal Grand Rapids</title>
+    <meta property="og:description" content="End the parking spiral." />
+    <meta property="og:type" content="website" />
     <script src="https://cdn.tailwindcss.com"></script>
   </head>
 
   <body class="bg-slate-50 text-slate-900">
     <main class="max-w-md mx-auto px-4 py-6">
-
-
       <div class="space-y-4">
       <!-- Step 1: Destination -->
         <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
@@ -52,14 +52,14 @@
           >
           </select>
 
-          <button
+            <button
             type="button"
             id="flexibilityToggle"
             class="mt-4 w-full flex items-center justify-between text-sm font-medium text-slate-500 text-left hover:text-slate-700 cursor-pointer"
-          >
+            >
             <span>Flexibility</span>
             <span id="flexibilityArrow">▼</span>
-          </button>
+            </button>
           
           <div id="flexibilityContent" class="hidden mt-4">
             <div class="mt-2">
@@ -97,7 +97,7 @@
                 class="w-full mt-2"
               />
             </div>
-          </div>
+        </div>
       </section>
 
       <!-- Step 2: Mode + People -->
@@ -137,28 +137,28 @@
           
           <div id="peopleContent" class="hidden mt-4">
             <div class="flex items-center gap-2">
-              <button
-                class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
-                onclick="adjustPeople(-1)"
-                aria-label="Decrease people"
-              >
-                −
-              </button>
-              <div
-                id="peopleCount"
-                class="flex-1 text-center font-semibold text-lg"
-              >
-                1
-              </div>
-              <button
-                class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
-                onclick="adjustPeople(1)"
-                aria-label="Increase people"
-              >
-                +
-              </button>
+            <button
+              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+              onclick="adjustPeople(-1)"
+              aria-label="Decrease people"
+            >
+              −
+            </button>
+            <div
+              id="peopleCount"
+              class="flex-1 text-center font-semibold text-lg"
+            >
+              1
             </div>
+            <button
+              class="w-10 h-10 rounded-lg border border-slate-300 bg-white"
+              onclick="adjustPeople(1)"
+              aria-label="Increase people"
+            >
+              +
+            </button>
           </div>
+        </div>
       </section>
 
       <!-- Step 3: Sliders -->
@@ -170,7 +170,7 @@
             <div class="flex items-center justify-between">
               <label class="text-sm font-medium">Willing to walk to destination</label>
               <span class="text-sm text-slate-600">
-                <span id="walkValue">0.5</span><span id="walkUnit"> miles</span>
+                <span id="walkValue">0.5</span><span id="walkUnit"> miles</span> <span id="walkTime">(<span id="walkTimeValue">10</span> min)</span>
               </span>
             </div>
             <input
@@ -184,23 +184,6 @@
             />
           </div>
 
-          <!-- Parking time (only if driving) -->
-          <div id="parkingBlock" class="mt-4">
-            <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">Willing to hunt for parking</label>
-              <span class="text-sm text-slate-600">
-                <span id="parkingValue">10</span><span id="parkingUnit"> min</span>
-              </span>
-            </div>
-            <input
-              id="parkingSlider"
-              type="range"
-              min="0"
-              max="20"
-              value="10"
-              class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            />
-          </div>
 
           <!-- Cost -->
           <div class="mt-4">
@@ -284,7 +267,7 @@
 
     <script>
       // Calculate default time: current time + 2 hours, rounded to nearest half hour
-      // Minimum time is 5pm (17:00), maximum is 11pm (23:00)
+      // Minimum time is 5pm (17:00), maximum is 10pm (22:00)
       function getDefaultTime() {
         const now = new Date();
         const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
@@ -299,26 +282,26 @@
           minutes = 0;
           hour = (hour + 1) % 24;
         }
-        // Ensure time is between 5pm and 11pm
+        // Ensure time is between 5pm and 10pm
         if (hour < 17) {
           hour = 17;
           minutes = 0;
-        } else if (hour > 23 || (hour === 23 && minutes > 0)) {
-          hour = 23;
+        } else if (hour > 22 || (hour === 22 && minutes > 0)) {
+          hour = 22;
           minutes = 0;
         }
         return String(hour).padStart(2, '0') + ':' + String(minutes).padStart(2, '0');
       }
 
-      // Generate time options for dropdown (half-hour increments, starting at 5pm, ending at 11pm)
+      // Generate time options for dropdown (half-hour increments, starting at 5pm, ending at 10pm)
       function generateTimeOptions() {
         const timeSelect = document.getElementById("timeSelect");
         const options = [];
-        // Start at 5pm (17:00) and go through 11pm (23:00)
-        for (let hour = 17; hour <= 23; hour++) {
+        // Start at 5pm (17:00) and go through 10pm (22:00)
+        for (let hour = 17; hour <= 22; hour++) {
           for (let minute of [0, 30]) {
-            // Skip 11:30pm, only go up to 11:00pm
-            if (hour === 23 && minute === 30) break;
+            // Skip 10:30pm, only go up to 10:00pm
+            if (hour === 22 && minute === 30) break;
             const timeValue = String(hour).padStart(2, '0') + ':' + String(minute).padStart(2, '0');
             const timeDisplay = new Date(`2000-01-01T${timeValue}`).toLocaleTimeString('en-US', {
               hour: 'numeric',
@@ -489,36 +472,29 @@
 
       function updatePreferencesVisibility() {
         const walkSlider = document.getElementById("walkSlider");
-        const parkingSlider = document.getElementById("parkingSlider");
         const costSlider = document.getElementById("costSlider");
         const walkValue = document.getElementById("walkValue");
         const walkUnit = document.getElementById("walkUnit");
-        const parkingValue = document.getElementById("parkingValue");
-        const parkingUnit = document.getElementById("parkingUnit");
         const costValue = document.getElementById("costValue");
         const costPrefix = document.getElementById("costPrefix");
         const costLabel = document.getElementById("costLabel");
         
-        // Parking slider: only enabled for drive mode
-        const parkingDisabled = state.mode !== "drive";
-        parkingSlider.disabled = parkingDisabled;
-        if (parkingDisabled) {
-          parkingValue.textContent = "—";
-          parkingUnit.textContent = "";
-        } else {
-          parkingValue.textContent = state.parkingMins;
-          parkingUnit.textContent = " min";
-        }
-        
         // Walk slider: disabled for rideshare and walk modes
         const walkDisabled = state.mode === "rideshare" || state.mode === "walk";
+        const walkTime = document.getElementById("walkTime");
+        const walkTimeValue = document.getElementById("walkTimeValue");
         walkSlider.disabled = walkDisabled;
         if (walkDisabled) {
           walkValue.textContent = "—";
           walkUnit.textContent = "";
+          if (walkTime) walkTime.style.display = "none";
         } else {
           walkValue.textContent = state.walkMiles.toFixed(1);
           walkUnit.textContent = " miles";
+          // Calculate walking time (assuming 3 mph average walking speed)
+          const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+          if (walkTimeValue) walkTimeValue.textContent = walkMinutes;
+          if (walkTime) walkTime.style.display = "inline";
         }
         
         // Cost slider: disabled for walk and bike modes
@@ -543,7 +519,7 @@
         costLabel.textContent = getCostLabel(state.mode);
         
         // Gray out entire section if all preferences are disabled (e.g., walk mode)
-        const allDisabled = parkingDisabled && walkDisabled && costDisabled;
+        const allDisabled = walkDisabled && costDisabled;
         const preferencesSection = document.getElementById("preferencesSection");
         const preferencesHeading = document.getElementById("preferencesHeading");
         if (preferencesSection) {
@@ -679,30 +655,25 @@
 
       // Sliders
       const walkSlider = document.getElementById("walkSlider");
-      const parkingSlider = document.getElementById("parkingSlider");
       const costSlider = document.getElementById("costSlider");
 
       walkSlider.addEventListener("input", (e) => {
         state.walkMiles = Number(e.target.value);
         const walkValue = document.getElementById("walkValue");
         const walkUnit = document.getElementById("walkUnit");
+        const walkTime = document.getElementById("walkTime");
+        const walkTimeValue = document.getElementById("walkTimeValue");
         if (!walkSlider.disabled) {
           walkValue.textContent = state.walkMiles.toFixed(1);
           walkUnit.textContent = " miles";
+          // Calculate walking time (assuming 3 mph average walking speed)
+          const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+          if (walkTimeValue) walkTimeValue.textContent = walkMinutes;
+          if (walkTime) walkTime.style.display = "inline";
         }
         updateResults();
       });
 
-      parkingSlider.addEventListener("input", (e) => {
-        state.parkingMins = Number(e.target.value);
-        const parkingValue = document.getElementById("parkingValue");
-        const parkingUnit = document.getElementById("parkingUnit");
-        if (!parkingSlider.disabled) {
-          parkingValue.textContent = state.parkingMins;
-          parkingUnit.textContent = " min";
-        }
-        updateResults();
-      });
 
       costSlider.addEventListener("input", (e) => {
         state.costDollars = Number(e.target.value);
@@ -1193,6 +1164,13 @@
       daySelect.value = state.day;
       timeSelect.value = state.time;
         document.getElementById("peopleCount").textContent = state.people;
+
+      // Initialize walk time estimate
+      const walkTimeValue = document.getElementById("walkTimeValue");
+      if (walkTimeValue) {
+        const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+        walkTimeValue.textContent = walkMinutes;
+      }
 
       // Initialize other modes checkboxes
       if (willingDash) willingDash.checked = state.willingToUseDash;
