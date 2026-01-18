@@ -352,6 +352,8 @@ test.describe("Parking Enforcement Logic", () => {
     const whereWhenMinimized = page.locator("#whereWhenMinimized");
     await expect(whereWhenContent).toHaveClass(/hidden/);
     await expect(whereWhenMinimized).not.toHaveClass(/hidden/);
+    // Reset button should be hidden when card is collapsed
+    await expect(resetButton).toHaveClass(/hidden/);
   });
 
   test("should collapse location card when all three inputs have values on page refresh", async ({
@@ -365,9 +367,12 @@ test.describe("Parking Enforcement Logic", () => {
     // Check that the card is collapsed (minimized view is visible, content is hidden)
     const whereWhenContent = page.locator("#whereWhenContent");
     const whereWhenMinimized = page.locator("#whereWhenMinimized");
+    const resetButton = page.locator("#resetButton");
 
     await expect(whereWhenContent).toHaveClass(/hidden/);
     await expect(whereWhenMinimized).not.toHaveClass(/hidden/);
+    // Reset button should be hidden when card is collapsed
+    await expect(resetButton).toHaveClass(/hidden/);
 
     // Also test with explicit day and time
     await page.goto(`${BASE_URL}#day=monday&time=800`);
@@ -375,6 +380,8 @@ test.describe("Parking Enforcement Logic", () => {
 
     await expect(whereWhenContent).toHaveClass(/hidden/);
     await expect(whereWhenMinimized).not.toHaveClass(/hidden/);
+    // Reset button should be hidden when card is collapsed, even when day is changed
+    await expect(resetButton).toHaveClass(/hidden/);
   });
 
   test("should collapse card when save button is clicked", async ({ page }) => {
@@ -444,5 +451,9 @@ test.describe("Parking Enforcement Logic", () => {
     // Wait for the card to collapse
     await expect(whereWhenContent).not.toBeVisible({ timeout: 2000 });
     await expect(whereWhenMinimized).toBeVisible({ timeout: 2000 });
+
+    // Reset button should be hidden when card is collapsed
+    const resetButton = page.locator("#resetButton");
+    await expect(resetButton).toHaveClass(/hidden/);
   });
 });

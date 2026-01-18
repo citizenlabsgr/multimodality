@@ -4,7 +4,7 @@ module.exports = defineConfig({
   fullyParallel: true,
   workers: "100%",
   use: {
-    baseURL: "http://localhost:8080",
+    baseURL: "http://localhost:8081",
     actionTimeout: 5000,
   },
   projects: [
@@ -14,8 +14,7 @@ module.exports = defineConfig({
     },
   ],
   webServer: {
-    command: "npx --yes live-server --port=8080",
-    url: "http://localhost:8080",
-    reuseExistingServer: true,
+    command: "npx --yes http-server . --port=8081",
+    url: "http://localhost:8081",
   },
 });

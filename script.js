@@ -699,14 +699,10 @@ function minimizeWhereWhen() {
   updateMinimizedView();
   whereWhenContent.classList.add("hidden");
   whereWhenMinimized.classList.remove("hidden");
-  // Show reset button in top right when minimized, but only if day has been changed (something to clear)
+  // Hide reset button when card is collapsed
   const resetBtn = document.getElementById("resetButton");
   if (resetBtn) {
-    if (dayChanged) {
-      resetBtn.classList.remove("hidden");
-    } else {
-      resetBtn.classList.add("hidden");
-    }
+    resetBtn.classList.add("hidden");
   }
 }
 
