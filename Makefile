@@ -16,4 +16,4 @@ test: install
 
 .PHONY: run
 run:
-	npx --yes live-server
+	npx --yes live-server --no-browser

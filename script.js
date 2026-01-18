@@ -926,6 +926,42 @@ function renderResults() {
   }
 }
 
+// Check if parking meters are enforced based on day and time
+// Grand Rapids parking meters are enforced Monday-Friday 8am-7pm
+// Free after 7pm on weekdays and all day on weekends
+function isParkingEnforced(day, time) {
+  if (!day || !time) return true; // Default to enforced if day/time not set
+
+  // Parse time (HH:MM format)
+  const [hours, minutes] = time.split(":").map(Number);
+  const hour24 = hours;
+
+  // Check if it's a weekend
+  const weekendDays = ["saturday", "sunday"];
+  if (weekendDays.includes(day.toLowerCase())) {
+    return false; // No enforcement on weekends
+  }
+
+  // Check if it's a weekday
+  const weekdayDays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+  if (weekdayDays.includes(day.toLowerCase())) {
+    // Enforcement is 8am-7pm on weekdays
+    // If time is before 8am or at/after 7pm, no enforcement
+    if (hour24 < 8 || hour24 >= 19) {
+      return false;
+    }
+    return true;
+  }
+
+  // For "today" or "tomorrow", we need to check the actual day
+  // For now, default to checking time only (assume weekday)
+  // If time is before 8am or at/after 7pm, no enforcement
+  if (hour24 < 8 || hour24 >= 19) {
+    return false;
+  }
+  return true;
+}
+
 // Helper function to replace placeholders in text
 function replacePlaceholders(text, values) {
   let result = text;
@@ -1041,12 +1077,29 @@ function buildRecommendation() {
       }
     } else {
       // Drive only
+      // Adjust effective cost based on parking enforcement
+      const parkingEnforced = isParkingEnforced(state.day, state.time);
+      // If parking is free (after 7pm on weekdays or weekends) and user has low budget (< $8),
+      // treat as $0 to recommend free street parking
+      // If user is willing to pay $8+, use their actual budget to recommend paid parking
+      const effectiveCostDollars =
+        !parkingEnforced && walkMiles > 0 && costDollars < 8 ? 0 : costDollars;
+
       let recKey;
       if (walkMiles === 0) {
         recKey = "noWalk";
-      } else if (walkMiles > 0 && costDollars >= 8) {
+      } else if (parkingEnforced && effectiveCostDollars === 0) {
+        // If parking is enforced and effective cost is $0 (user won't pay), no options available
+        recKey = "noCost";
+      } else if (walkMiles > 0 && effectiveCostDollars >= 20) {
+        // If user is willing to pay $20+, recommend premium ramps (structured parking garages, $27-$30)
+        // Ramps have better availability than surface lots
+        recKey = "premiumRamp";
+      } else if (walkMiles > 0 && effectiveCostDollars >= 8) {
+        // If user is willing to pay $8-$19, recommend affordable surface lots ($8-$10 for 4 hours)
+        // Surface lots are cheaper than ramps (structured garages)
         recKey = "affordableLot";
-      } else if (costDollars < 8) {
+      } else if (effectiveCostDollars < 8) {
         recKey = "freeStreet";
       } else {
         recKey = "premiumRamp";
@@ -1255,6 +1308,7 @@ async function init() {
   // Expose state on window for testing
   window.state = state;
   window.appData = appData;
+  window.isParkingEnforced = isParkingEnforced;
 }
 
 // Reset function to clear all URL fragments and reset state

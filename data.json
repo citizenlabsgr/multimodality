@@ -115,14 +115,19 @@
         "body": "You're driving but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
         "isNoOptions": true
       },
+      "noCost": {
+        "title": "No options available",
+        "body": "Parking meters are enforced until 7 PM on weekdays. Since you're not willing to pay for parking, there are no options available. Consider arriving after 7 PM when meters are free, or adjust your budget.",
+        "isNoOptions": true
+      },
       "affordableLot": {
-        "title": "Park at affordable lot and walk",
-        "body": "Park at a more affordable lot (around $8-$10 for 4 hours) within {walkMiles} miles of {destination} and walk the rest of the way. This saves money compared to premium ramps.",
+        "title": "Park at affordable surface lot and walk",
+        "body": "Park at a surface parking lot (around $8-$10 for 4 hours) within {walkMiles} miles of {destination} and walk the rest of the way. Surface lots are cheaper than ramps (structured parking garages).",
         "badge": "Budget-friendly",
         "steps": [
           {
-            "title": "Find affordable parking lot",
-            "description": "Look for parking lots near Ottawa and Fulton streets, or Market Street Lot. These typically cost $8-$10 for 4 hours and are within walking distance.",
+            "title": "Find affordable surface parking lot",
+            "description": "Look for surface parking lots near Ottawa and Fulton streets, or Market Street Lot. Surface lots are open-air parking areas (not garages) and typically cost $8-$10 for 4 hours, cheaper than ramps.",
             "link": "https://www.google.com/maps/search/?api=1&query=parking+lot+near+Ottawa+and+Fulton,+Grand+Rapids,+MI",
             "linkText": "Find lots on Google Maps"
           },
@@ -167,14 +172,14 @@
         ]
       },
       "premiumRamp": {
-        "title": "Park at nearby ramp",
-        "body": "Park at a ramp close to {destination} (around $20-$24 for 4 hours) for convenient access.",
+        "title": "Park at nearby ramp (parking garage)",
+        "body": "Park at a premium ramp (structured parking garage) close to {destination} (around $27-$30 for evening/events) for convenient access. Ramps are multi-level parking structures that often have better availability than surface lots.",
         "badge": "Convenient",
         "steps": [
           {
-            "title": "Park at nearby ramp",
-            "description": "Use Studio Park Ramp, Louis Campau Ramp, or Ellis Parking ramps for close, convenient parking. Rates are typically $20-$24 for 4 hours, higher during events.",
-            "link": "https://www.google.com/maps/search/?api=1&query=Studio+Park+Ramp+or+Louis+Campau+Ramp,+Grand+Rapids,+MI",
+            "title": "Park at nearby ramp (parking garage)",
+            "description": "Use Arena Place Garage, Studio Park Ramp, or other Ellis Parking ramps for close, convenient parking. Ramps are structured parking garages (not surface lots). Premium ramps like Arena Place are very close to Van Andel Arena, typically cost $27-$30 for evening/events (daytime max $27), and often have better availability than surface lots.",
+            "link": "https://www.google.com/maps/search/?api=1&query=Arena+Place+Garage+or+Studio+Park+Ramp,+Grand+Rapids,+MI",
             "linkText": "Find ramps on Google Maps"
           },
           {

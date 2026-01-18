@@ -186,3 +186,166 @@ test.describe("URL Fragment Permutations", () => {
     await expect(page.locator("#timeSelect")).toHaveValue("22:00");
   });
 });
+
+test.describe("Parking Enforcement Logic", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(BASE_URL);
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("should enforce parking on weekday during enforcement hours (8am-7pm)", async ({
+    page,
+  }) => {
+    // Test Monday at 12:00 PM (noon) - should be enforced
+    await page.goto(`${BASE_URL}#day=monday&time=1200`);
+    await page.waitForTimeout(500);
+    const isEnforced = await page.evaluate(() => {
+      return window.isParkingEnforced("monday", "12:00");
+    });
+    expect(isEnforced).toBe(true);
+  });
+
+  test("should NOT enforce parking on weekday after 7pm", async ({ page }) => {
+    // Test Tuesday at 7:30 PM - should NOT be enforced
+    await page.goto(`${BASE_URL}#day=tuesday&time=1930`);
+    await page.waitForTimeout(500);
+    const isEnforced = await page.evaluate(() => {
+      return window.isParkingEnforced("tuesday", "19:30");
+    });
+    expect(isEnforced).toBe(false);
+  });
+
+  test("should NOT enforce parking on weekday before 8am", async ({ page }) => {
+    // Test Wednesday at 7:30 AM - should NOT be enforced
+    await page.goto(`${BASE_URL}#day=wednesday&time=0730`);
+    await page.waitForTimeout(500);
+    const isEnforced = await page.evaluate(() => {
+      return window.isParkingEnforced("wednesday", "07:30");
+    });
+    expect(isEnforced).toBe(false);
+  });
+
+  test("should NOT enforce parking on weekends", async ({ page }) => {
+    // Test Saturday at 2:00 PM - should NOT be enforced
+    await page.goto(`${BASE_URL}#day=saturday&time=1400`);
+    await page.waitForTimeout(500);
+    const isEnforced = await page.evaluate(() => {
+      return window.isParkingEnforced("saturday", "14:00");
+    });
+    expect(isEnforced).toBe(false);
+  });
+
+  test("should recommend free street parking when arriving after 7pm on weekday", async ({
+    page,
+  }) => {
+    // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Tuesday at 7:30 PM
+    await page.goto(
+      `${BASE_URL}#modes=drive&day=tuesday&time=1930&walk=0.5&pay=10`,
+    );
+    await page.waitForTimeout(500);
+
+    // Check that the recommendation is for free street parking
+    const resultsText = await page.locator("#results").textContent();
+    expect(resultsText).toContain("free street parking");
+  });
+
+  test("should recommend free street parking when arriving on weekend with low budget", async ({
+    page,
+  }) => {
+    // Set up: drive mode, willing to pay $5 (low budget), willing to walk 0.5 miles, arriving Saturday at 2:00 PM
+    await page.goto(
+      `${BASE_URL}#modes=drive&day=saturday&time=1400&walk=0.5&pay=5`,
+    );
+    await page.waitForTimeout(500);
+
+    // Check that the recommendation is for free street parking (since budget is low)
+    const resultsText = await page.locator("#results").textContent();
+    expect(resultsText).toContain("free street parking");
+  });
+
+  test("should recommend premium ramp when arriving on weekend with higher budget", async ({
+    page,
+  }) => {
+    // Set up: drive mode, willing to pay $20, willing to walk 0.5 miles, arriving Saturday at 6:00 PM
+    await page.goto(
+      `${BASE_URL}#modes=drive&day=saturday&time=600&walk=0.5&pay=20`,
+    );
+    await page.waitForTimeout(500);
+
+    // Check that the recommendation is for premium ramp (since user is willing to pay $20+)
+    const resultsText = await page.locator("#results").textContent();
+    expect(resultsText).toContain("premium ramp");
+  });
+
+  test("should recommend affordable lot when budget is $8-$19", async ({
+    page,
+  }) => {
+    // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Monday at 6:00 PM
+    await page.goto(
+      `${BASE_URL}#modes=drive&day=monday&time=1800&walk=0.5&pay=10`,
+    );
+    await page.waitForTimeout(500);
+
+    // Check that the recommendation is for affordable surface lot (since user is willing to pay $8-$19)
+    const resultsText = await page.locator("#results").textContent();
+    expect(resultsText).toContain("affordable surface lot");
+  });
+
+  test("should recommend affordable lot when arriving during enforcement hours on weekday", async ({
+    page,
+  }) => {
+    // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Monday at 6:00 PM (still enforced)
+    await page.goto(
+      `${BASE_URL}#modes=drive&day=monday&time=1800&walk=0.5&pay=10`,
+    );
+    await page.waitForTimeout(500);
+
+    // Check that the recommendation is for affordable surface lot (since willing to pay $10 >= $8)
+    const resultsText = await page.locator("#results").textContent();
+    expect(resultsText).toContain("affordable surface lot");
+  });
+
+  test("should use isParkingEnforced function correctly", async ({ page }) => {
+    await page.goto(BASE_URL);
+    await page.waitForTimeout(500);
+
+    // Test the function directly using the exposed function
+    const testCases = await page.evaluate(() => {
+      return [
+        { day: "monday", time: "12:00", expected: true }, // Weekday during enforcement
+        { day: "tuesday", time: "19:30", expected: false }, // Weekday after 7pm
+        { day: "wednesday", time: "07:30", expected: false }, // Weekday before 8am
+        { day: "thursday", time: "19:00", expected: false }, // Weekday exactly at 7pm
+        { day: "friday", time: "08:00", expected: true }, // Weekday exactly at 8am
+        { day: "saturday", time: "14:00", expected: false }, // Weekend
+        { day: "sunday", time: "20:00", expected: false }, // Weekend
+      ].map((tc) => ({
+        ...tc,
+        actual: window.isParkingEnforced(tc.day, tc.time),
+      }));
+    });
+
+    testCases.forEach(({ day, time, expected, actual }) => {
+      expect(actual).toBe(
+        expected,
+        `Parking enforcement for ${day} at ${time} should be ${expected}`,
+      );
+    });
+  });
+
+  test("should show no options when parking is enforced and cost is $0", async ({
+    page,
+  }) => {
+    // Test: Thursday at 6:00 PM (18:00), willing to pay $0, willing to walk
+    // Parking is still enforced at 6pm, so no free parking available
+    await page.goto(
+      `${BASE_URL}#modes=drive&day=thursday&time=600&walk=0.5&pay=0`,
+    );
+    await page.waitForTimeout(500);
+
+    // Check that the recommendation shows "No options available"
+    const resultsText = await page.locator("#results").textContent();
+    expect(resultsText).toContain("No options available");
+    expect(resultsText).toContain("Parking meters are enforced until 7 PM");
+  });
+});
