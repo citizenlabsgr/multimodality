@@ -18,4 +18,5 @@ module.exports = defineConfig({
     url: "http://localhost:8080",
     reuseExistingServer: true,
   },
+  reporter: "dot",
 });
