@@ -365,23 +365,6 @@ function toggleMode(mode) {
     state.modes.push(mode);
   }
 
-  // Set default cost based on first mode if cost is at a default value
-  const primaryMode = state.modes[0];
-  if (appData?.defaultCosts[primaryMode]) {
-    const defaultCost = appData.defaultCosts[primaryMode];
-    const defaultCostDollars = appData.defaults.costDollars;
-    // Only change if current cost matches a default value
-    if (
-      state.costDollars === defaultCostDollars ||
-      state.costDollars === appData.defaultCosts.micromobility ||
-      state.costDollars === appData.defaultCosts.transit ||
-      state.costDollars === appData.defaultCosts.rideshare
-    ) {
-      state.costDollars = defaultCost;
-      costSlider.value = defaultCost;
-    }
-  }
-
   highlightMode();
   updatePreferencesVisibility();
   updateResetModesButtonVisibility();
@@ -1295,15 +1278,6 @@ async function init() {
     }
   }
 
-  // Set default cost based on primary mode
-  const primaryMode = state.modes.length > 0 ? state.modes[0] : "drive";
-  if (
-    appData.defaultCosts[primaryMode] &&
-    state.costDollars === appData.defaults.costDollars
-  ) {
-    state.costDollars = appData.defaultCosts[primaryMode];
-    costSlider.value = appData.defaultCosts[primaryMode];
-  }
   if (params.day) {
     state.day = params.day;
     dayChanged = true; // Mark as changed since it came from fragment

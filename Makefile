@@ -14,6 +14,10 @@ format:
 test: install
 	npx playwright test
 
+.PHONY: dev
+dev: install
+	npx --yes nodemon --watch . --exec "make all"
+
 .PHONY: run
 run:
 	npx --yes live-server --no-browser
