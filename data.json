@@ -176,9 +176,9 @@
         "badge": "Convenient",
         "steps": [
           {
-            "title": "Park at nearby ramp (parking garage)",
-            "description": "Use Arena Place Garage, Studio Park Ramp, or other Ellis Parking ramps for close, convenient parking. Ramps are structured parking garages (not surface lots). Premium ramps like Arena Place are very close to Van Andel Arena, typically cost $27-$30 for evening/events (daytime max $27), and often have better availability than surface lots.",
-            "link": "https://www.google.com/maps/search/?api=1&query=Arena+Place+Garage+or+Studio+Park+Ramp,+Grand+Rapids,+MI",
+            "title": "Park at Arena Place Garage or city parking garage",
+            "description": "Arena Place Garage (130 Ionia Ave SW) is a premium ramp directly across from Van Andel Arena. It typically costs $27-$30 for evening/events (daytime max $27) and often has better availability because people avoid the higher cost. City parking garages like Monroe Center Ramp (25 Monroe Center NW) and Ottawa-Fulton Ramp (50 Ottawa Ave NW) are also nearby options. These are structured parking garages (not surface lots) with better availability than cheaper surface lots.",
+            "link": "https://www.google.com/maps/search/?api=1&query=Arena+Place+Garage+or+Monroe+Center+Ramp,+Grand+Rapids,+MI",
             "linkText": "Find ramps on Google Maps"
           },
           {
@@ -360,5 +360,90 @@
     "viewArea": "View area on Google Maps",
     "findRamps": "Find ramps on Google Maps",
     "openLink": "Open link"
+  },
+  "parking": {
+    "premiumRamps": [
+      {
+        "name": "Arena Place Garage",
+        "address": "130 Ionia Ave SW, Grand Rapids, MI 49503",
+        "distance": "Directly across from Van Andel Arena",
+        "pricing": {
+          "daytime": "Max $27",
+          "evening": "$27-$30",
+          "events": "$27-$30"
+        },
+        "availability": "Often better availability due to higher cost",
+        "operator": "Ellis Parking",
+        "type": "Premium structured parking garage"
+      },
+      {
+        "name": "Studio Park Ramp",
+        "address": "123 Ionia Ave SW, Grand Rapids, MI 49503",
+        "distance": "0.1 miles from Van Andel Arena",
+        "pricing": {
+          "daytime": "Max $27",
+          "evening": "$27-$30",
+          "events": "$27-$30"
+        },
+        "availability": "Good availability",
+        "operator": "Ellis Parking",
+        "type": "Structured parking garage"
+      }
+    ],
+    "cityGarages": [
+      {
+        "name": "Monroe Center Ramp",
+        "address": "25 Monroe Center NW, Grand Rapids, MI 49503",
+        "distance": "0.3 miles from Van Andel Arena",
+        "pricing": {
+          "daytime": "$1.50/hour, max $12",
+          "evening": "$1.50/hour, max $12",
+          "events": "Event pricing may apply"
+        },
+        "availability": "Good availability",
+        "operator": "City of Grand Rapids",
+        "type": "City parking garage"
+      },
+      {
+        "name": "Ottawa-Fulton Ramp",
+        "address": "50 Ottawa Ave NW, Grand Rapids, MI 49503",
+        "distance": "0.2 miles from Van Andel Arena",
+        "pricing": {
+          "daytime": "$1.50/hour, max $12",
+          "evening": "$1.50/hour, max $12",
+          "events": "Event pricing may apply"
+        },
+        "availability": "Good availability",
+        "operator": "City of Grand Rapids",
+        "type": "City parking garage"
+      }
+    ],
+    "surfaceLots": [
+      {
+        "name": "Market Street Lot",
+        "location": "Near Market Street and Ottawa",
+        "distance": "0.2-0.4 miles from Van Andel Arena",
+        "pricing": {
+          "rate": "$8-$10 for 4 hours"
+        },
+        "availability": "Limited, fills up quickly",
+        "type": "Surface parking lot"
+      },
+      {
+        "name": "Ottawa and Fulton area lots",
+        "location": "Near Ottawa and Fulton streets",
+        "distance": "0.2-0.5 miles from Van Andel Arena",
+        "pricing": {
+          "rate": "$8-$10 for 4 hours"
+        },
+        "availability": "Limited, fills up quickly",
+        "type": "Surface parking lot"
+      }
+    ],
+    "notes": {
+      "premiumRamps": "Premium ramps like Arena Place often have better availability because people avoid the higher cost ($27-$30). These are the most convenient options with structured parking.",
+      "cityGarages": "City parking garages offer more affordable rates ($1.50/hour, max $12) and are good alternatives to premium ramps. They're typically 0.2-0.3 miles from Van Andel Arena.",
+      "surfaceLots": "Surface lots are the cheapest option ($8-$10 for 4 hours) but fill up quickly, especially during events. They require more walking distance."
+    }
   }
 }

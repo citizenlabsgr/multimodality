@@ -786,24 +786,25 @@ function renderResults() {
   const card = document.createElement("div");
   const isNoOptions = primary.isNoOptions;
   const isDiscouraged = primary.isDiscouraged;
+  const cardId = `card-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
   card.className = isNoOptions
-    ? "rounded-none bg-red-50 border border-red-200 p-6"
+    ? "rounded-none bg-red-50 border border-red-200 p-3 relative"
     : isDiscouraged
-      ? "rounded-none bg-yellow-50 border border-yellow-200 p-6"
-      : "rounded-none bg-green-50 border border-green-200 p-6";
+      ? "rounded-none bg-yellow-50 border border-yellow-200 p-3 relative"
+      : "rounded-none bg-green-50 border border-green-200 p-3 relative";
 
   const recommendation = primary;
 
   // If there are steps, make them the primary focus
   if (isNoOptions) {
     card.innerHTML = `
-      <div class="space-y-4">
+      <div class="space-y-2">
         <div>
-          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">No Options Available</div>
-          <h3 class="font-semibold text-xl">${recommendation.title}</h3>
+          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">No Options Available</div>
+          <h3 class="font-semibold text-base">${recommendation.title}</h3>
           ${
             recommendation.body
-              ? `<p class="text-sm text-slate-600 mt-2">${recommendation.body}</p>`
+              ? `<p class="text-xs text-slate-600 mt-1">${recommendation.body}</p>`
               : ""
           }
         </div>
@@ -813,41 +814,47 @@ function renderResults() {
     const strategyLabel = isDiscouraged
       ? "Alternative Strategy"
       : "Recommended Strategy";
+    const stepsId = `steps-${cardId}`;
+    const toggleId = `toggle-${cardId}`;
     card.innerHTML = `
-      <div class="space-y-4">
+      <div class="space-y-2">
         <div>
-          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">${strategyLabel}</div>
-          <h3 class="font-semibold text-xl">${recommendation.title}</h3>
+          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${strategyLabel}</div>
+          <div class="pr-24">
+            <h3 class="font-semibold text-base">${recommendation.title}</h3>
+          </div>
+          <button type="button" id="${toggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
+            Show steps <span class="inline-block ml-1">▼</span>
+          </button>
           ${
             recommendation.body
-              ? `<p class="text-sm text-slate-600 mt-2">${recommendation.body}</p>`
+              ? `<p class="text-xs text-slate-600 mt-1">${recommendation.body}</p>`
               : ""
           }
         </div>
-        <div class="space-y-4">
-          <div class="text-sm font-semibold text-slate-700">Follow these steps:</div>
-          <ol class="space-y-4">
+        <div id="${stepsId}" class="hidden space-y-2 mt-2">
+          <ol class="space-y-2">
             ${recommendation.steps
               .map(
                 (step, index) => `
-              <li class="flex gap-4">
-                <span class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center">${
+              <li class="flex gap-2">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">${
                   index + 1
                 }</span>
-                <div class="flex-1 pt-1">
-                  <div class="font-semibold text-base text-slate-900">${
+                <div class="flex-1 pt-0.5">
+                  <div class="font-semibold text-sm text-slate-900">${
                     step.title
                   }</div>
                   ${
                     step.description
-                      ? `<div class="text-sm text-slate-600 mt-2 leading-relaxed">${step.description}</div>`
+                      ? `<div class="text-xs text-slate-600 mt-1 leading-relaxed">${step.description}</div>`
                       : ""
                   }
                   ${
                     step.link
                       ? `<a href="${
                           step.link
-                        }" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 underline">${
+                        }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs text-blue-600 hover:text-blue-800 underline">${
                           step.linkText || "Open link"
                         } →</a>`
                       : ""
@@ -861,27 +868,43 @@ function renderResults() {
         </div>
       </div>
     `;
+
+    // Add toggle functionality
+    const toggleBtn = card.querySelector(`#${toggleId}`);
+    const stepsDiv = card.querySelector(`#${stepsId}`);
+    if (toggleBtn && stepsDiv) {
+      toggleBtn.addEventListener("click", () => {
+        const isHidden = stepsDiv.classList.toggle("hidden");
+        const arrow = toggleBtn.querySelector("span span");
+        if (arrow) {
+          arrow.textContent = isHidden ? "▼" : "▲";
+        }
+        toggleBtn.innerHTML = isHidden
+          ? 'Show steps <span class="inline-block ml-1">▼</span>'
+          : 'Hide steps <span class="inline-block ml-1">▲</span>';
+      });
+    }
   } else {
     // Single step instruction format
     const strategyLabel = isDiscouraged
       ? "Alternative Strategy"
       : "Recommended Strategy";
     card.innerHTML = `
-      <div class="space-y-4">
+      <div class="space-y-2">
         <div>
-          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">${strategyLabel}</div>
-          <h3 class="font-semibold text-xl">${recommendation.title}</h3>
+          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${strategyLabel}</div>
+          <h3 class="font-semibold text-base">${recommendation.title}</h3>
         </div>
-        <div class="space-y-4">
-          <div class="flex gap-4">
-            <span class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center">1</span>
-            <div class="flex-1 pt-1">
-              <div class="font-semibold text-base text-slate-900">${
+        <div class="space-y-2">
+          <div class="flex gap-2">
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <div class="flex-1 pt-0.5">
+              <div class="font-semibold text-sm text-slate-900">${
                 recommendation.instruction || recommendation.title
               }</div>
               ${
                 recommendation.body
-                  ? `<div class="text-sm text-slate-600 mt-2 leading-relaxed">${recommendation.body}</div>`
+                  ? `<div class="text-xs text-slate-600 mt-1 leading-relaxed">${recommendation.body}</div>`
                   : ""
               }
             </div>
@@ -889,7 +912,7 @@ function renderResults() {
         </div>
         ${
           recommendation.meta
-            ? `<div class="pt-4 border-t border-slate-200 text-xs text-slate-500">${recommendation.meta}</div>`
+            ? `<div class="pt-2 border-t border-slate-200 text-xs text-slate-500">${recommendation.meta}</div>`
             : ""
         }
       </div>
@@ -901,45 +924,52 @@ function renderResults() {
   // Render alternate recommendation (yellow) if applicable
   if (alternate) {
     const altCard = document.createElement("div");
+    const altCardId = `alt-card-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
     altCard.className =
-      "rounded-none bg-yellow-50 border border-yellow-200 p-6 mt-4";
+      "rounded-none bg-yellow-50 border border-yellow-200 p-3 mt-2 relative";
 
     if (alternate.steps && alternate.steps.length > 0) {
+      const altStepsId = `steps-${altCardId}`;
+      const altToggleId = `toggle-${altCardId}`;
       altCard.innerHTML = `
-        <div class="space-y-4">
+        <div class="space-y-2">
           <div>
-            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Alternate Strategy</div>
-            <h3 class="font-semibold text-xl">${alternate.title}</h3>
+            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Alternate Strategy</div>
+            <div class="pr-24">
+              <h3 class="font-semibold text-base">${alternate.title}</h3>
+            </div>
+            <button type="button" id="${altToggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
+              Show steps <span class="inline-block ml-1">▼</span>
+            </button>
             ${
               alternate.body
-                ? `<p class="text-sm text-slate-600 mt-2">${alternate.body}</p>`
+                ? `<p class="text-xs text-slate-600 mt-1">${alternate.body}</p>`
                 : ""
             }
           </div>
-          <div class="space-y-4">
-            <div class="text-sm font-semibold text-slate-700">Follow these steps:</div>
-            <ol class="space-y-4">
+          <div id="${altStepsId}" class="hidden space-y-2 mt-2">
+            <ol class="space-y-2">
               ${alternate.steps
                 .map(
                   (step, index) => `
-                <li class="flex gap-4">
-                  <span class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center">${
+                <li class="flex gap-2">
+                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">${
                     index + 1
                   }</span>
-                  <div class="flex-1 pt-1">
-                    <div class="font-semibold text-base text-slate-900">${
+                  <div class="flex-1 pt-0.5">
+                    <div class="font-semibold text-sm text-slate-900">${
                       step.title
                     }</div>
                     ${
                       step.description
-                        ? `<div class="text-sm text-slate-600 mt-2 leading-relaxed">${step.description}</div>`
+                        ? `<div class="text-xs text-slate-600 mt-1 leading-relaxed">${step.description}</div>`
                         : ""
                     }
                     ${
                       step.link
                         ? `<a href="${
                             step.link
-                          }" target="_blank" rel="noopener noreferrer" class="mt-2 inline-block text-sm text-blue-600 hover:text-blue-800 underline">${
+                          }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-xs text-blue-600 hover:text-blue-800 underline">${
                             step.linkText || "Open link"
                           } →</a>`
                         : ""
@@ -953,23 +983,39 @@ function renderResults() {
           </div>
         </div>
       `;
+
+      // Add toggle functionality for alternate card
+      const altToggleBtn = altCard.querySelector(`#${altToggleId}`);
+      const altStepsDiv = altCard.querySelector(`#${altStepsId}`);
+      if (altToggleBtn && altStepsDiv) {
+        altToggleBtn.addEventListener("click", () => {
+          const isHidden = altStepsDiv.classList.toggle("hidden");
+          const arrow = altToggleBtn.querySelector("span span");
+          if (arrow) {
+            arrow.textContent = isHidden ? "▼" : "▲";
+          }
+          altToggleBtn.innerHTML = isHidden
+            ? 'Show steps <span class="inline-block ml-1">▼</span>'
+            : 'Hide steps <span class="inline-block ml-1">▲</span>';
+        });
+      }
     } else {
       altCard.innerHTML = `
-        <div class="space-y-4">
+        <div class="space-y-2">
           <div>
-            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2">Alternate Strategy</div>
-            <h3 class="font-semibold text-xl">${alternate.title}</h3>
+            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Alternate Strategy</div>
+            <h3 class="font-semibold text-base">${alternate.title}</h3>
           </div>
-          <div class="space-y-4">
-            <div class="flex gap-4">
-              <span class="flex-shrink-0 w-8 h-8 rounded-full bg-slate-900 text-white text-sm font-bold flex items-center justify-center">1</span>
-              <div class="flex-1 pt-1">
-                <div class="font-semibold text-base text-slate-900">${
+          <div class="space-y-2">
+            <div class="flex gap-2">
+              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">1</span>
+              <div class="flex-1 pt-0.5">
+                <div class="font-semibold text-sm text-slate-900">${
                   alternate.instruction || alternate.title
                 }</div>
                 ${
                   alternate.body
-                    ? `<div class="text-sm text-slate-600 mt-2 leading-relaxed">${alternate.body}</div>`
+                    ? `<div class="text-xs text-slate-600 mt-1 leading-relaxed">${alternate.body}</div>`
                     : ""
                 }
               </div>

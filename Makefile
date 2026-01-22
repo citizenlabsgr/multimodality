@@ -16,7 +16,7 @@ test: install
 
 .PHONY: dev
 dev: install
-	npx --yes nodemon --watch . --exec "make all"
+	npx --yes nodemon --ext js,json,html,css --watch . --exec "clear; make all"
 
 .PHONY: run
 run:
