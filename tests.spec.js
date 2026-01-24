@@ -603,4 +603,39 @@ test.describe("Parking Enforcement Logic", () => {
     await expect(results).not.toContainText("surface lot");
     await expect(results).not.toContainText("affordable surface lot");
   });
+
+  test("should recommend rideshare when both rideshare and drive are selected", async ({
+    page,
+  }) => {
+    // Test: Wednesday at 6:00 PM (18:00), both rideshare and drive selected, walk=0, pay=20
+    // Should recommend rideshare (prioritized over drive-only)
+    await page.goto(
+      "/#/visit/van-andel-arena?day=wednesday&time=600&modes=rideshare,drive&walk=0&pay=20",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    // Wait for state to be initialized correctly
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      if (
+        !state ||
+        state.costDollars !== 20 ||
+        state.day !== "wednesday" ||
+        state.time !== "18:00" ||
+        !state.modes.includes("rideshare") ||
+        !state.modes.includes("drive")
+      ) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 7000 });
+
+    // Check that the recommendation is for rideshare, not drive
+    const results = page.locator("#results");
+    const resultsText = await results.textContent();
+    expect(resultsText).toContain("rideshare");
+    expect(resultsText).toContain("Uber");
+    expect(resultsText).not.toContain("parking");
+    expect(resultsText).not.toContain("Park at");
+  });
 });

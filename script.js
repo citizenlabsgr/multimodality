@@ -199,9 +199,6 @@ function parseFragment() {
 // Update URL fragment with current state
 function updateFragment() {
   const parts = [];
-  if (state.modes.length > 0) {
-    parts.push(`modes=${state.modes.join(",")}`);
-  }
   // Only include day/people in fragment if they've been changed by user
   if (dayChanged && state.day) {
     parts.push(`day=${encodeURIComponent(state.day)}`);
@@ -210,6 +207,9 @@ function updateFragment() {
   if (state.time) {
     // Convert time to URL format without colon
     parts.push(`time=${timeToUrl(state.time)}`);
+  }
+  if (state.modes.length > 0) {
+    parts.push(`modes=${state.modes.join(",")}`);
   }
   if (peopleChanged && state.people) {
     parts.push(`people=${encodeURIComponent(state.people)}`);
@@ -600,40 +600,46 @@ function updateMinimizeButtonState() {
   }
 }
 
-daySelect.addEventListener("change", (e) => {
-  state.day = e.target.value;
-  dayChanged = true;
-  // Update placeholder styling
-  if (state.day) {
-    daySelect.classList.remove("placeholder");
-  } else {
-    daySelect.classList.add("placeholder");
-  }
-  updateModesSectionState();
-  updateMinimizeButtonState(); // Update minimize button state
-  updateMinimizedView(); // Update minimized view if visible
-  updateSaveButtonState();
-  updateFragment();
-  updateResults();
-});
+if (daySelect) {
+  daySelect.addEventListener("change", (e) => {
+    if (!state) return; // Don't process if state isn't initialized yet
+    state.day = e.target.value;
+    dayChanged = true;
+    // Update placeholder styling
+    if (state.day) {
+      daySelect.classList.remove("placeholder");
+    } else {
+      daySelect.classList.add("placeholder");
+    }
+    updateModesSectionState();
+    updateMinimizeButtonState(); // Update minimize button state
+    updateMinimizedView(); // Update minimized view if visible
+    updateSaveButtonState();
+    updateFragment();
+    updateResults();
+  });
+}
 
-timeSelect.addEventListener("change", (e) => {
-  state.time = e.target.value;
-  timeChanged = true;
-  // Update placeholder styling
-  if (state.time) {
-    timeSelect.classList.remove("placeholder");
-  } else {
-    timeSelect.classList.add("placeholder");
-  }
-  updateModesSectionState();
-  updateMinimizeButtonState(); // Update minimize button state
-  updateMinimizedView(); // Update minimized view if visible
-  updateSaveButtonState();
-  // Always add time to fragment when user selects it
-  updateFragment();
-  updateResults();
-});
+if (timeSelect) {
+  timeSelect.addEventListener("change", (e) => {
+    if (!state) return; // Don't process if state isn't initialized yet
+    state.time = e.target.value;
+    timeChanged = true;
+    // Update placeholder styling
+    if (state.time) {
+      timeSelect.classList.remove("placeholder");
+    } else {
+      timeSelect.classList.add("placeholder");
+    }
+    updateModesSectionState();
+    updateMinimizeButtonState(); // Update minimize button state
+    updateMinimizedView(); // Update minimized view if visible
+    updateSaveButtonState();
+    // Always add time to fragment when user selects it
+    updateFragment();
+    updateResults();
+  });
+}
 
 // Update save button state based on required fields
 function updateSaveButtonState() {
@@ -1202,10 +1208,10 @@ function buildRecommendation() {
   const hasBike = modes.includes("bike");
 
   // Build recommendation based on selected modes
-  // Priority: drive combinations > transit combinations > single modes
+  // Priority: drive combinations > rideshare > drive-only > transit combinations > single modes
 
-  if (hasDrive) {
-    // Drive mode combinations
+  if (hasDrive && (hasShuttle || hasTransit || hasMicromobility)) {
+    // Drive mode combinations (these take priority)
     if (hasShuttle) {
       // Drive + Shuttle: Park farther, use DASH
       const recKey = walkMiles === 0 ? "noWalk" : "default";
@@ -1230,97 +1236,106 @@ function buildRecommendation() {
       if (recommendation.steps) {
         steps.push(...recommendation.steps);
       }
+    }
+  } else if (hasRideshare) {
+    // Rideshare mode - prioritize over drive-only when both are selected
+    // Rideshare mode - requires at least $10
+    const recKey = costDollars < 10 ? "noCost" : "default";
+    const recData = appData.recommendations.rideshare[recKey];
+    recommendation = processRecommendationData(recData, placeholders);
+    if (recommendation.steps) {
+      steps.push(...recommendation.steps);
+    }
+  } else if (hasDrive) {
+    // Drive only (only if rideshare is not selected)
+    // Adjust effective cost based on parking enforcement
+    const parkingEnforced = isParkingEnforced(state.day, state.time);
+    // If parking is free (after 7pm on weekdays or weekends) and user has low budget (< $8),
+    // treat as $0 to recommend free street parking
+    // If user is willing to pay $8+, use their actual budget to recommend paid parking
+    // Handle undefined costDollars (defaults to 0)
+    const safeCostDollars = costDollars ?? 0;
+    const effectiveCostDollars =
+      !parkingEnforced && walkMiles > 0 && safeCostDollars < 8
+        ? 0
+        : safeCostDollars;
+
+    // Calculate required metered parking cost if parking is enforced
+    // There's no free street parking within 0.5 miles of Van Andel Arena during enforcement hours
+    const requiredMeteredCost = calculateRequiredMeteredParkingCost(
+      state.day,
+      state.time,
+    );
+    const hasFreeParkingAvailable = !parkingEnforced || walkMiles > 0.5;
+
+    let recKey;
+    if (walkMiles === 0) {
+      recKey = "noWalk";
+    } else if (parkingEnforced && safeCostDollars === 0) {
+      // If parking is enforced and user won't pay (cost is $0), no options available
+      recKey = "noCost";
+    } else if (
+      parkingEnforced &&
+      !hasFreeParkingAvailable &&
+      requiredMeteredCost > 0 &&
+      safeCostDollars < requiredMeteredCost
+    ) {
+      // If parking is enforced, no free parking available, and user's budget is less than required metered cost
+      recKey = "noCost";
+    } else if (walkMiles > 0 && effectiveCostDollars >= 20) {
+      // If user is willing to pay $20+, recommend premium ramps (structured parking garages, $27-$30)
+      // Premium ramps like Arena Place Garage are directly across from the arena
+      recKey = "premiumRamp";
+    } else if (walkMiles > 0 && effectiveCostDollars >= 12) {
+      // If user is willing to pay $12-$19, recommend city parking garages ($1.50/hour, max $12)
+      // City garages like Monroe Center Ramp and Ottawa-Fulton Ramp are affordable structured parking
+      recKey = "cheaperGarage";
+    } else if (
+      walkMiles >= 0.5 &&
+      effectiveCostDollars >= 8 &&
+      effectiveCostDollars < 12
+    ) {
+      // If user is willing to pay $8-$11 and can walk at least 0.5 miles, recommend affordable surface lots ($8-$10 for 4 hours)
+      // Surface lots are cheaper than garages but fill up quickly and are 0.2-0.5 miles from Van Andel Arena
+      recKey = "affordableLot";
+    } else if (
+      walkMiles > 0 &&
+      walkMiles < 0.5 &&
+      effectiveCostDollars >= 8 &&
+      effectiveCostDollars < 12
+    ) {
+      // If user is willing to pay $8-$11 but can't walk 0.5+ miles, recommend cheaper garage instead
+      // Surface lots require at least 0.5 miles walking distance, but cheaper garages are closer (0.2-0.3 miles)
+      recKey = "cheaperGarage";
+    } else if (walkMiles > 0 && effectiveCostDollars >= 1) {
+      // If user is willing to pay $1-$7, recommend metered street parking ($1.50/hour, 2-3 hour max)
+      // Meters are the most affordable paid option but have time limits
+      recKey = "meteredParking";
+    } else if (effectiveCostDollars < 1) {
+      // If user won't pay or parking is not enforced, recommend free street parking
+      recKey = "freeStreet";
     } else {
-      // Drive only
-      // Adjust effective cost based on parking enforcement
-      const parkingEnforced = isParkingEnforced(state.day, state.time);
-      // If parking is free (after 7pm on weekdays or weekends) and user has low budget (< $8),
-      // treat as $0 to recommend free street parking
-      // If user is willing to pay $8+, use their actual budget to recommend paid parking
-      // Handle undefined costDollars (defaults to 0)
-      const safeCostDollars = costDollars ?? 0;
-      const effectiveCostDollars =
-        !parkingEnforced && walkMiles > 0 && safeCostDollars < 8
-          ? 0
-          : safeCostDollars;
+      recKey = "premiumRamp";
+    }
 
-      // Calculate required metered parking cost if parking is enforced
-      // There's no free street parking within 0.5 miles of Van Andel Arena during enforcement hours
-      const requiredMeteredCost = calculateRequiredMeteredParkingCost(
-        state.day,
-        state.time,
-      );
-      const hasFreeParkingAvailable = !parkingEnforced || walkMiles > 0.5;
-
-      let recKey;
-      if (walkMiles === 0) {
-        recKey = "noWalk";
-      } else if (parkingEnforced && safeCostDollars === 0) {
-        // If parking is enforced and user won't pay (cost is $0), no options available
-        recKey = "noCost";
-      } else if (
-        parkingEnforced &&
-        !hasFreeParkingAvailable &&
-        requiredMeteredCost > 0 &&
-        safeCostDollars < requiredMeteredCost
-      ) {
-        // If parking is enforced, no free parking available, and user's budget is less than required metered cost
-        recKey = "noCost";
-      } else if (walkMiles > 0 && effectiveCostDollars >= 20) {
-        // If user is willing to pay $20+, recommend premium ramps (structured parking garages, $27-$30)
-        // Premium ramps like Arena Place Garage are directly across from the arena
-        recKey = "premiumRamp";
-      } else if (walkMiles > 0 && effectiveCostDollars >= 12) {
-        // If user is willing to pay $12-$19, recommend city parking garages ($1.50/hour, max $12)
-        // City garages like Monroe Center Ramp and Ottawa-Fulton Ramp are affordable structured parking
-        recKey = "cheaperGarage";
-      } else if (
-        walkMiles >= 0.5 &&
-        effectiveCostDollars >= 8 &&
-        effectiveCostDollars < 12
-      ) {
-        // If user is willing to pay $8-$11 and can walk at least 0.5 miles, recommend affordable surface lots ($8-$10 for 4 hours)
-        // Surface lots are cheaper than garages but fill up quickly and are 0.2-0.5 miles from Van Andel Arena
-        recKey = "affordableLot";
-      } else if (
-        walkMiles > 0 &&
+    const recData = appData.recommendations.drive[recKey];
+    recommendation = processRecommendationData(recData, placeholders);
+    if (recommendation.steps) {
+      steps.push(...recommendation.steps);
+    }
+    if (recommendation.alternate) {
+      // Don't show surface lot alternate if user can't walk 0.5+ miles
+      // Surface lots require at least 0.5 miles walking distance
+      if (
+        recKey === "cheaperGarage" &&
         walkMiles < 0.5 &&
-        effectiveCostDollars >= 8 &&
-        effectiveCostDollars < 12
+        recommendation.alternate.title &&
+        recommendation.alternate.title.toLowerCase().includes("surface lot")
       ) {
-        // If user is willing to pay $8-$11 but can't walk 0.5+ miles, recommend cheaper garage instead
-        // Surface lots require at least 0.5 miles walking distance, but cheaper garages are closer (0.2-0.3 miles)
-        recKey = "cheaperGarage";
-      } else if (walkMiles > 0 && effectiveCostDollars >= 1) {
-        // If user is willing to pay $1-$7, recommend metered street parking ($1.50/hour, 2-3 hour max)
-        // Meters are the most affordable paid option but have time limits
-        recKey = "meteredParking";
-      } else if (effectiveCostDollars < 1) {
-        // If user won't pay or parking is not enforced, recommend free street parking
-        recKey = "freeStreet";
+        // Skip the alternate for surface lots when walk distance is insufficient
+        alternate = null;
       } else {
-        recKey = "premiumRamp";
-      }
-
-      const recData = appData.recommendations.drive[recKey];
-      recommendation = processRecommendationData(recData, placeholders);
-      if (recommendation.steps) {
-        steps.push(...recommendation.steps);
-      }
-      if (recommendation.alternate) {
-        // Don't show surface lot alternate if user can't walk 0.5+ miles
-        // Surface lots require at least 0.5 miles walking distance
-        if (
-          recKey === "cheaperGarage" &&
-          walkMiles < 0.5 &&
-          recommendation.alternate.title &&
-          recommendation.alternate.title.toLowerCase().includes("surface lot")
-        ) {
-          // Skip the alternate for surface lots when walk distance is insufficient
-          alternate = null;
-        } else {
-          alternate = recommendation.alternate;
-        }
+        alternate = recommendation.alternate;
       }
     }
   } else if (hasTransit) {
@@ -1355,14 +1370,6 @@ function buildRecommendation() {
       if (recommendation.steps) {
         steps.push(...recommendation.steps);
       }
-    }
-  } else if (hasRideshare) {
-    // Rideshare mode - requires at least $10
-    const recKey = costDollars < 10 ? "noCost" : "default";
-    const recData = appData.recommendations.rideshare[recKey];
-    recommendation = processRecommendationData(recData, placeholders);
-    if (recommendation.steps) {
-      steps.push(...recommendation.steps);
     }
   } else if (hasMicromobility) {
     // Micromobility mode - requires at least $4

@@ -43,7 +43,7 @@
     "drive+shuttle": {
       "noWalk": {
         "title": "No options available",
-        "body": "You're driving and using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're driving and using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "default": {
@@ -65,7 +65,7 @@
     "drive+transit": {
       "noWalk": {
         "title": "No options available",
-        "body": "You're driving and taking transit but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're driving and taking transit but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "default": {
@@ -89,7 +89,7 @@
     "drive+micromobility": {
       "noWalk": {
         "title": "No options available",
-        "body": "You're driving and using micromobility but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're driving and using micromobility but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "default": {
@@ -111,7 +111,7 @@
     "drive": {
       "noWalk": {
         "title": "No options available",
-        "body": "You're driving but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're driving but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "noCost": {
@@ -282,7 +282,7 @@
       },
       "noWalk": {
         "title": "No options available",
-        "body": "You're taking The Rapid and using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're taking The Rapid and using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "default": {
@@ -315,7 +315,7 @@
       },
       "noWalk": {
         "title": "No options available",
-        "body": "You're taking The Rapid but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're taking The Rapid but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "default": {
@@ -383,7 +383,7 @@
     "shuttle": {
       "noWalk": {
         "title": "No options available",
-        "body": "You're using DASH but not willing to walk any distance. Consider adjusting your walk distance to see recommendations.",
+        "body": "You're using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
         "isNoOptions": true
       },
       "default": {
