@@ -1186,7 +1186,7 @@ function buildRecommendation() {
 
   if (!modes || modes.length === 0) return { primary: null, alternate: null };
 
-  const steps = [];
+  let steps = [];
   let recommendation = {};
   let alternate = null;
 
@@ -1220,6 +1220,21 @@ function buildRecommendation() {
       if (recommendation.steps) {
         steps.push(...recommendation.steps);
       }
+      // If this combination doesn't work, fall back to other modes
+      if (recommendation.isNoOptions && hasRideshare && costDollars >= 10) {
+        // Fall back to rideshare if available and budget is sufficient
+        const rideshareRecKey = costDollars < 10 ? "noCost" : "default";
+        const rideshareRecData =
+          appData.recommendations.rideshare[rideshareRecKey];
+        recommendation = processRecommendationData(
+          rideshareRecData,
+          placeholders,
+        );
+        steps = [];
+        if (recommendation.steps) {
+          steps.push(...recommendation.steps);
+        }
+      }
     } else if (hasTransit) {
       // Drive + Transit: Park at Rapid stop, take transit
       const recKey = walkMiles === 0 ? "noWalk" : "default";
@@ -1228,6 +1243,36 @@ function buildRecommendation() {
       if (recommendation.steps) {
         steps.push(...recommendation.steps);
       }
+      // If this combination doesn't work, fall back to other modes
+      if (recommendation.isNoOptions) {
+        if (hasRideshare && costDollars >= 10) {
+          // Fall back to rideshare if available and budget is sufficient
+          const rideshareRecKey = costDollars < 10 ? "noCost" : "default";
+          const rideshareRecData =
+            appData.recommendations.rideshare[rideshareRecKey];
+          recommendation = processRecommendationData(
+            rideshareRecData,
+            placeholders,
+          );
+          steps = [];
+          if (recommendation.steps) {
+            steps.push(...recommendation.steps);
+          }
+        } else if (hasTransit && costDollars >= 2 && walkMiles > 0) {
+          // Fall back to transit-only if available
+          const transitRecKey =
+            costDollars < 2 ? "noCost" : walkMiles === 0 ? "noWalk" : "default";
+          const transitRecData = appData.recommendations.transit[transitRecKey];
+          recommendation = processRecommendationData(
+            transitRecData,
+            placeholders,
+          );
+          steps = [];
+          if (recommendation.steps) {
+            steps.push(...recommendation.steps);
+          }
+        }
+      }
     } else if (hasMicromobility) {
       // Drive + Micromobility: Park farther, use Lime
       const recKey = walkMiles === 0 ? "noWalk" : "default";
@@ -1235,6 +1280,21 @@ function buildRecommendation() {
       recommendation = processRecommendationData(recData, placeholders);
       if (recommendation.steps) {
         steps.push(...recommendation.steps);
+      }
+      // If this combination doesn't work, fall back to other modes
+      if (recommendation.isNoOptions && hasRideshare && costDollars >= 10) {
+        // Fall back to rideshare if available and budget is sufficient
+        const rideshareRecKey = costDollars < 10 ? "noCost" : "default";
+        const rideshareRecData =
+          appData.recommendations.rideshare[rideshareRecKey];
+        recommendation = processRecommendationData(
+          rideshareRecData,
+          placeholders,
+        );
+        steps = [];
+        if (recommendation.steps) {
+          steps.push(...recommendation.steps);
+        }
       }
     }
   } else if (hasRideshare) {

@@ -638,4 +638,50 @@ test.describe("Parking Enforcement Logic", () => {
     expect(resultsText).not.toContain("parking");
     expect(resultsText).not.toContain("Park at");
   });
+
+  test("should show options when drive+transit combination doesn't work but other modes are available", async ({
+    page,
+  }) => {
+    // Test: Wednesday at 6:00 PM (18:00), drive+transit+rideshare selected, walk=0, pay=25
+    // Drive+transit requires walk > 0, so should fall back to rideshare
+    await page.goto(
+      "/#/visit/van-andel-arena?day=wednesday&time=600&modes=drive,rideshare,transit&walk=0&pay=25",
+    );
+    await page.waitForSelector("#preferencesSection");
+    await page.waitForTimeout(1500);
+
+    // Wait for state to be initialized correctly with URL parameters
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      const url = page.url();
+      // Check that URL has the correct parameters
+      if (!url.includes("walk=0") || !url.includes("pay=25")) {
+        throw new Error(`URL doesn't have correct parameters: ${url}`);
+      }
+      if (
+        !state ||
+        state.costDollars !== 25 ||
+        state.day !== "wednesday" ||
+        state.time !== "18:00" ||
+        !state.modes.includes("drive") ||
+        !state.modes.includes("rideshare") ||
+        !state.modes.includes("transit") ||
+        state.walkMiles !== 0
+      ) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 10000 });
+
+    // Wait for results to render
+    const results = page.locator("#results");
+    await results.waitFor({ state: "attached" });
+    await page.waitForTimeout(500);
+
+    // Check that options are shown (should fall back to rideshare since drive+transit doesn't work with walk=0)
+    const resultsText = await results.textContent();
+    expect(resultsText).toContain("rideshare");
+    expect(resultsText).toContain("Uber");
+    expect(resultsText).not.toContain("No options available");
+    expect(resultsText).not.toContain("Unknown Strategy");
+  });
 });
