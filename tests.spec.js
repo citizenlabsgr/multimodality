@@ -518,7 +518,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     // Test: Friday at 6:00 PM (18:00), parking enforced until 7pm, budget is $2
-    // Required cost: 1 hour until 7pm = $4.00 (at $2.00 per half hour)
+    // Required cost: 1 hour until 7pm = $4.00 (metered parking rates vary)
     // User budget: $2, which is insufficient
     // No free street parking available within 0.5 miles
     await page.goto("/#modes=drive&day=friday&time=600&pay=2&walk=0.5");
@@ -549,7 +549,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Test: Friday at 6:00 PM (18:00), budget is $9, walk distance is 0.2 miles
     // Surface lots require at least 0.5 miles walking distance (they're 0.2-0.5 miles from Van Andel)
-    // Should recommend cheaper garage instead (0.2-0.3 miles away, $1.50/hour, max $12)
+    // Should recommend cheaper garage instead (0.2-0.3 miles away, city parking garage)
     await page.goto("/#modes=drive&day=friday&time=600&walk=0.2&pay=9");
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);

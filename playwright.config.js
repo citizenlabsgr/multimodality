@@ -6,7 +6,7 @@ module.exports = defineConfig({
   use: {
     baseURL: "http://localhost:8080",
   },
-  timeout: 10000,
+  timeout: 3000, // this is a static prototype so everything should be fast
   projects: [
     {
       name: "chromium",

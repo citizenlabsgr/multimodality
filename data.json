@@ -121,7 +121,7 @@
       },
       "meteredParking": {
         "title": "Park at metered street parking",
-        "body": "Park at street meters near the arena ($1.25-$2.00 per half hour, typically 2-3 hour max). Meters are enforced Monday-Friday 8am-7pm.",
+        "body": "Park at street meters near the arena. Meters are enforced Monday-Friday 8am-7pm.",
         "badge": "Affordable",
         "steps": [
           {
@@ -158,7 +158,7 @@
       },
       "affordableLot": {
         "title": "Park at affordable surface lot and walk",
-        "body": "Park at a surface parking lot (around $8-$10 for 4 hours) within {walkMiles} miles and walk the rest of the way. Surface lots are cheaper than ramps (structured parking garages).",
+        "body": "Park at a surface parking lot within {walkMiles} miles and walk the rest of the way. Surface lots are cheaper than ramps (structured parking garages).",
         "badge": "Budget-friendly",
         "steps": [
           {
@@ -209,7 +209,7 @@
       },
       "cheaperGarage": {
         "title": "Park at city parking garage",
-        "body": "Park at a city-owned parking garage (Monroe Center Ramp or Ottawa-Fulton Ramp) for $1.50 per hour, max $12. These are affordable structured garages within 0.2-0.3 miles of the arena.",
+        "body": "Park at a city-owned parking garage. These are affordable structured garages within 0.2-0.3 miles of the arena.",
         "badge": "Budget-friendly",
         "steps": [
           {
@@ -225,7 +225,7 @@
         ],
         "alternate": {
           "title": "Park at affordable surface lot",
-          "body": "Park at a surface parking lot (around $8-$10 for 4 hours) within {walkMiles} miles and walk the rest of the way. Surface lots are cheaper than garages but fill up quickly.",
+          "body": "Park at a surface parking lot within {walkMiles} miles and walk the rest of the way. Surface lots are cheaper than garages but fill up quickly.",
           "steps": [
             {
               "title": "Find affordable surface parking lot",
@@ -242,7 +242,7 @@
       },
       "premiumRamp": {
         "title": "Park at premium parking garage",
-        "body": "Park at a premium ramp (structured parking garage) close by (around $27-$30 for evening/events) for convenient access. Premium ramps like Arena Place Garage are directly across from the arena and often have better availability because people avoid the higher cost.",
+        "body": "Park at a premium ramp (structured parking garage) close by for convenient access. Premium ramps are directly across from the arena and often have better availability because people avoid the higher cost.",
         "badge": "Convenient",
         "steps": [
           {
@@ -339,7 +339,7 @@
     "rideshare": {
       "noCost": {
         "title": "No options available",
-        "body": "Rideshare services typically cost at least $10. Consider adjusting your budget to see recommendations.",
+        "body": "Rideshare services typically cost at least $20 (to account for return trip). Prices are often higher on weekends and during events due to surge pricing. Consider adjusting your budget to see recommendations.",
         "isNoOptions": true
       },
       "default": {
@@ -349,7 +349,7 @@
         "steps": [
           {
             "title": "Request an Uber/Lyft",
-            "description": "Open your Uber or Lyft app and request a ride. Set your destination and confirm the ride."
+            "description": "Open your Uber or Lyft app and request a ride. Set your destination and confirm the ride. Note: Rideshare prices are typically higher on weekends (especially evenings) and during events due to surge pricing. Prices can increase by 50% or more during high-demand periods."
           },
           {
             "title": "Arrive at destination",
