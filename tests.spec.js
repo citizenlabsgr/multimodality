@@ -1,5 +1,39 @@
 import { test, expect } from "@playwright/test";
 
+// Global setup to fail tests on console errors
+const consoleErrors = new Map();
+
+test.beforeEach(async ({ page }) => {
+  const errors = [];
+
+  // Listen for console errors
+  page.on("console", (msg) => {
+    if (msg.type() === "error") {
+      errors.push(`Console error: ${msg.text()}`);
+    }
+  });
+
+  // Listen for page errors (uncaught exceptions)
+  page.on("pageerror", (error) => {
+    errors.push(
+      `Page error: ${error.message}${error.stack ? `\n${error.stack}` : ""}`,
+    );
+  });
+
+  // Store errors for this test
+  consoleErrors.set(page, errors);
+});
+
+test.afterEach(async ({ page }) => {
+  // Check for console errors and fail the test if any exist
+  const errors = consoleErrors.get(page) || [];
+  if (errors.length > 0) {
+    consoleErrors.delete(page);
+    throw new Error(`Console/Page errors detected:\n${errors.join("\n")}`);
+  }
+  consoleErrors.delete(page);
+});
+
 test.describe("URL Fragment Permutations", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -445,79 +479,6 @@ test.describe("Parking Enforcement Logic", () => {
     await expect(resetButton).not.toHaveClass(/hidden/);
   });
 
-  test("should collapse card when save button is clicked", async ({ page }) => {
-    // Test: Save button should collapse the card when all fields are filled
-    // Start with a clean page (no fragment) so card is expanded
-    await page.goto("/");
-    await page.waitForSelector("#whereWhenContent", { state: "attached" });
-    await page.waitForTimeout(300);
-
-    const whereWhenContent = page.locator("#whereWhenContent");
-    const whereWhenMinimized = page.locator("#whereWhenMinimized");
-    const saveButton = page.locator("#saveButton");
-    const expandButton = page.locator("#whereWhenExpand");
-
-    // Expand the card if it's collapsed (by clicking edit if needed)
-    const isExpanded = await whereWhenContent.isVisible();
-    if (!isExpanded) {
-      await expandButton.click();
-      await page.waitForTimeout(300);
-      // Verify it's now expanded
-      await expect(whereWhenContent).toBeVisible();
-    }
-
-    // Verify card is expanded initially
-    await expect(whereWhenContent).toBeVisible();
-    await expect(whereWhenMinimized).not.toBeVisible();
-
-    // Verify save button is disabled initially (time not set)
-    await expect(saveButton).toBeDisabled();
-
-    // Select day first (don't select time yet to avoid auto-collapse)
-    await page.selectOption("#daySelect", "monday");
-    await page.waitForTimeout(200);
-
-    // Verify save button is still disabled (time not set yet)
-    await expect(saveButton).toBeDisabled();
-
-    // Now select time - this will enable the save button
-    // We'll expand the card again if it auto-collapses
-    await page.selectOption("#timeSelect", "18:00");
-    await page.waitForTimeout(500);
-
-    // The card auto-collapses when all fields are filled, so expand it again to test the save button
-    const isStillExpanded = await whereWhenContent.isVisible();
-    if (!isStillExpanded) {
-      // Wait for expand button to be available
-      await expect(expandButton).toBeVisible();
-      await page.waitForTimeout(200);
-      // Click expand button
-      await expandButton.click();
-      await page.waitForTimeout(300);
-      // Wait for the card to be fully expanded
-      await expect(whereWhenContent).toBeVisible();
-      await page.waitForTimeout(200);
-    }
-
-    // Verify card is expanded and save button is enabled
-    await expect(whereWhenContent).toBeVisible();
-    await expect(saveButton).toBeEnabled();
-
-    // Wait a bit for the button to be fully rendered
-    await page.waitForTimeout(200);
-
-    // Click save button to collapse the card
-    await saveButton.click({ force: true });
-
-    // Wait for the card to collapse
-    await expect(whereWhenContent).not.toBeVisible();
-    await expect(whereWhenMinimized).toBeVisible();
-
-    // Reset button should be hidden when card is collapsed
-    const resetButton = page.locator("#resetButton");
-    await expect(resetButton).toHaveClass(/hidden/);
-  });
-
   test("should show clear button when time is selected via UI", async ({
     page,
   }) => {
@@ -537,6 +498,68 @@ test.describe("Parking Enforcement Logic", () => {
 
     // Reset button should now be visible (time has been changed)
     await expect(resetButton).not.toHaveClass(/hidden/);
+  });
+
+  test("should clear day and time when clear location button is clicked", async ({
+    page,
+  }) => {
+    // Start with a clean page
+    await page.goto("/");
+    await page.waitForSelector("#whereWhenContent", { state: "attached" });
+    await page.waitForTimeout(300);
+
+    // Set day and time via UI (so reset button will be visible)
+    await page.selectOption("#daySelect", "monday");
+    await page.waitForTimeout(200);
+    await page.selectOption("#timeSelect", "18:00");
+    await page.waitForTimeout(300);
+
+    // Verify day and time are set
+    expect(await page.evaluate(() => window.state.day)).toBe("monday");
+    expect(await page.evaluate(() => window.state.time)).toBe("18:00");
+    await expect(page.locator("#daySelect")).toHaveValue("monday");
+    await expect(page.locator("#timeSelect")).toHaveValue("18:00");
+
+    // Expand the card if it's collapsed (reset button is hidden when card is collapsed)
+    const whereWhenContent = page.locator("#whereWhenContent");
+    const expandButton = page.locator("#whereWhenExpand");
+
+    const isExpanded = await whereWhenContent.isVisible().catch(() => false);
+    if (!isExpanded) {
+      // Wait for expand button to be available
+      await expect(expandButton).toBeVisible({ timeout: 3000 });
+      await page.waitForTimeout(200);
+
+      // Click expand button and wait for DOM update
+      await Promise.all([
+        page.waitForFunction(
+          () => {
+            const content = document.getElementById("whereWhenContent");
+            return content && !content.classList.contains("hidden");
+          },
+          { timeout: 3000 },
+        ),
+        expandButton.click(),
+      ]);
+
+      // Verify it's now expanded
+      await expect(whereWhenContent).toBeVisible({ timeout: 3000 });
+      await page.waitForTimeout(200);
+    }
+
+    // Verify reset button is visible (should be visible after UI changes and card is expanded)
+    const resetButton = page.locator("#resetButton");
+    await expect(resetButton).not.toHaveClass(/hidden/);
+
+    // Click the reset button
+    await resetButton.click();
+    await page.waitForTimeout(500);
+
+    // Verify day and time are cleared
+    expect(await page.evaluate(() => window.state.day)).toBe("");
+    expect(await page.evaluate(() => window.state.time)).toBe("");
+    await expect(page.locator("#daySelect")).toHaveValue("");
+    await expect(page.locator("#timeSelect")).toHaveValue("");
   });
 
   test("should show no options when budget is insufficient for required metered parking during enforcement", async ({

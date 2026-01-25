@@ -396,6 +396,9 @@ function toggleMode(mode) {
 
 // Handle browser back/forward navigation
 window.addEventListener("hashchange", () => {
+  // Don't process hashchange if state isn't initialized yet (e.g., during page load)
+  if (!state) return;
+
   const params = parseFragment();
   if (params.modes !== undefined) {
     const modesArray = params.modes
@@ -1463,6 +1466,9 @@ function calculateScore(rec, state) {
 let allRecommendations = null;
 
 function buildRecommendation() {
+  // Guard against state not being initialized
+  if (!state) return { primary: null, alternate: null };
+
   const { modes, walkMiles, costDollars } = state;
 
   if (!modes || modes.length === 0) return { primary: null, alternate: null };
@@ -1812,10 +1818,8 @@ function resetModes() {
 // Attach reset button event listener
 const resetButton = document.getElementById("resetButton");
 if (resetButton) {
-  resetButton.addEventListener("click", () => {
-    // Navigate to the destination path without query params to clear all state
-    window.location.hash = DESTINATION_PATH;
-  });
+  // Reset button is now a link to "/" which causes a full page reload
+  // No event listener needed - the link handles the navigation
 }
 
 // Attach reset modes button event listener
