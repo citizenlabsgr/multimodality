@@ -114,6 +114,9 @@ let peopleChanged = false;
 let walkChanged = false;
 let costChanged = false;
 
+// Track which strategy steps are expanded by index (1, 2, 3, ...) for URL fragment (param: option)
+let expandedStrategies = new Set();
+
 // Convert time from HH:MM (24-hour) to HMM or HHMM (12-hour without colon) for URL
 // Times are 5pm-10pm, so we use 12-hour format: 17:00 -> "500", 20:30 -> "830", 22:00 -> "1000"
 function timeToUrl(time) {
@@ -188,6 +191,12 @@ function parseFragment() {
       if (key === "time") {
         // Convert time from URL format (HHMM) to state format (HH:MM)
         params[key] = timeFromUrl(decodeURIComponent(value));
+      } else if (key === "option") {
+        // Comma-separated strategy indices (1-based): 1, 2, 3, ...
+        params[key] = decodeURIComponent(value)
+          .split(",")
+          .map((s) => s.trim())
+          .filter((id) => /^\d+$/.test(id));
       } else {
         params[key] = decodeURIComponent(value);
       }
@@ -219,6 +228,13 @@ function updateFragment() {
   }
   if (costChanged && state.costDollars !== undefined) {
     parts.push(`pay=${encodeURIComponent(state.costDollars)}`);
+  }
+  if (expandedStrategies.size > 0) {
+    parts.push(
+      `option=${[...expandedStrategies]
+        .sort((a, b) => Number(a) - Number(b))
+        .join(",")}`,
+    );
   }
 
   // Build hash with destination path and query params
@@ -390,6 +406,7 @@ function toggleMode(mode) {
   highlightMode();
   updatePreferencesVisibility();
   updateResetModesButtonVisibility();
+  expandedStrategies.clear(); // Strategies refreshed; clear option fragment
   updateResults();
   updateFragment();
 }
@@ -400,6 +417,11 @@ window.addEventListener("hashchange", () => {
   if (!state) return;
 
   const params = parseFragment();
+  if (params.option !== undefined) {
+    expandedStrategies = new Set(
+      Array.isArray(params.option) ? params.option : [params.option],
+    );
+  }
   if (params.modes !== undefined) {
     const modesArray = params.modes
       ? params.modes.split(",").filter((m) => validModes.includes(m))
@@ -440,7 +462,26 @@ window.addEventListener("hashchange", () => {
       peopleChanged = true;
     }
   }
+  if (params.walk !== undefined) {
+    const walkValue = Number(params.walk);
+    if (!isNaN(walkValue) && walkValue >= 0 && walkValue !== state.walkMiles) {
+      state.walkMiles = walkValue;
+      walkChanged = true;
+      if (walkSlider) walkSlider.value = walkValue;
+      updatePreferencesVisibility();
+    }
+  }
+  if (params.pay !== undefined) {
+    const payValue = Number(params.pay);
+    if (!isNaN(payValue) && payValue >= 0 && payValue !== state.costDollars) {
+      state.costDollars = payValue;
+      costChanged = true;
+      if (costSlider) costSlider.value = payValue;
+      updatePreferencesVisibility();
+    }
+  }
   updateResults();
+  updateMinimizeButtonState();
   // Don't update fragment here to avoid loop
 });
 
@@ -469,6 +510,7 @@ function adjustPeople(delta) {
   peopleChanged = true;
   // Always update preferences visibility to refresh cost display (shows total for transit/micromobility)
   updatePreferencesVisibility();
+  expandedStrategies.clear(); // Strategies refreshed; clear option fragment
   updateFragment();
   updateResults();
 }
@@ -493,6 +535,7 @@ walkSlider.addEventListener("input", (e) => {
     if (walkTime) walkTime.style.display = "inline";
   }
   updateResetModesButtonVisibility();
+  expandedStrategies.clear(); // Strategies refreshed; clear option fragment
   updateFragment();
   updateResults();
 });
@@ -513,6 +556,7 @@ costSlider.addEventListener("input", (e) => {
     costPrefix.textContent = "$";
   }
   updateResetModesButtonVisibility();
+  expandedStrategies.clear(); // Strategies refreshed; clear option fragment
   updateFragment();
   updateResults();
 });
@@ -589,16 +633,17 @@ function updateModesSectionState() {
 // Update reset button visibility based on required fields
 function updateMinimizeButtonState() {
   const resetBtn = document.getElementById("resetButton");
+  const minimizedEl = document.getElementById("whereWhenMinimized");
   // Only update if the card is not collapsed (minimized view is hidden)
-  if (whereWhenMinimized && whereWhenMinimized.classList.contains("hidden")) {
-    // Reset button can be shown independently in top right if there's anything to clear
-    // Show when day or time is changed
-    if (resetBtn) {
-      if (dayChanged || timeChanged) {
-        resetBtn.classList.remove("hidden");
-      } else {
-        resetBtn.classList.add("hidden");
-      }
+  const cardExpanded = minimizedEl && minimizedEl.classList.contains("hidden");
+  if (cardExpanded && resetBtn) {
+    // Show when there is something to clear: user changed day/time or state has day/time (e.g. from URL)
+    const hasDayOrTime =
+      (state && (state.day || state.time)) || dayChanged || timeChanged;
+    if (hasDayOrTime) {
+      resetBtn.classList.remove("hidden");
+    } else {
+      resetBtn.classList.add("hidden");
     }
   }
 }
@@ -618,6 +663,7 @@ if (daySelect) {
     updateMinimizeButtonState(); // Update minimize button state
     updateMinimizedView(); // Update minimized view if visible
     updateSaveButtonState();
+    expandedStrategies.clear(); // Strategies refreshed; clear option fragment
     updateFragment();
     updateResults();
   });
@@ -638,6 +684,7 @@ if (timeSelect) {
     updateMinimizeButtonState(); // Update minimize button state
     updateMinimizedView(); // Update minimized view if visible
     updateSaveButtonState();
+    expandedStrategies.clear(); // Strategies refreshed; clear option fragment
     // Always add time to fragment when user selects it
     updateFragment();
     updateResults();
@@ -659,6 +706,7 @@ if (saveButton) {
   saveButton.addEventListener("click", () => {
     if (!checkRequiredFields()) return;
 
+    expandedStrategies.clear(); // Strategies refreshed; clear option fragment
     // Update fragment and results
     updateFragment();
     updateResults();
@@ -801,27 +849,47 @@ function renderResults() {
 
   const { primary, alternate } = buildRecommendation();
 
-  if (!primary) return;
+  // Build array of strategies so we can number them and support more than 2 later
+  const strategies = [primary, alternate].filter(Boolean);
+  if (strategies.length === 0) return;
 
-  // Render primary recommendation (green, yellow if discouraged, or red if no options)
-  const card = document.createElement("div");
-  const isNoOptions = primary.isNoOptions;
-  const isDiscouraged = primary.isDiscouraged;
-  const cardId = `card-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-  card.className = isNoOptions
-    ? "rounded-none bg-red-50 border border-red-200 p-3 relative"
-    : isDiscouraged
-      ? "rounded-none bg-yellow-50 border border-yellow-200 p-3 relative"
-      : "rounded-none bg-green-50 border border-green-200 p-3 relative";
+  strategies.forEach((recommendation, i) => {
+    const strategyNumber = i + 1; // 1-based unique number per recommendation
+    const strategyId = String(strategyNumber); // for fragment (option=1,2)
+    const isNoOptions = recommendation.isNoOptions;
+    const isDiscouraged = recommendation.isDiscouraged;
+    const cardId = `card-${i}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 11)}`;
+    // Restore original headings with unique number: first = Recommended/Alternative/Unknown, rest = Alternate Strategy
+    const strategyLabelBase =
+      i === 0
+        ? isNoOptions
+          ? "Unknown Strategy"
+          : isDiscouraged
+            ? "Alternative Strategy"
+            : "Recommended Strategy"
+        : "Alternate Strategy";
+    const strategyLabel = `${strategyNumber}. ${strategyLabelBase}`;
 
-  const recommendation = primary;
+    const card = document.createElement("div");
+    // First card uses primary styling; rest use alternate (yellow)
+    if (i === 0) {
+      card.className = isNoOptions
+        ? "rounded-none bg-red-50 border border-red-200 p-3 relative"
+        : isDiscouraged
+          ? "rounded-none bg-yellow-50 border border-yellow-200 p-3 relative"
+          : "rounded-none bg-green-50 border border-green-200 p-3 relative";
+    } else {
+      card.className =
+        "rounded-none bg-yellow-50 border border-yellow-200 p-3 mt-2 relative";
+    }
 
-  // If there are steps, make them the primary focus
-  if (isNoOptions) {
-    card.innerHTML = `
+    if (isNoOptions) {
+      card.innerHTML = `
       <div class="space-y-2">
         <div>
-          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Unknown Strategy</div>
+          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${strategyLabel}</div>
           <h3 class="font-semibold text-base">${recommendation.title}</h3>
           <p class="text-sm text-slate-600 mt-1">${
             recommendation.body || recommendation.title
@@ -829,13 +897,11 @@ function renderResults() {
         </div>
       </div>
     `;
-  } else if (recommendation.steps && recommendation.steps.length > 0) {
-    const strategyLabel = isDiscouraged
-      ? "Alternative Strategy"
-      : "Recommended Strategy";
-    const stepsId = `steps-${cardId}`;
-    const toggleId = `toggle-${cardId}`;
-    card.innerHTML = `
+    } else if (recommendation.steps && recommendation.steps.length > 0) {
+      const stepsId = `steps-${cardId}`;
+      const toggleId = `toggle-${cardId}`;
+      const stepsExpanded = expandedStrategies.has(strategyId);
+      card.innerHTML = `
       <div class="space-y-2">
         <div>
           <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${strategyLabel}</div>
@@ -843,13 +909,19 @@ function renderResults() {
             <h3 class="font-semibold text-base">${recommendation.title}</h3>
           </div>
           <button type="button" id="${toggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
-            Show steps <span class="inline-block ml-1">▼</span>
+            ${
+              stepsExpanded ? "Hide" : "Show"
+            } steps <span class="inline-block ml-1">${
+              stepsExpanded ? "▲" : "▼"
+            }</span>
           </button>
           <p class="text-sm text-slate-600 mt-1">${
             recommendation.body || recommendation.title
           }</p>
         </div>
-        <div id="${stepsId}" class="hidden space-y-2 mt-2">
+        <div id="${stepsId}" class="${
+          stepsExpanded ? "" : "hidden"
+        } space-y-2 mt-2">
           <ol class="space-y-2">
             ${recommendation.steps
               .map(
@@ -886,27 +958,28 @@ function renderResults() {
       </div>
     `;
 
-    // Add toggle functionality
-    const toggleBtn = card.querySelector(`#${toggleId}`);
-    const stepsDiv = card.querySelector(`#${stepsId}`);
-    if (toggleBtn && stepsDiv) {
-      toggleBtn.addEventListener("click", () => {
-        const isHidden = stepsDiv.classList.toggle("hidden");
-        const arrow = toggleBtn.querySelector("span span");
-        if (arrow) {
-          arrow.textContent = isHidden ? "▼" : "▲";
-        }
-        toggleBtn.innerHTML = isHidden
-          ? 'Show steps <span class="inline-block ml-1">▼</span>'
-          : 'Hide steps <span class="inline-block ml-1">▲</span>';
-      });
-    }
-  } else {
-    // Single step instruction format
-    const strategyLabel = isDiscouraged
-      ? "Alternative Strategy"
-      : "Recommended Strategy";
-    card.innerHTML = `
+      const toggleBtn = card.querySelector(`#${toggleId}`);
+      const stepsDiv = card.querySelector(`#${stepsId}`);
+      if (toggleBtn && stepsDiv) {
+        toggleBtn.addEventListener("click", () => {
+          const isHidden = stepsDiv.classList.toggle("hidden");
+          if (isHidden) {
+            expandedStrategies.delete(strategyId);
+          } else {
+            expandedStrategies.add(strategyId);
+          }
+          updateFragment();
+          const arrow = toggleBtn.querySelector("span span");
+          if (arrow) {
+            arrow.textContent = isHidden ? "▼" : "▲";
+          }
+          toggleBtn.innerHTML = isHidden
+            ? 'Show steps <span class="inline-block ml-1">▼</span>'
+            : 'Hide steps <span class="inline-block ml-1">▲</span>';
+        });
+      }
+    } else {
+      card.innerHTML = `
       <div class="space-y-2">
         <div>
           <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${strategyLabel}</div>
@@ -932,112 +1005,10 @@ function renderResults() {
         }
       </div>
     `;
-  }
-
-  resultsEl.appendChild(card);
-
-  // Render alternate recommendation (yellow) if applicable
-  if (alternate) {
-    const altCard = document.createElement("div");
-    const altCardId = `alt-card-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-    altCard.className =
-      "rounded-none bg-yellow-50 border border-yellow-200 p-3 mt-2 relative";
-
-    if (alternate.steps && alternate.steps.length > 0) {
-      const altStepsId = `steps-${altCardId}`;
-      const altToggleId = `toggle-${altCardId}`;
-      altCard.innerHTML = `
-        <div class="space-y-2">
-          <div>
-            <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">Alternate Strategy</div>
-            <div class="pr-24">
-              <h3 class="font-semibold text-base">${alternate.title}</h3>
-            </div>
-            <button type="button" id="${altToggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
-              Show steps <span class="inline-block ml-1">▼</span>
-            </button>
-            <p class="text-sm text-slate-600 mt-1">${
-              alternate.body || alternate.title
-            }</p>
-          </div>
-          <div id="${altStepsId}" class="hidden space-y-2 mt-2">
-            <ol class="space-y-2">
-              ${alternate.steps
-                .map(
-                  (step, index) => `
-                <li class="flex gap-2">
-                  <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">${
-                    index + 1
-                  }</span>
-                  <div class="flex-1 pt-0.5">
-                    <div class="font-semibold text-sm text-slate-900">${
-                      step.title
-                    }</div>
-                    ${
-                      step.description
-                        ? `<div class="text-sm text-slate-600 mt-1 leading-relaxed">${step.description}</div>`
-                        : ""
-                    }
-                    ${
-                      step.link
-                        ? `<a href="${
-                            step.link
-                          }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800 underline">${
-                            step.linkText || "Open link"
-                          } →</a>`
-                        : ""
-                    }
-                  </div>
-                </li>
-              `,
-                )
-                .join("")}
-            </ol>
-          </div>
-        </div>
-      `;
-
-      // Add toggle functionality for alternate card
-      const altToggleBtn = altCard.querySelector(`#${altToggleId}`);
-      const altStepsDiv = altCard.querySelector(`#${altStepsId}`);
-      if (altToggleBtn && altStepsDiv) {
-        altToggleBtn.addEventListener("click", () => {
-          const isHidden = altStepsDiv.classList.toggle("hidden");
-          const arrow = altToggleBtn.querySelector("span span");
-          if (arrow) {
-            arrow.textContent = isHidden ? "▼" : "▲";
-          }
-          altToggleBtn.innerHTML = isHidden
-            ? 'Show steps <span class="inline-block ml-1">▼</span>'
-            : 'Hide steps <span class="inline-block ml-1">▲</span>';
-        });
-      }
-    } else {
-      altCard.innerHTML = `
-        <div class="space-y-2">
-          <div>
-            <div class="text-sm font-medium text-slate-500 uppercase tracking-wide mb-1">Alternate Strategy</div>
-            <h3 class="font-semibold text-base">${alternate.title}</h3>
-          </div>
-          <div class="space-y-2">
-            <div class="flex gap-2">
-              <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">1</span>
-              <div class="flex-1 pt-0.5">
-                <div class="font-semibold text-sm text-slate-900">${
-                  alternate.instruction || alternate.title
-                }</div>
-                <div class="text-sm text-slate-600 mt-1 leading-relaxed">${
-                  alternate.body || alternate.title
-                }</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
     }
 
-    resultsEl.appendChild(altCard);
-  }
+    resultsEl.appendChild(card);
+  });
 }
 
 // Check if parking meters are enforced based on day and time
@@ -1505,8 +1476,14 @@ function buildRecommendation() {
   // Sort by score (highest first)
   scored.sort((a, b) => b.score - a.score);
 
-  // Get primary recommendation
-  const primaryScored = scored[0];
+  // Get primary recommendation; fall back to first real option if top is "no options"
+  let primaryScored = scored[0];
+  if (
+    primaryScored?.rec.isNoOptions &&
+    scored.some((s) => !s.rec.isNoOptions && s.score > 0)
+  ) {
+    primaryScored = scored.find((s) => !s.rec.isNoOptions && s.score > 0);
+  }
   if (!primaryScored) {
     return { primary: null, alternate: null };
   }
@@ -1539,12 +1516,11 @@ function buildRecommendation() {
 
   // If no explicit alternate (or it was filtered out), check if second-best option should be shown as alternate
   if (!useExplicitAlternate) {
-    const secondScored = scored[1];
-    if (
-      secondScored &&
-      secondScored.score > 0 &&
-      !secondScored.rec.isNoOptions
-    ) {
+    // Use first option that isn't primary and isn't noOptions (handles fallback when primary was changed)
+    const secondScored = scored.find(
+      (s) => s !== primaryScored && s.score > 0 && !s.rec.isNoOptions,
+    );
+    if (secondScored) {
       // For drive mode, show alternate if it's a different variant or has good score
       if (primaryScored.rec.modeKey === "drive") {
         // Show alternate if it's a different variant (e.g., meteredParking as alternate for cheaperGarage)
@@ -1557,6 +1533,9 @@ function buildRecommendation() {
           // Or if it's a different mode
           alternate = processRecommendationData(secondScored.rec, placeholders);
         }
+      } else if (secondScored.rec.modeKey !== primaryScored.rec.modeKey) {
+        // Non-drive primary: show alternate if different mode
+        alternate = processRecommendationData(secondScored.rec, placeholders);
       }
     }
   }
@@ -1566,22 +1545,17 @@ function buildRecommendation() {
 
 // Initialize application
 async function init() {
-  // Migrate old hash format to new format with destination path
-  const currentHash = window.location.hash.slice(1); // Remove the #
-  if (currentHash && !currentHash.startsWith(DESTINATION_PATH)) {
+  // Migrate old hash format to new format with destination path (don't overwrite yet if no hash - read params first)
+  const initialHash = window.location.hash.slice(1); // Remove the #
+  if (initialHash && !initialHash.startsWith(DESTINATION_PATH)) {
     // If hash exists but doesn't start with destination path, migrate it
-    // Preserve any existing params by converting to query string format
-    if (currentHash.includes("=")) {
-      // Old format: params directly in hash
-      window.location.hash = DESTINATION_PATH + "?" + currentHash;
+    if (initialHash.includes("=")) {
+      window.location.hash = DESTINATION_PATH + "?" + initialHash;
     } else {
-      // No params, just set destination path
       window.location.hash = DESTINATION_PATH;
     }
-  } else if (!currentHash) {
-    // No hash at all, set destination path
-    window.location.hash = DESTINATION_PATH;
   }
+  // If no hash, set default after we've read params (see end of init) so we don't overwrite a hash that appears later
 
   // Load data first
   await loadData();
@@ -1651,6 +1625,14 @@ async function init() {
       updatePreferencesVisibility(); // Update UI
     }
   }
+  if (params.option !== undefined) {
+    expandedStrategies = new Set(
+      Array.isArray(params.option) ? params.option : [params.option],
+    );
+  }
+
+  // Update reset button visibility after applying URL params (e.g. time=700 with no day)
+  updateMinimizeButtonState();
 
   // Generate time options and initialize inputs
   generateTimeOptions();
@@ -1708,11 +1690,17 @@ async function init() {
 
   // Initialize UI
   updateModesSectionState();
-  updateMinimizeButtonState(); // Set initial minimize button state
   highlightMode();
   updatePreferencesVisibility();
   updateResetModesButtonVisibility();
   renderResults();
+  // Final pass so reset button is correct after card expand/collapse and render
+  updateMinimizeButtonState();
+
+  // Set default hash only when there was no hash at load (so we didn't overwrite URL params like time=700)
+  if (!initialHash) {
+    window.location.hash = DESTINATION_PATH;
+  }
 }
 
 // Reset function to clear all URL fragments and reset state
@@ -1735,6 +1723,9 @@ function resetAll() {
   peopleChanged = false;
   walkChanged = false;
   costChanged = false;
+
+  // Clear expanded option steps
+  expandedStrategies.clear();
 
   // Clear URL fragment completely (but keep destination path)
   window.location.hash = DESTINATION_PATH;

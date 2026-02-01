@@ -20,4 +20,4 @@ dev: install
 
 .PHONY: run
 run:
-	npx --yes live-server --no-browser
+	npx --yes live-server --no-browser --ignore='test-results/**,**/test-results/**'
