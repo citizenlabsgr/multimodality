@@ -9,7 +9,6 @@ async function loadData() {
     console.error("Failed to load data.json:", error);
     // Fallback to default data if loading fails
     appData = {
-      destination: "Van Andel Arena",
       validModes: [
         "drive",
         "rideshare",
@@ -160,8 +159,45 @@ function timeFromUrl(urlTime) {
   return urlTime; // Fallback if already in HH:MM format
 }
 
-// Base path for the destination (hash-based)
-const DESTINATION_PATH = "/visit/van-andel-arena";
+// Get destination slug from display name (e.g. "Van Andel Arena" -> "van-andel-arena")
+function getDestinationSlug(destinationName) {
+  if (!appData || !destinationName) return "van-andel-arena";
+  const destinations = appData.destinations;
+  if (Array.isArray(destinations)) {
+    const found = destinations.find(
+      (d) => d.name === destinationName || d.slug === destinationName,
+    );
+    if (found) return found.slug;
+  }
+  return destinationName
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
+}
+
+// Base path for the current destination (hash-based); no slug when no destination selected
+function getDestinationPath() {
+  if (!state || !state.destination || state.destination.trim() === "") {
+    return "/visit";
+  }
+  return "/visit/" + getDestinationSlug(state.destination);
+}
+
+// Get destination name from hash path (e.g. #/visit/acrisure-amphitheater -> "Acrisure Amphitheater")
+function getDestinationFromHashPath() {
+  const hash = window.location.hash.slice(1);
+  if (!hash.startsWith("/visit/")) return null;
+  const pathPart =
+    hash.indexOf("?") !== -1 ? hash.slice(0, hash.indexOf("?")) : hash;
+  const slug = pathPart.slice("/visit/".length).replace(/\/$/, "");
+  if (!slug) return null;
+  const destinations = appData?.destinations;
+  if (Array.isArray(destinations)) {
+    const found = destinations.find((d) => d.slug === slug);
+    if (found) return found.name;
+  }
+  return null;
+}
 
 // Parse URL fragment (format: #/visit/van-andel-arena?modes=drive,transit&day=monday&time=1800&people=2)
 function parseFragment() {
@@ -171,7 +207,6 @@ function parseFragment() {
   // Check if hash starts with a path (starts with /)
   let queryString = "";
   if (hash.startsWith("/")) {
-    // Extract query string if present (after ?)
     const questionMarkIndex = hash.indexOf("?");
     if (questionMarkIndex !== -1) {
       queryString = hash.slice(questionMarkIndex + 1);
@@ -239,7 +274,7 @@ function updateFragment() {
 
   // Build hash with destination path and query params
   const queryString = parts.length > 0 ? `?${parts.join("&")}` : "";
-  window.location.hash = DESTINATION_PATH + queryString;
+  window.location.hash = getDestinationPath() + queryString;
 }
 
 // Update results whenever state changes
@@ -637,10 +672,12 @@ function updateMinimizeButtonState() {
   // Only update if the card is not collapsed (minimized view is hidden)
   const cardExpanded = minimizedEl && minimizedEl.classList.contains("hidden");
   if (cardExpanded && resetBtn) {
-    // Show when there is something to clear: user changed day/time or state has day/time (e.g. from URL)
-    const hasDayOrTime =
-      (state && (state.day || state.time)) || dayChanged || timeChanged;
-    if (hasDayOrTime) {
+    // Show when there is something to clear: destination, day/time, or user changed day/time
+    const hasSomethingToClear =
+      (state && (state.destination || state.day || state.time)) ||
+      dayChanged ||
+      timeChanged;
+    if (hasSomethingToClear) {
       resetBtn.classList.remove("hidden");
     } else {
       resetBtn.classList.add("hidden");
@@ -727,7 +764,7 @@ function updateMinimizedView() {
   const minimizedTime = document.getElementById("minimizedTime");
 
   if (minimizedDestination && state) {
-    minimizedDestination.textContent = state.destination || "Van Andel Arena";
+    minimizedDestination.textContent = state.destination || "---";
   }
 
   if (minimizedDay && state) {
@@ -1158,7 +1195,13 @@ function processRecommendationData(recData, values) {
 // Get all recommendations for a destination, flattened with metadata
 function getAllRecommendationsForDestination(destination) {
   const allRecs = [];
-  const recommendations = appData.recommendations;
+  const slug = getDestinationSlug(destination);
+  let recommendations = appData.recommendations?.[slug];
+  // Support legacy flat format (recommendations keyed by mode, not by destination slug)
+  if (!recommendations && appData.recommendations?.["drive+shuttle"]) {
+    recommendations = appData.recommendations;
+  }
+  if (!recommendations) return allRecs;
 
   for (const [modeKey, variants] of Object.entries(recommendations)) {
     for (const [variantKey, recData] of Object.entries(variants)) {
@@ -1547,12 +1590,13 @@ function buildRecommendation() {
 async function init() {
   // Migrate old hash format to new format with destination path (don't overwrite yet if no hash - read params first)
   const initialHash = window.location.hash.slice(1); // Remove the #
-  if (initialHash && !initialHash.startsWith(DESTINATION_PATH)) {
-    // If hash exists but doesn't start with destination path, migrate it
+  const defaultPath = "/visit";
+  if (initialHash && !initialHash.startsWith("/visit")) {
+    // If hash exists but doesn't start with /visit, migrate it
     if (initialHash.includes("=")) {
-      window.location.hash = DESTINATION_PATH + "?" + initialHash;
+      window.location.hash = defaultPath + "?" + initialHash;
     } else {
-      window.location.hash = DESTINATION_PATH;
+      window.location.hash = defaultPath;
     }
   }
   // If no hash, set default after we've read params (see end of init) so we don't overwrite a hash that appears later
@@ -1565,7 +1609,7 @@ async function init() {
 
   // Initialize state from loaded data
   state = {
-    destination: appData.destination,
+    destination: getDestinationFromHashPath() || "",
     day: "", // Don't prefill day
     time: "", // Don't prefill time
     flexibilityEarlyMins: appData.defaults.flexibilityEarlyMins,
@@ -1636,6 +1680,43 @@ async function init() {
 
   // Generate time options and initialize inputs
   generateTimeOptions();
+  const destinationSelect = document.getElementById("destinationSelect");
+  if (destinationSelect) {
+    const destinations = Array.isArray(appData.destinations)
+      ? [...appData.destinations].sort((a, b) =>
+          a.name.localeCompare(b.name, "en", { sensitivity: "base" }),
+        )
+      : [];
+    destinationSelect.innerHTML = "";
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.disabled = true;
+    placeholder.textContent = "---";
+    destinationSelect.appendChild(placeholder);
+    destinations.forEach((d) => {
+      const opt = document.createElement("option");
+      opt.value = d.name;
+      opt.textContent = d.name;
+      destinationSelect.appendChild(opt);
+    });
+    destinationSelect.value = state.destination;
+    if (state.destination) {
+      destinationSelect.classList.remove("placeholder");
+    } else {
+      destinationSelect.classList.add("placeholder");
+    }
+    destinationSelect.addEventListener("change", () => {
+      state.destination = destinationSelect.value;
+      if (state.destination) {
+        destinationSelect.classList.remove("placeholder");
+      } else {
+        destinationSelect.classList.add("placeholder");
+      }
+      updateFragment();
+      updateResults();
+      updateMinimizedView();
+    });
+  }
   daySelect.value = state.day || ""; // Clear day select if no day is set
   if (state.day) {
     daySelect.classList.remove("placeholder");
@@ -1699,14 +1780,14 @@ async function init() {
 
   // Set default hash only when there was no hash at load (so we didn't overwrite URL params like time=700)
   if (!initialHash) {
-    window.location.hash = DESTINATION_PATH;
+    window.location.hash = getDestinationPath();
   }
 }
 
 // Reset function to clear all URL fragments and reset state
 function resetAll() {
   // Reset state to defaults
-  state.destination = appData.destination;
+  state.destination = "";
   state.day = ""; // Don't prefill day
   state.time = ""; // Don't prefill time
   state.flexibilityEarlyMins = appData.defaults.flexibilityEarlyMins;
@@ -1728,7 +1809,18 @@ function resetAll() {
   expandedStrategies.clear();
 
   // Clear URL fragment completely (but keep destination path)
-  window.location.hash = DESTINATION_PATH;
+  window.location.hash = getDestinationPath();
+
+  // Reset destination select to match state
+  const destinationSelect = document.getElementById("destinationSelect");
+  if (destinationSelect) {
+    destinationSelect.value = state.destination;
+    if (state.destination) {
+      destinationSelect.classList.remove("placeholder");
+    } else {
+      destinationSelect.classList.add("placeholder");
+    }
+  }
 
   // Reset UI elements
   daySelect.value = state.day || ""; // Clear day select if no day is set
@@ -1800,17 +1892,19 @@ function resetModes() {
 
   // Update URL without modes, walk, or pay
   const queryString = newParts.length > 0 ? `?${newParts.join("&")}` : "";
-  window.location.hash = DESTINATION_PATH + queryString;
+  window.location.hash = getDestinationPath() + queryString;
 
   // Reload the page to reset state
   window.location.reload();
 }
 
-// Attach reset button event listener
+// Attach reset button event listener (clear destination, day, time, and reset state)
 const resetButton = document.getElementById("resetButton");
 if (resetButton) {
-  // Reset button is now a link to "/" which causes a full page reload
-  // No event listener needed - the link handles the navigation
+  resetButton.addEventListener("click", (e) => {
+    e.preventDefault();
+    resetAll();
+  });
 }
 
 // Attach reset modes button event listener

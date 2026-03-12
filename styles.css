@@ -46,6 +46,20 @@
   color: rgb(148 163 184); /* slate-400 */
 }
 
+/* Make the placeholder option in destination select gray */
+#destinationSelect option[value=""]:disabled {
+  color: rgb(148 163 184) !important; /* slate-400 */
+}
+
+#destinationSelect option:disabled {
+  color: rgb(148 163 184) !important; /* slate-400 */
+}
+
+/* When the destination select has no value selected, make the displayed text gray */
+#destinationSelect.placeholder {
+  color: rgb(148 163 184); /* slate-400 */
+}
+
 /* Prevent layout shift when reset button appears/disappears */
 #resetButton.hidden {
   visibility: hidden;

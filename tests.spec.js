@@ -159,7 +159,10 @@ test.describe("URL Fragment Permutations", () => {
     await page.goto("/");
     await page.waitForTimeout(500);
 
-    // Set required fields first (destination is already set, need day and time)
+    // Set required fields first (destination, day, time) so mode buttons are enabled
+    await page
+      .locator("#destinationSelect")
+      .selectOption({ value: "Van Andel Arena" });
     await page.locator("#daySelect").selectOption({ value: "monday" });
     await page.locator("#timeSelect").selectOption({ value: "17:00" });
     await page.waitForTimeout(300);
@@ -182,7 +185,8 @@ test.describe("URL Fragment Permutations", () => {
     await page.waitForTimeout(300);
 
     const url = page.url();
-    expect(url).toContain("#/visit/van-andel-arena");
+    // No destination selected yet, so path is /visit with query params
+    expect(url).toContain("#/visit");
     expect(url).toContain("time=500"); // 5:00 PM in URL format
   });
 
@@ -190,7 +194,10 @@ test.describe("URL Fragment Permutations", () => {
     await page.goto("/");
     await page.waitForTimeout(500);
 
-    // Set required fields first (destination is already set, need day and time)
+    // Set required fields first (destination, day, time) so mode buttons are enabled
+    await page
+      .locator("#destinationSelect")
+      .selectOption({ value: "Van Andel Arena" });
     await page.locator("#daySelect").selectOption({ value: "monday" });
     await page.locator("#timeSelect").selectOption({ value: "17:00" });
     await page.waitForTimeout(300);
