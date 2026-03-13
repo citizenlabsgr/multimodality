@@ -21,6 +21,10 @@
     "walk": "walking",
     "shuttle": "DASH"
   },
+  "handCraftedModeLabels": {
+    "drive": "Drive to parking",
+    "rideshare": "Take rideshare"
+  },
   "costLabels": {
     "drive": "Willing to pay",
     "rideshare": "Willing to pay",
@@ -42,6 +46,46 @@
     "micromobility": 4,
     "transit": 1.75,
     "rideshare": 15
+  },
+  "handCraftedRecommendations": {
+    "acrisure-amphitheater": [
+      {
+        "title": "Park in on-site lot",
+        "body": "Use the venue's attached lot. Reserve in advance for concerts.",
+        "steps": [
+          {
+            "mode": "drive",
+            "location": { "latitude": 42.9638, "longitude": -85.6722 },
+            "cost": 30,
+            "distance": null
+          },
+          {
+            "mode": "walk",
+            "location": null,
+            "cost": 0,
+            "distance": 0.05
+          }
+        ]
+      },
+      {
+        "title": "Rideshare to the venue",
+        "body": "Book Uber or Lyft to the amphitheater. Cost {step0_cost_formatted} (estimate). {step1_distance_formatted} walk from drop-off.",
+        "steps": [
+          {
+            "mode": "rideshare",
+            "location": null,
+            "cost": 25,
+            "distance": null
+          },
+          {
+            "mode": "walk",
+            "location": null,
+            "cost": 0,
+            "distance": 0.05
+          }
+        ]
+      }
+    ]
   },
   "recommendations": {
     "van-andel-arena": {
