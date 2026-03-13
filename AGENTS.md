@@ -2,7 +2,7 @@
 
 ## Hand-crafted recommendations
 
-Hand-crafted recommendations are destination-specific, static options (e.g. “Park in on-site lot”) that appear as **blue** strategy cards. They are keyed by destination slug in `data.json` under `handCraftedRecommendations` and are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
+Hand-crafted recommendations are destination-specific, static options (e.g. “Park in on-site lot”) that appear as **blue** strategy cards. They are keyed by destination slug in `data/hand-crafted-recommendations.json` and are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
 
 ### Schema
 

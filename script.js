@@ -1,54 +1,91 @@
-// Load data from data.json
+// Load data from data/ folder (config, hand-crafted recommendations, per-destination recommendations, parking)
 let appData = null;
+
+const FALLBACK_DATA = {
+  validModes: [
+    "drive",
+    "rideshare",
+    "transit",
+    "micromobility",
+    "shuttle",
+    "bike",
+  ],
+  modeLabels: {
+    drive: "driving",
+    rideshare: "Uber/Lyft",
+    transit: "The Rapid",
+    bike: "biking",
+    micromobility: "Lime",
+    walk: "walking",
+    shuttle: "DASH",
+  },
+  costLabels: {
+    drive: "Willing to pay",
+    rideshare: "Willing to pay",
+    transit: "Willing to pay",
+    bike: "Willing to pay",
+    micromobility: "Willing to pay",
+    walk: "Willing to pay",
+    shuttle: "Willing to pay",
+  },
+  defaults: {
+    flexibilityEarlyMins: 15,
+    flexibilityLateMins: 0,
+    people: 1,
+    walkMiles: 0.5,
+    parkingMins: 10,
+    costDollars: 10,
+  },
+  defaultCosts: {
+    micromobility: 4,
+    transit: 1.75,
+    rideshare: 15,
+  },
+  destinations: [],
+  recommendations: {},
+  handCraftedRecommendations: {},
+  linkTexts: {},
+  parking: {},
+};
 
 async function loadData() {
   try {
-    const response = await fetch("data.json");
-    appData = await response.json();
-  } catch (error) {
-    console.error("Failed to load data.json:", error);
-    // Fallback to default data if loading fails
+    const [configRes, handCraftedRes, parkingRes] = await Promise.all([
+      fetch("data/config.json"),
+      fetch("data/hand-crafted-recommendations.json"),
+      fetch("data/parking.json"),
+    ]);
+
+    if (!configRes.ok) throw new Error("Failed to load config");
+    const config = await configRes.json();
+
+    const handCraftedRecommendations = handCraftedRes.ok
+      ? await handCraftedRes.json()
+      : {};
+    const parking = parkingRes.ok ? await parkingRes.json() : {};
+
+    const recommendationPromises = (config.destinations || []).map((d) =>
+      fetch(`data/recommendations/${d.slug}.json`).then((r) =>
+        r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
+      ),
+    );
+    const recommendationResults = await Promise.all(recommendationPromises);
+
+    const recommendations = {};
+    for (const result of recommendationResults) {
+      if (result) recommendations[result.slug] = result.data;
+    }
+
     appData = {
-      validModes: [
-        "drive",
-        "rideshare",
-        "transit",
-        "micromobility",
-        "shuttle",
-        "bike",
-      ],
-      modeLabels: {
-        drive: "driving",
-        rideshare: "Uber/Lyft",
-        transit: "The Rapid",
-        bike: "biking",
-        micromobility: "Lime",
-        walk: "walking",
-        shuttle: "DASH",
-      },
-      costLabels: {
-        drive: "Willing to pay",
-        rideshare: "Willing to pay",
-        transit: "Willing to pay",
-        bike: "Willing to pay",
-        micromobility: "Willing to pay",
-        walk: "Willing to pay",
-        shuttle: "Willing to pay",
-      },
-      defaults: {
-        flexibilityEarlyMins: 15,
-        flexibilityLateMins: 0,
-        people: 1,
-        walkMiles: 0.5,
-        parkingMins: 10,
-        costDollars: 10,
-      },
-      defaultCosts: {
-        micromobility: 4,
-        transit: 1.75,
-        rideshare: 15,
-      },
+      ...config,
+      handCraftedRecommendations,
+      recommendations,
+      linkTexts: config.linkTexts || {},
+      parking,
     };
+  } catch (error) {
+    console.error("Failed to load data:", error);
+    appData = { ...FALLBACK_DATA };
   }
 }
 

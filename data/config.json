@@ -1,0 +1,63 @@
+{
+  "destinations": [
+    {
+      "name": "Van Andel Arena",
+      "slug": "van-andel-arena"
+    },
+    {
+      "name": "Acrisure Amphitheater",
+      "slug": "acrisure-amphitheater"
+    }
+  ],
+  "defaultDestination": "Van Andel Arena",
+  "validModes": [
+    "drive",
+    "rideshare",
+    "transit",
+    "micromobility",
+    "shuttle",
+    "bike"
+  ],
+  "modeLabels": {
+    "drive": "driving",
+    "rideshare": "Uber/Lyft",
+    "transit": "The Rapid",
+    "bike": "biking",
+    "micromobility": "Lime",
+    "walk": "walking",
+    "shuttle": "DASH"
+  },
+  "handCraftedModeLabels": {
+    "drive": "Drive to parking",
+    "rideshare": "Take rideshare"
+  },
+  "costLabels": {
+    "drive": "Willing to pay",
+    "rideshare": "Willing to pay",
+    "transit": "Willing to pay",
+    "bike": "Willing to pay",
+    "micromobility": "Willing to pay",
+    "walk": "Willing to pay",
+    "shuttle": "Willing to pay"
+  },
+  "defaults": {
+    "flexibilityEarlyMins": 15,
+    "flexibilityLateMins": 0,
+    "people": 1,
+    "walkMiles": 0.5,
+    "parkingMins": 10,
+    "costDollars": 10
+  },
+  "defaultCosts": {
+    "micromobility": 4,
+    "transit": 1.75,
+    "rideshare": 15
+  },
+  "linkTexts": {
+    "viewTransitRoute": "View transit route on Google Maps",
+    "findLots": "Find lots on Google Maps",
+    "viewArea": "View area on Google Maps",
+    "findRamps": "Find ramps on Google Maps",
+    "openLink": "Open link"
+  }
+}
