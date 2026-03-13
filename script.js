@@ -1,54 +1,91 @@
-// Load data from data.json
+// Load data from data/ folder (config, hand-crafted recommendations, per-destination recommendations, parking)
 let appData = null;
+
+const FALLBACK_DATA = {
+  validModes: [
+    "drive",
+    "rideshare",
+    "transit",
+    "micromobility",
+    "shuttle",
+    "bike",
+  ],
+  modeLabels: {
+    drive: "driving",
+    rideshare: "Uber/Lyft",
+    transit: "The Rapid",
+    bike: "biking",
+    micromobility: "Lime",
+    walk: "walking",
+    shuttle: "DASH",
+  },
+  costLabels: {
+    drive: "Willing to pay",
+    rideshare: "Willing to pay",
+    transit: "Willing to pay",
+    bike: "Willing to pay",
+    micromobility: "Willing to pay",
+    walk: "Willing to pay",
+    shuttle: "Willing to pay",
+  },
+  defaults: {
+    flexibilityEarlyMins: 15,
+    flexibilityLateMins: 0,
+    people: 1,
+    walkMiles: 0.5,
+    parkingMins: 10,
+    costDollars: 10,
+  },
+  defaultCosts: {
+    micromobility: 4,
+    transit: 1.75,
+    rideshare: 15,
+  },
+  destinations: [],
+  recommendations: {},
+  handCraftedRecommendations: {},
+  linkTexts: {},
+  parking: {},
+};
 
 async function loadData() {
   try {
-    const response = await fetch("data.json");
-    appData = await response.json();
-  } catch (error) {
-    console.error("Failed to load data.json:", error);
-    // Fallback to default data if loading fails
+    const [configRes, handCraftedRes, parkingRes] = await Promise.all([
+      fetch("data/config.json"),
+      fetch("data/hand-crafted-recommendations.json"),
+      fetch("data/parking.json"),
+    ]);
+
+    if (!configRes.ok) throw new Error("Failed to load config");
+    const config = await configRes.json();
+
+    const handCraftedRecommendations = handCraftedRes.ok
+      ? await handCraftedRes.json()
+      : {};
+    const parking = parkingRes.ok ? await parkingRes.json() : {};
+
+    const recommendationPromises = (config.destinations || []).map((d) =>
+      fetch(`data/recommendations/${d.slug}.json`).then((r) =>
+        r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
+      ),
+    );
+    const recommendationResults = await Promise.all(recommendationPromises);
+
+    const recommendations = {};
+    for (const result of recommendationResults) {
+      if (result) recommendations[result.slug] = result.data;
+    }
+
     appData = {
-      validModes: [
-        "drive",
-        "rideshare",
-        "transit",
-        "micromobility",
-        "shuttle",
-        "bike",
-      ],
-      modeLabels: {
-        drive: "driving",
-        rideshare: "Uber/Lyft",
-        transit: "The Rapid",
-        bike: "biking",
-        micromobility: "Lime",
-        walk: "walking",
-        shuttle: "DASH",
-      },
-      costLabels: {
-        drive: "Willing to pay",
-        rideshare: "Willing to pay",
-        transit: "Willing to pay",
-        bike: "Willing to pay",
-        micromobility: "Willing to pay",
-        walk: "Willing to pay",
-        shuttle: "Willing to pay",
-      },
-      defaults: {
-        flexibilityEarlyMins: 15,
-        flexibilityLateMins: 0,
-        people: 1,
-        walkMiles: 0.5,
-        parkingMins: 10,
-        costDollars: 10,
-      },
-      defaultCosts: {
-        micromobility: 4,
-        transit: 1.75,
-        rideshare: 15,
-      },
+      ...config,
+      handCraftedRecommendations,
+      recommendations,
+      linkTexts: config.linkTexts || {},
+      parking,
     };
+  } catch (error) {
+    console.error("Failed to load data:", error);
+    appData = { ...FALLBACK_DATA };
   }
 }
 
@@ -265,11 +302,14 @@ function updateFragment() {
     parts.push(`pay=${encodeURIComponent(state.costDollars)}`);
   }
   if (expandedStrategies.size > 0) {
-    parts.push(
-      `option=${[...expandedStrategies]
-        .sort((a, b) => Number(a) - Number(b))
-        .join(",")}`,
+    const numericOptions = [...expandedStrategies].filter((id) =>
+      /^\d+$/.test(String(id)),
     );
+    if (numericOptions.length > 0) {
+      parts.push(
+        `option=${numericOptions.sort((a, b) => Number(a) - Number(b)).join(",")}`,
+      );
+    }
   }
 
   // Build hash with destination path and query params
@@ -880,6 +920,39 @@ lateSlider.addEventListener("input", (e) => {
   updateResults();
 });
 
+// True if a hand-crafted recommendation fits the user's preferences (modes, cost, walk distance)
+function handCraftedRecFits(rec) {
+  if (!rec.steps || rec.steps.length < 2) return false;
+  const modes = state.modes || [];
+  const costDollars = state.costDollars ?? 0;
+  const walkMiles = state.walkMiles ?? 0;
+
+  // Every non-walk mode in steps must be in the user's selected modes
+  const stepModes = [
+    ...new Set(rec.steps.map((s) => s.mode).filter((m) => m !== "walk")),
+  ];
+  if (stepModes.length > 0 && !stepModes.every((m) => modes.includes(m)))
+    return false;
+
+  // Total cost of steps must be within budget
+  const totalCost = rec.steps.reduce(
+    (sum, s) => sum + (typeof s.cost === "number" ? s.cost : 0),
+    0,
+  );
+  if (totalCost > costDollars) return false;
+
+  // If the last step is walk with a distance, user must be willing to walk at least that far
+  const lastStep = rec.steps[rec.steps.length - 1];
+  if (
+    lastStep.mode === "walk" &&
+    lastStep.distance != null &&
+    typeof lastStep.distance === "number"
+  ) {
+    if (walkMiles < lastStep.distance) return false;
+  }
+  return true;
+}
+
 function renderResults() {
   const resultsEl = document.getElementById("results");
   resultsEl.innerHTML = "";
@@ -888,11 +961,212 @@ function renderResults() {
 
   // Build array of strategies so we can number them and support more than 2 later
   const strategies = [primary, alternate].filter(Boolean);
-  if (strategies.length === 0) return;
+  const slug = getDestinationSlug(state.destination);
+  const handCraftedAll = appData?.handCraftedRecommendations?.[slug] || [];
+  const handCrafted = handCraftedAll.filter(handCraftedRecFits);
+  if (strategies.length === 0 && handCrafted.length === 0) return;
+
+  // Render hand-crafted recommendations first when they fit preferences.
+  // Use unified 1-based option ids: hand-crafted = 1..n, then strategies = n+1..
+  handCrafted.forEach((rec, hIndex) => {
+    const cardId = `handcrafted-${hIndex}-${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 11)}`;
+    const strategyId = String(hIndex + 1);
+    const stepsId = `steps-${cardId}`;
+    const toggleId = `toggle-${cardId}`;
+    const stepsExpanded = expandedStrategies.has(strategyId);
+
+    const formatCost = (c) =>
+      c === 0 ? "$0" : typeof c === "number" ? `$${c}` : c;
+    const formatLocation = (loc) =>
+      loc &&
+      typeof loc.latitude === "number" &&
+      typeof loc.longitude === "number"
+        ? `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`
+        : "—";
+    const formatDistance = (d) =>
+      d != null && typeof d === "number" ? `${d} mi` : "—";
+    // Convert distance (miles) to approximate time (minutes) for display; schema keeps distance only
+    const distanceToMinutes = (distanceMi, mode) => {
+      if (distanceMi == null || typeof distanceMi !== "number") return null;
+      const minPerMile = mode === "walk" ? 20 : 3; // walk ~3 mph, other ~20 mph
+      const mins = Math.max(1, Math.round(distanceMi * minPerMile));
+      return mins;
+    };
+    const formatTime = (mins) => (mins != null ? `${mins} min` : "—");
+
+    // Build placeholders from steps for templating title/body (no extra prose in data)
+    const placeholders = {};
+    let totalCost = 0;
+    (rec.steps || []).forEach((step, idx) => {
+      const prefix = `step${idx}`;
+      placeholders[`${prefix}_cost`] =
+        typeof step.cost === "number" ? String(step.cost) : "";
+      placeholders[`${prefix}_cost_formatted`] = formatCost(step.cost);
+      placeholders[`${prefix}_distance`] =
+        step.distance != null && typeof step.distance === "number"
+          ? String(step.distance)
+          : "—";
+      placeholders[`${prefix}_distance_formatted`] = formatDistance(
+        step.distance,
+      );
+      placeholders[`${prefix}_location`] = formatLocation(step.location);
+      placeholders[`${prefix}_mode`] =
+        appData?.handCraftedModeLabels?.[step.mode] ||
+        getModeLabel(step.mode) ||
+        step.mode ||
+        "";
+      if (typeof step.location?.latitude === "number")
+        placeholders[`${prefix}_latitude`] = String(step.location.latitude);
+      if (typeof step.location?.longitude === "number")
+        placeholders[`${prefix}_longitude`] = String(step.location.longitude);
+      if (typeof step.cost === "number") totalCost += step.cost;
+    });
+    placeholders.total_cost = String(totalCost);
+    placeholders.total_cost_formatted =
+      totalCost === 0 ? "$0" : `$${totalCost}`;
+
+    const titleText = replacePlaceholders(rec.title || "", placeholders);
+    const bodyText = replacePlaceholders(
+      rec.body || rec.title || "",
+      placeholders,
+    );
+
+    const mapLinkForLocation = (loc) => {
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      )
+        return null;
+      const q = `${loc.latitude},${loc.longitude}`;
+      return `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
+    };
+
+    const venueName = state.destination || "the venue";
+    const stepDescription = (step, index, isLastWalk) => {
+      if (isLastWalk) {
+        const mins =
+          typeof step.distance === "number"
+            ? distanceToMinutes(step.distance, "walk")
+            : null;
+        const distStr = mins != null ? "about " + formatTime(mins) + " " : "";
+        return `Walk ${distStr}to ${venueName}.`;
+      }
+      switch (step.mode) {
+        case "drive":
+          return "Park at the location shown on the map.";
+        case "rideshare":
+          return "Book a ride to the venue.";
+        case "transit":
+          return "Take transit to a stop near the venue.";
+        case "micromobility":
+          return "Ride to the venue or a nearby dock.";
+        case "shuttle":
+          return "Take the shuttle to the venue.";
+        case "bike":
+          return "Cycle to the venue or a nearby rack.";
+        default:
+          return "Continue to the venue.";
+      }
+    };
+
+    const stepsHtml =
+      rec.steps && rec.steps.length >= 2
+        ? rec.steps
+            .map((step, index) => {
+              const isLastWalk =
+                index === rec.steps.length - 1 && step.mode === "walk";
+              const modeLabel = isLastWalk
+                ? "Walk to destination"
+                : appData?.handCraftedModeLabels?.[step.mode] ||
+                  getModeLabel(step.mode) ||
+                  step.mode;
+              const mapHref = mapLinkForLocation(step.location);
+              let description = stepDescription(step, index, isLastWalk);
+              if (typeof step.cost === "number" && step.cost > 0) {
+                description +=
+                  " Expect to pay about " + formatCost(step.cost) + ".";
+              }
+              if (
+                typeof step.distance === "number" &&
+                !(index === rec.steps.length - 1 && step.mode === "walk")
+              ) {
+                const mins = distanceToMinutes(step.distance, step.mode);
+                if (mins != null)
+                  description += " About " + formatTime(mins) + ".";
+              }
+              return `
+              <li class="flex gap-2">
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">${
+                  index + 1
+                }</span>
+                <div class="flex-1 pt-0.5">
+                  <div class="font-semibold text-sm text-slate-900">${modeLabel}</div>
+                  <div class="text-sm text-slate-600 mt-1 leading-relaxed">${description}</div>
+                  ${
+                    mapHref
+                      ? `<a href="${mapHref}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors">View in maps →</a>`
+                      : ""
+                  }
+                </div>
+              </li>
+            `;
+            })
+            .join("")
+        : "";
+
+    const card = document.createElement("div");
+    card.className =
+      "rounded-none bg-blue-50 border border-blue-200 p-3 relative" +
+      (hIndex > 0 ? " mt-2" : "");
+    card.innerHTML = `
+      <div class="space-y-2">
+        <div>
+          <div class="text-xs font-medium text-slate-500 uppercase tracking-wide mb-1">${strategyId}. Ideal Strategy</div>
+          <div class="pr-24">
+            <h3 class="font-semibold text-base">${titleText}</h3>
+          </div>
+          <button type="button" id="${toggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
+            ${
+              stepsExpanded ? "Hide" : "Show"
+            } steps <span class="inline-block ml-1">${
+              stepsExpanded ? "▲" : "▼"
+            }</span>
+          </button>
+          <p class="text-sm text-slate-600 mt-1">${bodyText}</p>
+        </div>
+        <div id="${stepsId}" class="${
+          stepsExpanded ? "" : "hidden"
+        } space-y-2 mt-2">
+          <ol class="space-y-2">${stepsHtml}</ol>
+        </div>
+      </div>
+    `;
+
+    const toggleBtn = card.querySelector(`#${toggleId}`);
+    const stepsDiv = card.querySelector(`#${stepsId}`);
+    if (toggleBtn && stepsDiv) {
+      toggleBtn.addEventListener("click", () => {
+        const isHidden = stepsDiv.classList.toggle("hidden");
+        if (isHidden) {
+          expandedStrategies.delete(strategyId);
+        } else {
+          expandedStrategies.add(strategyId);
+        }
+        updateFragment();
+        toggleBtn.innerHTML = isHidden
+          ? 'Show steps <span class="inline-block ml-1">▼</span>'
+          : 'Hide steps <span class="inline-block ml-1">▲</span>';
+      });
+    }
+    resultsEl.appendChild(card);
+  });
 
   strategies.forEach((recommendation, i) => {
-    const strategyNumber = i + 1; // 1-based unique number per recommendation
-    const strategyId = String(strategyNumber); // for fragment (option=1,2)
+    const strategyNumber = handCrafted.length + i + 1; // 1-based after hand-crafted
+    const strategyId = String(strategyNumber); // for fragment (option=1,2,...)
     const isNoOptions = recommendation.isNoOptions;
     const isDiscouraged = recommendation.isDiscouraged;
     const cardId = `card-${i}-${Date.now()}-${Math.random()
@@ -911,12 +1185,15 @@ function renderResults() {
 
     const card = document.createElement("div");
     // First card uses primary styling; rest use alternate (yellow)
+    const marginTop = i > 0 || handCrafted.length > 0 ? " mt-2" : "";
     if (i === 0) {
-      card.className = isNoOptions
-        ? "rounded-none bg-red-50 border border-red-200 p-3 relative"
-        : isDiscouraged
-          ? "rounded-none bg-yellow-50 border border-yellow-200 p-3 relative"
-          : "rounded-none bg-green-50 border border-green-200 p-3 relative";
+      card.className =
+        (isNoOptions
+          ? "rounded-none bg-red-50 border border-red-200 p-3 relative"
+          : isDiscouraged
+            ? "rounded-none bg-yellow-50 border border-yellow-200 p-3 relative"
+            : "rounded-none bg-green-50 border border-green-200 p-3 relative") +
+        marginTop;
     } else {
       card.className =
         "rounded-none bg-yellow-50 border border-yellow-200 p-3 mt-2 relative";
@@ -980,9 +1257,7 @@ function renderResults() {
                     step.link
                       ? `<a href="${
                           step.link
-                        }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800 underline">${
-                          step.linkText || "Open link"
-                        } →</a>`
+                        }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors">View in maps →</a>`
                       : ""
                   }
                 </div>

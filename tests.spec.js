@@ -327,6 +327,75 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   });
 });
 
+test.describe("Option fragment with hand-crafted recommendations", () => {
+  // Acrisure Amphitheater has hand-crafted "Park in on-site lot"; need drive, pay >= 15, walk >= 0.05
+  const handCraftedParams = "modes=drive&day=monday&time=600&walk=0.5&pay=30";
+
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("option=1 should expand first card (hand-crafted when it fits)", async ({
+    page,
+  }) => {
+    await page.goto(
+      `/#/visit/acrisure-amphitheater?${handCraftedParams}&option=1`,
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    // First card is hand-crafted; should show "Hide steps" and steps visible
+    await expect(page.locator("#results")).toContainText("Ideal Strategy");
+    await expect(page.locator("#results")).toContainText("Park in on-site lot");
+    const firstHideSteps = page
+      .locator('button:has-text("Hide steps")')
+      .first();
+    await expect(firstHideSteps).toBeVisible();
+    const firstStepsDiv = page
+      .locator("#results")
+      .locator("[id^='steps-']")
+      .first();
+    await expect(firstStepsDiv).not.toHaveClass(/hidden/);
+    // Hand-crafted steps show mode labels
+    await expect(page.locator("#results")).toContainText("Drive to parking");
+    await expect(page.locator("#results")).toContainText("Walk to destination");
+  });
+
+  test("option=2 should expand second card (first strategy)", async ({
+    page,
+  }) => {
+    await page.goto(
+      `/#/visit/acrisure-amphitheater?${handCraftedParams}&option=2`,
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    // Second card is first strategy; should have one "Hide steps" for that card
+    const hideStepsButtons = page.locator('button:has-text("Hide steps")');
+    await expect(hideStepsButtons).toHaveCount(1);
+    // First strategy card content (e.g. Recommended Strategy or drive recommendation)
+    await expect(page.locator("#results")).toContainText(
+      "Recommended Strategy",
+    );
+  });
+
+  test("option=1,2 should expand both first (hand-crafted) and second (strategy) cards", async ({
+    page,
+  }) => {
+    await page.goto(
+      `/#/visit/acrisure-amphitheater?${handCraftedParams}&option=1,2`,
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const hideStepsButtons = page.locator('button:has-text("Hide steps")');
+    await expect(hideStepsButtons).toHaveCount(2);
+    await expect(page.locator("#results")).toContainText("Ideal Strategy");
+    await expect(page.locator("#results")).toContainText("Park in on-site lot");
+  });
+});
+
 test.describe("Parking Enforcement Logic", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
