@@ -944,3 +944,34 @@ test.describe("Parking Enforcement Logic", () => {
     expect(resultsText).not.toContain("Unknown Strategy");
   });
 });
+
+test.describe("Data routes", () => {
+  test("should show parking data and mode filters at #/data/parking", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+    await page.goto("/#/data/parking");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#dataView")).toBeVisible();
+    await expect(page.locator("#dataViewParkingModes")).toBeVisible();
+    await expect(
+      page.locator("#dataViewParkingModes button[data-mode='drive']"),
+    ).toBeVisible();
+    await expect(page.locator("#dataViewMap")).toBeVisible();
+  });
+
+  test("should show strategies and destination filters at #/data/strategies", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+    await page.goto("/#/data/strategies");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#dataView")).toBeVisible();
+    await expect(page.locator("#dataViewStrategiesFilters")).toBeVisible();
+    await expect(page.locator("#dataViewMap")).toBeVisible();
+  });
+});

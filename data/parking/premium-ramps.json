@@ -1,35 +1,30 @@
 {
+  "name": "Premium Ramp",
+  "modes": ["drive"],
   "items": [
     {
       "name": "Arena Place Garage",
       "address": "130 Ionia Ave SW, Grand Rapids, MI 49503",
       "latitude": 42.9634,
       "longitude": -85.6681,
-      "distance": "Directly across from Van Andel Arena",
       "pricing": {
         "daytime": "Max $27",
         "evening": "$27-$30",
         "events": "$27-$30"
       },
-      "availability": "Often better availability due to higher cost",
-      "operator": "Ellis Parking",
-      "type": "Premium structured parking garage"
+      "availability": "Often better availability due to higher cost"
     },
     {
       "name": "Studio Park Ramp",
       "address": "123 Ionia Ave SW, Grand Rapids, MI 49503",
       "latitude": 42.9638,
       "longitude": -85.6685,
-      "distance": "0.1 miles from Van Andel Arena",
       "pricing": {
         "daytime": "Max $27",
         "evening": "$27-$30",
         "events": "$27-$30"
       },
-      "availability": "Good availability",
-      "operator": "Ellis Parking",
-      "type": "Structured parking garage"
+      "availability": "Good availability"
     }
-  ],
-  "note": "Premium ramps like Arena Place often have better availability because people avoid the higher cost ($27-$30). These are the most convenient options with structured parking, located directly across from or very close to Van Andel Arena."
+  ]
 }

@@ -1,18 +1,11 @@
 {
+  "name": "Metered Street Parking",
+  "modes": ["drive"],
   "items": [
     {
       "location": "Streets surrounding Van Andel Arena",
       "latitude": 42.9634,
       "longitude": -85.6681,
-      "areas": [
-        "Fulton Street (east and west of arena)",
-        "Ionia Avenue (north and south of arena)",
-        "Ottawa Avenue",
-        "Monroe Avenue",
-        "Pearl Street",
-        "Louis Street"
-      ],
-      "distance": "0-0.2 miles from Van Andel Arena",
       "pricing": {
         "rate": "$1.25-$2.00 per half hour in prime areas",
         "hourlyRate": "$2.50-$4.00 per hour",
@@ -20,12 +13,7 @@
         "enforcement": "Monday-Friday 8am-7pm",
         "free": "After 5pm or 6pm and on weekends (event rates may apply)"
       },
-      "payment": "Motu (Mobile GR) app, cash, credit/debit cards, mobile payment apps",
-      "availability": "Limited during events, better availability on weekdays",
-      "type": "Street metered parking (Motu/Mobile GR)",
-      "operator": "City of Grand Rapids - Motu (Mobile GR)",
-      "note": "No free street parking available within 0.5 miles of Van Andel Arena during enforcement hours"
+      "availability": "Limited during events, better availability on weekdays"
     }
-  ],
-  "note": "Street meters (Motu/Mobile GR) are the most affordable paid option ($1.25-$2.00 per half hour, $2.50-$4.00 per hour) but have time limits (typically 2-3 hours) and limited availability during events. Meters are enforced Monday-Friday 8am-7pm, free after 5pm or 6pm and on weekends (event rates may apply). No free street parking is available within 0.5 miles of Van Andel Arena during enforcement hours."
+  ]
 }

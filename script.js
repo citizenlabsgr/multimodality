@@ -1,6 +1,16 @@
 // Load data from data/ folder (config, strategies per destination, per-destination recommendations, parking)
 let appData = null;
 
+// Same icons/labels as the visit page mode buttons (index.html)
+const MODE_DISPLAY_LABELS = {
+  drive: "🚗 Drive",
+  rideshare: "🚕 Uber/Lyft",
+  transit: "🚌 The Rapid",
+  shuttle: "🚐 DASH",
+  micromobility: "🛴 Lime",
+  bike: "🚲 Bike",
+};
+
 const FALLBACK_DATA = {
   validModes: [
     "drive",
@@ -59,6 +69,8 @@ async function loadData() {
       { file: "city-garages.json", key: "cityGarages" },
       { file: "surface-lots.json", key: "surfaceLots" },
       { file: "metered-parking.json", key: "meteredParking" },
+      { file: "bike.json", key: "bike" },
+      { file: "micromobility.json", key: "micromobility" },
     ];
     const parkingResolves = await Promise.all(
       parkingCategories.map(({ file }) =>
@@ -70,13 +82,19 @@ async function loadData() {
       cityGarages: [],
       surfaceLots: [],
       meteredParking: [],
+      bike: [],
+      micromobility: [],
       notes: {},
+      modes: {},
+      categoryNames: {},
     };
     parkingCategories.forEach(({ key }, i) => {
       const data = parkingResolves[i];
       if (data?.items) {
         parking[key] = data.items;
         if (data.note) parking.notes[key] = data.note;
+        if (data.modes) parking.modes[key] = data.modes;
+        if (data.name) parking.categoryNames[key] = data.name;
       }
     });
 
@@ -261,6 +279,529 @@ function getDestinationFromHashPath() {
     if (found) return found.name;
   }
   return null;
+}
+
+// Data routes: #/data or #/data/<path> (e.g. #/data/config, #/data/parking/premium-ramps)
+function isDataRoute() {
+  const hash = window.location.hash.slice(1);
+  return hash === "/data" || hash.startsWith("/data/");
+}
+
+// Leaflet map for data view (parking/strategies with lat/long)
+let dataMap = null;
+let dataMapMarkersLayer = null;
+let dataMapPolylinesLayer = null;
+
+function getPointsFromData(data, path) {
+  const points = [];
+  if (!data) return points;
+  if (path.startsWith("parking/") && Array.isArray(data)) {
+    data.forEach((item) => {
+      if (
+        typeof item.latitude === "number" &&
+        typeof item.longitude === "number"
+      ) {
+        points.push({
+          lat: item.latitude,
+          lng: item.longitude,
+          label: item.name || item.location || "Location",
+        });
+      }
+    });
+  } else if (path.startsWith("strategies/") && Array.isArray(data)) {
+    const slug = path.slice("strategies/".length);
+    const destination = appData?.destinations?.find((d) => d.slug === slug);
+    const destLat =
+      typeof destination?.latitude === "number" ? destination.latitude : null;
+    const destLng =
+      typeof destination?.longitude === "number" ? destination.longitude : null;
+    data.forEach((strategy) => {
+      const steps = strategy.steps || [];
+      steps.forEach((step) => {
+        const loc = step.location;
+        let lat = null;
+        let lng = null;
+        if (
+          loc &&
+          typeof loc.latitude === "number" &&
+          typeof loc.longitude === "number"
+        ) {
+          lat = loc.latitude;
+          lng = loc.longitude;
+        } else if (destLat != null && destLng != null) {
+          lat = destLat;
+          lng = destLng;
+        }
+        if (lat != null && lng != null) {
+          const cost = typeof step.cost === "number" ? `$${step.cost}` : null;
+          const distance =
+            typeof step.distance === "number"
+              ? `${step.distance} mi`
+              : step.distance != null
+                ? String(step.distance)
+                : null;
+          points.push({
+            lat,
+            lng,
+            strategyTitle: strategy.title || null,
+            stepMode: step.mode || null,
+            cost,
+            distance,
+          });
+        }
+      });
+    });
+  }
+  return points;
+}
+
+function escapeHtml(s) {
+  if (s == null) return "";
+  const str = String(s);
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function formatParkingPrice(pricing) {
+  if (!pricing || typeof pricing !== "object") return "Free";
+  if (pricing.rate) return pricing.rate;
+  if (pricing.evening) return pricing.evening;
+  if (pricing.daytime) return pricing.daytime;
+  if (pricing.events) return pricing.events;
+  return "Free";
+}
+
+function updateDataViewMap(points) {
+  const container = document.getElementById("dataViewMap");
+  if (!container) return;
+  if (!points || points.length === 0) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  if (typeof L === "undefined") return;
+  if (!dataMap) {
+    dataMap = L.map("dataViewMap").setView([points[0].lat, points[0].lng], 15);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(dataMap);
+    dataMapPolylinesLayer = L.layerGroup().addTo(dataMap);
+    dataMapMarkersLayer = L.layerGroup().addTo(dataMap);
+  }
+  dataMapPolylinesLayer.clearLayers();
+  dataMapMarkersLayer.clearLayers();
+  const tableStyle =
+    "border-collapse:collapse;font-size:12px;font-family:system-ui,sans-serif";
+  const thStyle =
+    "text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid #e2e8f0;font-weight:600;color:#64748b";
+  const tdStyle = "padding:4px 0;border-bottom:1px solid #e2e8f0";
+  points.forEach((p) => {
+    const marker = L.marker([p.lat, p.lng]);
+    let popupContent = "";
+    if (p.categoryName != null || p.locationName != null || p.price != null) {
+      const rows = [];
+      if (p.categoryName != null && p.categoryName !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Category</th><td style="${tdStyle}">${escapeHtml(p.categoryName)}</td></tr>`,
+        );
+      if (p.locationName != null && p.locationName !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Location</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+        );
+      if (p.price != null && p.price !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Price</th><td style="${tdStyle}">${escapeHtml(p.price)}</td></tr>`,
+        );
+      popupContent =
+        rows.length > 0
+          ? `<table style="${tableStyle}">${rows.join("")}</table>`
+          : "";
+    } else if (
+      p.strategyTitle != null ||
+      p.stepMode != null ||
+      p.cost != null ||
+      p.distance != null ||
+      p.destinationName != null
+    ) {
+      const rows = [];
+      if (p.destinationName != null && p.destinationName !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Destination</th><td style="${tdStyle}">${escapeHtml(p.destinationName)}</td></tr>`,
+        );
+      if (p.strategyTitle != null && p.strategyTitle !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Strategy</th><td style="${tdStyle}">${escapeHtml(p.strategyTitle)}</td></tr>`,
+        );
+      if (p.stepMode != null && p.stepMode !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Step</th><td style="${tdStyle}">${escapeHtml(p.stepMode)}</td></tr>`,
+        );
+      if (p.cost != null && p.cost !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Cost</th><td style="${tdStyle}">${escapeHtml(p.cost)}</td></tr>`,
+        );
+      if (p.distance != null && p.distance !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Distance</th><td style="${tdStyle}">${escapeHtml(p.distance)}</td></tr>`,
+        );
+      popupContent =
+        rows.length > 0
+          ? `<table style="${tableStyle}">${rows.join("")}</table>`
+          : "";
+    } else if (p.label) {
+      popupContent = escapeHtml(p.label);
+    }
+    if (popupContent) marker.bindPopup(popupContent);
+    marker.addTo(dataMapMarkersLayer);
+  });
+  // Draw lines between consecutive strategy step points (same destination + strategy)
+  const strategyGroups = [];
+  let current = [];
+  const groupKey = (p) =>
+    `${p.destinationName ?? ""}\0${p.strategyTitle ?? ""}`;
+  for (const p of points) {
+    if (p.strategyTitle != null) {
+      if (current.length > 0 && groupKey(current[0]) !== groupKey(p)) {
+        strategyGroups.push(current);
+        current = [];
+      }
+      current.push(p);
+    } else {
+      if (current.length > 0) {
+        strategyGroups.push(current);
+        current = [];
+      }
+    }
+  }
+  if (current.length > 0) strategyGroups.push(current);
+  strategyGroups.forEach((group) => {
+    if (group.length >= 2) {
+      const latLngs = group.map((p) => [p.lat, p.lng]);
+      L.polyline(latLngs, { color: "#2563eb", weight: 4 }).addTo(
+        dataMapPolylinesLayer,
+      );
+    }
+  });
+  if (points.length === 1) {
+    dataMap.setView([points[0].lat, points[0].lng], 16);
+  } else {
+    const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lng]));
+    dataMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 17 });
+  }
+  dataMap.invalidateSize();
+}
+
+// Path after /data/ (e.g. "config", "parking", "parking/premium-ramps"). Returns "" for #/data. Strips query string.
+function getDataRoutePath() {
+  const hash = window.location.hash.slice(1);
+  const pathPart =
+    hash.indexOf("?") >= 0 ? hash.slice(0, hash.indexOf("?")) : hash;
+  if (pathPart === "/data") return "";
+  if (!pathPart.startsWith("/data/")) return null;
+  return pathPart.slice("/data/".length).replace(/\/$/, "");
+}
+
+function renderDataView() {
+  const appView = document.getElementById("appView");
+  const dataView = document.getElementById("dataView");
+  const dataViewIndex = document.getElementById("dataViewIndex");
+  const dataViewDetail = document.getElementById("dataViewDetail");
+  const dataViewDetailTitle = document.getElementById("dataViewDetailTitle");
+  const dataViewContent = document.getElementById("dataViewContent");
+
+  if (!appView || !dataView || !appData) return;
+
+  const path = getDataRoutePath();
+  if (path === null) return;
+
+  appView.classList.add("hidden");
+  dataView.classList.remove("hidden");
+  document.querySelector("main")?.classList.add("data-view-active");
+
+  const isIndex = path === "" || path === "parking";
+  const hideDetail =
+    isIndex || path === "strategies" || path.startsWith("strategies/");
+  dataViewIndex.classList.toggle("hidden", !isIndex);
+  dataViewDetail.classList.toggle("hidden", hideDetail);
+  document.getElementById("dataViewParkingModes")?.classList.add("hidden");
+  document.getElementById("dataViewStrategiesFilters")?.classList.add("hidden");
+  document.getElementById("dataViewMap")?.classList.add("hidden");
+
+  if (path === "") {
+    // Index: list datasets with links
+    const links = [
+      { href: "#/data/config", label: "config" },
+      { href: "#/data/parking", label: "parking" },
+      { href: "#/data/strategies", label: "strategies" },
+    ];
+    const destinations = Array.isArray(appData.destinations)
+      ? appData.destinations
+      : [];
+    destinations.forEach((d) => {
+      links.push({
+        href: `#/data/recommendations/${d.slug}`,
+        label: `recommendations/${d.slug}`,
+      });
+    });
+    dataViewIndex.innerHTML = links
+      .map(
+        (l) =>
+          `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
+      )
+      .join("");
+    return;
+  }
+
+  if (path === "parking") {
+    // Modes that have parking data (from modes)
+    const modesByCategory = appData.parking?.modes || {};
+    const parkingModeList = [
+      ...new Set(Object.values(modesByCategory).flat().filter(Boolean)),
+    ];
+    const params = parseFragment();
+    const selectedModes = params.modes
+      ? params.modes
+          .split(",")
+          .map((m) => m.trim())
+          .filter((m) => parkingModeList.includes(m))
+      : [];
+
+    const dataViewParkingModes = document.getElementById(
+      "dataViewParkingModes",
+    );
+    if (dataViewParkingModes) {
+      dataViewParkingModes.classList.remove("hidden");
+      dataViewParkingModes.innerHTML = parkingModeList
+        .map((mode) => {
+          const label =
+            MODE_DISPLAY_LABELS[mode] || appData.modeLabels?.[mode] || mode;
+          const selected = selectedModes.includes(mode);
+          const newModes = selected
+            ? selectedModes.filter((m) => m !== mode)
+            : [...selectedModes, mode];
+          const newHash = newModes.length
+            ? `#/data/parking?modes=${newModes.join(",")}`
+            : "#/data/parking";
+          const base = "rounded-lg border py-2 data-parking-mode-btn";
+          const unselectedClass = "border-slate-300 hover:bg-slate-100";
+          const selectedClass =
+            "border-slate-900 bg-slate-900 text-white hover:bg-slate-800";
+          return `<button type="button" class="${base} ${selected ? selectedClass : unselectedClass}" data-mode="${mode}" data-hash="${newHash}">${label}</button>`;
+        })
+        .join("");
+      dataViewParkingModes
+        .querySelectorAll(".data-parking-mode-btn")
+        .forEach((btn) => {
+          btn.addEventListener("click", () => {
+            window.location.hash = btn.getAttribute("data-hash");
+          });
+        });
+    }
+
+    const parkingKeys = [
+      { file: "premium-ramps", key: "premiumRamps" },
+      { file: "city-garages", key: "cityGarages" },
+      { file: "surface-lots", key: "surfaceLots" },
+      { file: "metered-parking", key: "meteredParking" },
+      { file: "bike", key: "bike" },
+      { file: "micromobility", key: "micromobility" },
+    ];
+    const filteredKeys =
+      selectedModes.length === 0
+        ? parkingKeys
+        : parkingKeys.filter((p) => {
+            const modeList = modesByCategory[p.key] || [];
+            return selectedModes.some((m) => modeList.includes(m));
+          });
+
+    const allParkingPoints = [];
+    const categoryNames = appData.parking?.categoryNames || {};
+    filteredKeys.forEach((p) => {
+      const items = appData.parking?.[p.key];
+      const categoryName = categoryNames[p.key] || p.file;
+      if (Array.isArray(items)) {
+        items.forEach((item) => {
+          if (
+            typeof item.latitude === "number" &&
+            typeof item.longitude === "number"
+          ) {
+            allParkingPoints.push({
+              lat: item.latitude,
+              lng: item.longitude,
+              categoryName,
+              locationName: item.name || item.location || "—",
+              price: formatParkingPrice(item.pricing),
+            });
+          }
+        });
+      }
+    });
+    updateDataViewMap(allParkingPoints);
+
+    dataViewIndex.classList.add("hidden");
+    dataViewDetail.classList.add("hidden");
+    return;
+  }
+
+  if (path === "strategies") {
+    const destinations = Array.isArray(appData.destinations)
+      ? appData.destinations
+      : [];
+    const params = parseFragment();
+    const selectedSlugs = params.destinations
+      ? params.destinations
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => destinations.some((d) => d.slug === s))
+      : [];
+    const showAll = selectedSlugs.length === 0;
+
+    const dataViewStrategiesFilters = document.getElementById(
+      "dataViewStrategiesFilters",
+    );
+    if (dataViewStrategiesFilters) {
+      dataViewStrategiesFilters.classList.remove("hidden");
+      const buttons = [
+        {
+          label: "All",
+          selected: showAll,
+          hash: "#/data/strategies",
+        },
+        ...destinations.map((d) => {
+          const selected = !showAll && selectedSlugs.includes(d.slug);
+          const newSlugs = showAll
+            ? [d.slug]
+            : selected
+              ? selectedSlugs.filter((s) => s !== d.slug)
+              : [...selectedSlugs, d.slug];
+          const hash =
+            newSlugs.length > 0
+              ? `#/data/strategies?destinations=${newSlugs.join(",")}`
+              : "#/data/strategies";
+          return {
+            label: d.name,
+            selected,
+            hash,
+          };
+        }),
+      ];
+      const base = "rounded-lg border py-2 data-strategies-dest-btn";
+      const unselectedClass = "border-slate-300 hover:bg-slate-100";
+      const selectedClass =
+        "border-slate-900 bg-slate-900 text-white hover:bg-slate-800";
+      dataViewStrategiesFilters.innerHTML = buttons
+        .map(
+          (b) =>
+            `<button type="button" class="${base} ${b.selected ? selectedClass : unselectedClass}" data-hash="${b.hash}">${escapeHtml(b.label)}</button>`,
+        )
+        .join("");
+      dataViewStrategiesFilters
+        .querySelectorAll(".data-strategies-dest-btn")
+        .forEach((btn) => {
+          btn.addEventListener("click", () => {
+            window.location.hash = btn.getAttribute("data-hash");
+          });
+        });
+    }
+
+    const slugsToShow = showAll
+      ? destinations.map((d) => d.slug)
+      : selectedSlugs;
+    const allStrategyPoints = [];
+    slugsToShow.forEach((slug) => {
+      const data = appData.handCraftedRecommendations?.[slug] ?? null;
+      const pts = getPointsFromData(data, "strategies/" + slug);
+      const destinationName =
+        destinations.find((d) => d.slug === slug)?.name || slug;
+      pts.forEach((p) => allStrategyPoints.push({ ...p, destinationName }));
+    });
+    updateDataViewMap(allStrategyPoints);
+
+    dataViewIndex.classList.add("hidden");
+    dataViewDetail.classList.add("hidden");
+    return;
+  }
+
+  // Detail: show one dataset
+  let title = path;
+  let data = null;
+
+  if (path === "config") {
+    title = "config.json";
+    const { handCraftedRecommendations, recommendations, ...configOnly } =
+      appData;
+    data = configOnly;
+  } else if (path.startsWith("parking/")) {
+    const fileKey = path.slice("parking/".length);
+    const parkingKeys = {
+      "premium-ramps": "premiumRamps",
+      "city-garages": "cityGarages",
+      "surface-lots": "surfaceLots",
+      "metered-parking": "meteredParking",
+      bike: "bike",
+      micromobility: "micromobility",
+    };
+    const categoryKey = parkingKeys[fileKey] || fileKey;
+    const modeList =
+      (appData.parking?.modes?.[categoryKey] || []).join(", ") || "—";
+    title = `parking/${fileKey} (modes: ${modeList})`;
+    data = appData.parking?.[categoryKey] ?? null;
+  } else if (path.startsWith("strategies/")) {
+    const slug = path.slice("strategies/".length);
+    title = `strategies/${slug}.json`;
+    data = appData.handCraftedRecommendations?.[slug] ?? null;
+  } else if (path.startsWith("recommendations/")) {
+    const slug = path.slice("recommendations/".length);
+    title = `recommendations/${slug}.json`;
+    data = appData.recommendations?.[slug] ?? null;
+  }
+
+  dataViewDetailTitle.textContent = title;
+  dataViewContent.textContent =
+    data !== null ? JSON.stringify(data, null, 2) : "(empty or not found)";
+  let points;
+  if (path.startsWith("parking/") && Array.isArray(data)) {
+    const fileKey = path.slice("parking/".length);
+    const parkingKeys = {
+      "premium-ramps": "premiumRamps",
+      "city-garages": "cityGarages",
+      "surface-lots": "surfaceLots",
+      "metered-parking": "meteredParking",
+      bike: "bike",
+      micromobility: "micromobility",
+    };
+    const categoryKey = parkingKeys[fileKey] || fileKey;
+    const categoryName =
+      appData.parking?.categoryNames?.[categoryKey] || fileKey;
+    points = data
+      .filter(
+        (item) =>
+          typeof item.latitude === "number" &&
+          typeof item.longitude === "number",
+      )
+      .map((item) => ({
+        lat: item.latitude,
+        lng: item.longitude,
+        categoryName,
+        locationName: item.name || item.location || "—",
+        price: formatParkingPrice(item.pricing),
+      }));
+  } else {
+    points = getPointsFromData(data, path);
+  }
+  updateDataViewMap(points);
+}
+
+function hideDataView() {
+  const appView = document.getElementById("appView");
+  const dataView = document.getElementById("dataView");
+  if (appView) appView.classList.remove("hidden");
+  if (dataView) dataView.classList.add("hidden");
+  document.querySelector("main")?.classList.remove("data-view-active");
 }
 
 // Parse URL fragment (format: #/visit/van-andel-arena?modes=drive,transit&day=monday&time=1800&people=2)
@@ -515,6 +1056,12 @@ function toggleMode(mode) {
 
 // Handle browser back/forward navigation
 window.addEventListener("hashchange", () => {
+  if (isDataRoute()) {
+    renderDataView();
+    return;
+  }
+  hideDataView();
+
   // Don't process hashchange if state isn't initialized yet (e.g., during page load)
   if (!state) return;
 
@@ -1933,8 +2480,12 @@ async function init() {
   // Migrate old hash format to new format with destination path (don't overwrite yet if no hash - read params first)
   const initialHash = window.location.hash.slice(1); // Remove the #
   const defaultPath = "/visit";
-  if (initialHash && !initialHash.startsWith("/visit")) {
-    // If hash exists but doesn't start with /visit, migrate it
+  if (
+    initialHash &&
+    !initialHash.startsWith("/visit") &&
+    !initialHash.startsWith("/data")
+  ) {
+    // If hash exists but doesn't start with /visit or /data, migrate it
     if (initialHash.includes("=")) {
       window.location.hash = defaultPath + "?" + initialHash;
     } else {
@@ -2123,6 +2674,12 @@ async function init() {
   // Set default hash only when there was no hash at load (so we didn't overwrite URL params like time=700)
   if (!initialHash) {
     window.location.hash = getDestinationPath();
+  }
+
+  if (isDataRoute()) {
+    renderDataView();
+  } else {
+    hideDataView();
   }
 }
 

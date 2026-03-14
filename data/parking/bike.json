@@ -1,0 +1,27 @@
+{
+  "name": "Bike Rack",
+  "modes": ["bike"],
+  "items": [
+    {
+      "name": "Van Andel Arena main entrance",
+      "address": "130 Fulton St W, Grand Rapids, MI 49503",
+      "latitude": 42.9634,
+      "longitude": -85.6682,
+      "availability": "Multiple racks near main entrance"
+    },
+    {
+      "name": "Monroe Center at Ottawa",
+      "address": "Ottawa Ave NW & Monroe Center NW, Grand Rapids, MI 49503",
+      "latitude": 42.9652,
+      "longitude": -85.6702,
+      "availability": "Street-side racks"
+    },
+    {
+      "name": "Studio Park",
+      "address": "123 Ionia Ave SW, Grand Rapids, MI 49503",
+      "latitude": 42.9636,
+      "longitude": -85.6684,
+      "availability": "Racks near building entrance"
+    }
+  ]
+}

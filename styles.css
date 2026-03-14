@@ -65,3 +65,12 @@
   visibility: hidden;
   pointer-events: none;
 }
+
+/* Data pages: desktop-only layout (wider, no mobile constraints) */
+main.data-view-active {
+  max-width: 72rem;
+}
+#dataView pre {
+  font-size: 0.8125rem;
+  max-height: 85vh;
+}

@@ -2,11 +2,15 @@
   "destinations": [
     {
       "name": "Van Andel Arena",
-      "slug": "van-andel-arena"
+      "slug": "van-andel-arena",
+      "latitude": 42.9634,
+      "longitude": -85.6681
     },
     {
       "name": "Acrisure Amphitheater",
-      "slug": "acrisure-amphitheater"
+      "slug": "acrisure-amphitheater",
+      "latitude": 42.9638,
+      "longitude": -85.6722
     }
   ],
   "defaultDestination": "Van Andel Arena",

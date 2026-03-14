@@ -1,29 +1,26 @@
 {
+  "name": "Surface Lot",
+  "modes": ["drive"],
   "items": [
     {
       "name": "Market Street Lot",
       "location": "Near Market Street and Ottawa",
       "latitude": 42.9628,
       "longitude": -85.668,
-      "distance": "0.2-0.4 miles from Van Andel Arena",
       "pricing": {
         "rate": "$8-$10 for 4 hours"
       },
-      "availability": "Limited, fills up quickly",
-      "type": "Surface parking lot"
+      "availability": "Limited, fills up quickly"
     },
     {
       "name": "Ottawa and Fulton area lots",
       "location": "Near Ottawa and Fulton streets",
       "latitude": 42.9642,
       "longitude": -85.669,
-      "distance": "0.2-0.5 miles from Van Andel Arena",
       "pricing": {
         "rate": "$8-$10 for 4 hours"
       },
-      "availability": "Limited, fills up quickly",
-      "type": "Surface parking lot"
+      "availability": "Limited, fills up quickly"
     }
-  ],
-  "note": "Surface lots are affordable ($8-$10 for 4 hours) but fill up quickly, especially during events. They require more walking distance (0.2-0.5 miles from the arena)."
+  ]
 }

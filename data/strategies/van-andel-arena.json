@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "title": "Park at Studio Park",
+    "body": "Park in the Studio Park Ramp at 123 Ionia Ave SW, then walk to the arena.",
+    "steps": [
+      {
+        "mode": "drive",
+        "location": {
+          "latitude": 42.9638,
+          "longitude": -85.6685
+        },
+        "cost": 27,
+        "distance": null
+      },
+      {
+        "mode": "walk",
+        "location": null,
+        "cost": 0,
+        "distance": 0.1
+      }
+    ]
+  }
+]
