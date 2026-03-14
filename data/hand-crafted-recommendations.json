@@ -23,19 +23,19 @@
     },
     {
       "title": "Rideshare to the venue",
-      "body": "Book Uber or Lyft to the amphitheater. Cost {step0_cost_formatted} (estimate). {step1_distance_formatted} walk from drop-off.",
+      "body": "Book an Uber or Lyft to the amphitheater.",
       "steps": [
         {
           "mode": "rideshare",
           "location": null,
-          "cost": 25,
+          "cost": 20,
           "distance": null
         },
         {
           "mode": "walk",
           "location": null,
           "cost": 0,
-          "distance": 0.05
+          "distance": 0.0
         }
       ]
     }

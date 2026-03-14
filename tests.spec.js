@@ -394,6 +394,40 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     await expect(page.locator("#results")).toContainText("Ideal Strategy");
     await expect(page.locator("#results")).toContainText("Park in on-site lot");
   });
+
+  test("hand-crafted rideshare requires willing to pay at least 2× step cost (both ways)", async ({
+    page,
+  }) => {
+    // Acrisure has "Rideshare to the venue" with cost $20 (one way) = $40 both ways
+    const baseParams = "modes=rideshare,drive&day=monday&time=600&walk=0.5";
+
+    // With pay=39, effective cost $40 exceeds budget — rideshare blue card must not show
+    await page.goto(`/#/visit/acrisure-amphitheater?${baseParams}&pay=39`);
+    await page.waitForSelector("#results");
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      if (!state || state.costDollars !== 39) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 7000 });
+    await expect(page.locator("#results")).not.toContainText(
+      "Rideshare to the venue",
+    );
+
+    // With pay=40, effective cost $40 fits budget — rideshare blue card must show (fresh load so init applies fragment)
+    await page.goto(`/#/visit/acrisure-amphitheater?${baseParams}&pay=40`);
+    await page.waitForSelector("#results");
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      if (!state || state.costDollars !== 40) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 7000 });
+    await expect(page.locator("#results")).toContainText("Ideal Strategy");
+    await expect(page.locator("#results")).toContainText(
+      "Rideshare to the venue",
+    );
+  });
 });
 
 test.describe("Parking Enforcement Logic", () => {

@@ -491,6 +491,17 @@ window.addEventListener("hashchange", () => {
   // Don't process hashchange if state isn't initialized yet (e.g., during page load)
   if (!state) return;
 
+  const destFromHash = getDestinationFromHashPath();
+  if (destFromHash !== null && destFromHash !== state.destination) {
+    state.destination = destFromHash;
+    const destinationSelect = document.getElementById("destinationSelect");
+    if (destinationSelect) {
+      destinationSelect.value = state.destination;
+      destinationSelect.classList.remove("placeholder");
+    }
+    allRecommendations = null;
+  }
+
   const params = parseFragment();
   if (params.option !== undefined) {
     expandedStrategies = new Set(
@@ -934,11 +945,12 @@ function handCraftedRecFits(rec) {
   if (stepModes.length > 0 && !stepModes.every((m) => modes.includes(m)))
     return false;
 
-  // Total cost of steps must be within budget
-  const totalCost = rec.steps.reduce(
-    (sum, s) => sum + (typeof s.cost === "number" ? s.cost : 0),
-    0,
-  );
+  // Total cost of steps must be within budget.
+  // Rideshare cost is "both ways", so user must be willing to pay at least 2× the step cost.
+  const totalCost = rec.steps.reduce((sum, s) => {
+    const stepCost = typeof s.cost === "number" ? s.cost : 0;
+    return sum + (s.mode === "rideshare" ? stepCost * 2 : stepCost);
+  }, 0);
   if (totalCost > costDollars) return false;
 
   // If the last step is walk with a distance, user must be willing to walk at least that far
@@ -964,6 +976,12 @@ function renderResults() {
   const slug = getDestinationSlug(state.destination);
   const handCraftedAll = appData?.handCraftedRecommendations?.[slug] || [];
   const handCrafted = handCraftedAll.filter(handCraftedRecFits);
+  const handCraftedTotalCost = (rec) =>
+    (rec.steps || []).reduce(
+      (sum, step) => sum + (typeof step.cost === "number" ? step.cost : 0),
+      0,
+    );
+  handCrafted.sort((a, b) => handCraftedTotalCost(a) - handCraftedTotalCost(b));
   if (strategies.length === 0 && handCrafted.length === 0) return;
 
   // Render hand-crafted recommendations first when they fit preferences.
@@ -1072,12 +1090,18 @@ function renderResults() {
       }
     };
 
-    const stepsHtml =
+    const stepsToShow =
       rec.steps && rec.steps.length >= 2
-        ? rec.steps
+        ? rec.steps.filter(
+            (step) => !(step.mode === "walk" && step.distance === 0),
+          )
+        : [];
+    const stepsHtml =
+      stepsToShow.length >= 1
+        ? stepsToShow
             .map((step, index) => {
               const isLastWalk =
-                index === rec.steps.length - 1 && step.mode === "walk";
+                index === stepsToShow.length - 1 && step.mode === "walk";
               const modeLabel = isLastWalk
                 ? "Walk to destination"
                 : appData?.handCraftedModeLabels?.[step.mode] ||
@@ -1086,12 +1110,14 @@ function renderResults() {
               const mapHref = mapLinkForLocation(step.location);
               let description = stepDescription(step, index, isLastWalk);
               if (typeof step.cost === "number" && step.cost > 0) {
+                const costSuffix =
+                  step.mode === "rideshare" ? " both ways." : ".";
                 description +=
-                  " Expect to pay about " + formatCost(step.cost) + ".";
+                  " Expect to pay about " + formatCost(step.cost) + costSuffix;
               }
               if (
                 typeof step.distance === "number" &&
-                !(index === rec.steps.length - 1 && step.mode === "walk")
+                !(index === stepsToShow.length - 1 && step.mode === "walk")
               ) {
                 const mins = distanceToMinutes(step.distance, step.mode);
                 if (mins != null)
@@ -1648,7 +1674,21 @@ function matchesCost(rec, costDollars, state) {
     return true;
   }
 
-  // For non-drive modes, simple cost check
+  // Rideshare, transit (The Rapid), and micromobility (Lime) costs in data are one-way; user's "willing to pay" must cover both ways
+  const bothWaysModes = ["rideshare", "transit", "micromobility"];
+  if (bothWaysModes.includes(rec.modeKey)) {
+    const minBothWays = minCost !== undefined ? 2 * minCost : undefined;
+    const maxBothWays = maxCost !== undefined ? 2 * maxCost : undefined;
+    if (minBothWays !== undefined && costDollars < minBothWays) {
+      return false;
+    }
+    if (maxBothWays !== undefined && costDollars > maxBothWays) {
+      return false;
+    }
+    return true;
+  }
+
+  // For other non-drive modes, simple cost check
   if (minCost !== undefined && costDollars < minCost) {
     return false;
   }
