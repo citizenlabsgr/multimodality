@@ -50,15 +50,35 @@ const FALLBACK_DATA = {
 
 async function loadData() {
   try {
-    const [configRes, parkingRes] = await Promise.all([
-      fetch("data/config.json"),
-      fetch("data/parking.json"),
-    ]);
-
+    const configRes = await fetch("data/config.json");
     if (!configRes.ok) throw new Error("Failed to load config");
     const config = await configRes.json();
 
-    const parking = parkingRes.ok ? await parkingRes.json() : {};
+    const parkingCategories = [
+      { file: "premium-ramps.json", key: "premiumRamps" },
+      { file: "city-garages.json", key: "cityGarages" },
+      { file: "surface-lots.json", key: "surfaceLots" },
+      { file: "metered-parking.json", key: "meteredParking" },
+    ];
+    const parkingResolves = await Promise.all(
+      parkingCategories.map(({ file }) =>
+        fetch(`data/parking/${file}`).then((r) => (r.ok ? r.json() : null)),
+      ),
+    );
+    const parking = {
+      premiumRamps: [],
+      cityGarages: [],
+      surfaceLots: [],
+      meteredParking: [],
+      notes: {},
+    };
+    parkingCategories.forEach(({ key }, i) => {
+      const data = parkingResolves[i];
+      if (data?.items) {
+        parking[key] = data.items;
+        if (data.note) parking.notes[key] = data.note;
+      }
+    });
 
     const strategyPromises = (config.destinations || []).map((d) =>
       fetch(`data/strategies/${d.slug}.json`).then((r) =>

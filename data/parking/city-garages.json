@@ -1,0 +1,35 @@
+{
+  "items": [
+    {
+      "name": "Monroe Center Ramp",
+      "address": "25 Monroe Center NW, Grand Rapids, MI 49503",
+      "latitude": 42.9654,
+      "longitude": -85.6708,
+      "distance": "0.3 miles from Van Andel Arena",
+      "pricing": {
+        "daytime": "$1.50/hour, max $12",
+        "evening": "$1.50/hour, max $12",
+        "events": "Event pricing may apply"
+      },
+      "availability": "Good availability",
+      "operator": "City of Grand Rapids",
+      "type": "City parking garage"
+    },
+    {
+      "name": "Ottawa-Fulton Ramp",
+      "address": "50 Ottawa Ave NW, Grand Rapids, MI 49503",
+      "latitude": 42.9648,
+      "longitude": -85.6692,
+      "distance": "0.2 miles from Van Andel Arena",
+      "pricing": {
+        "daytime": "$1.50/hour, max $12",
+        "evening": "$1.50/hour, max $12",
+        "events": "Event pricing may apply"
+      },
+      "availability": "Good availability",
+      "operator": "City of Grand Rapids",
+      "type": "City parking garage"
+    }
+  ],
+  "note": "City parking garages offer more affordable rates ($1.50/hour, max $12) and are good alternatives to premium ramps. They're typically 0.2-0.3 miles from Van Andel Arena and provide structured parking at a lower cost."
+}
