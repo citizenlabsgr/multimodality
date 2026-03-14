@@ -3,6 +3,8 @@
     {
       "name": "Arena Place Garage",
       "address": "130 Ionia Ave SW, Grand Rapids, MI 49503",
+      "latitude": 42.9634,
+      "longitude": -85.6681,
       "distance": "Directly across from Van Andel Arena",
       "pricing": {
         "daytime": "Max $27",
@@ -16,6 +18,8 @@
     {
       "name": "Studio Park Ramp",
       "address": "123 Ionia Ave SW, Grand Rapids, MI 49503",
+      "latitude": 42.9638,
+      "longitude": -85.6685,
       "distance": "0.1 miles from Van Andel Arena",
       "pricing": {
         "daytime": "Max $27",
@@ -31,6 +35,8 @@
     {
       "name": "Monroe Center Ramp",
       "address": "25 Monroe Center NW, Grand Rapids, MI 49503",
+      "latitude": 42.9654,
+      "longitude": -85.6708,
       "distance": "0.3 miles from Van Andel Arena",
       "pricing": {
         "daytime": "$1.50/hour, max $12",
@@ -44,6 +50,8 @@
     {
       "name": "Ottawa-Fulton Ramp",
       "address": "50 Ottawa Ave NW, Grand Rapids, MI 49503",
+      "latitude": 42.9648,
+      "longitude": -85.6692,
       "distance": "0.2 miles from Van Andel Arena",
       "pricing": {
         "daytime": "$1.50/hour, max $12",
@@ -59,6 +67,8 @@
     {
       "name": "Market Street Lot",
       "location": "Near Market Street and Ottawa",
+      "latitude": 42.9628,
+      "longitude": -85.668,
       "distance": "0.2-0.4 miles from Van Andel Arena",
       "pricing": {
         "rate": "$8-$10 for 4 hours"
@@ -69,6 +79,8 @@
     {
       "name": "Ottawa and Fulton area lots",
       "location": "Near Ottawa and Fulton streets",
+      "latitude": 42.9642,
+      "longitude": -85.669,
       "distance": "0.2-0.5 miles from Van Andel Arena",
       "pricing": {
         "rate": "$8-$10 for 4 hours"
@@ -80,6 +92,8 @@
   "meteredParking": [
     {
       "location": "Streets surrounding Van Andel Arena",
+      "latitude": 42.9634,
+      "longitude": -85.6681,
       "areas": [
         "Fulton Street (east and west of arena)",
         "Ionia Avenue (north and south of arena)",

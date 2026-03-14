@@ -1,4 +1,4 @@
-// Load data from data/ folder (config, hand-crafted recommendations, per-destination recommendations, parking)
+// Load data from data/ folder (config, strategies per destination, per-destination recommendations, parking)
 let appData = null;
 
 const FALLBACK_DATA = {
@@ -50,19 +50,26 @@ const FALLBACK_DATA = {
 
 async function loadData() {
   try {
-    const [configRes, handCraftedRes, parkingRes] = await Promise.all([
+    const [configRes, parkingRes] = await Promise.all([
       fetch("data/config.json"),
-      fetch("data/hand-crafted-recommendations.json"),
       fetch("data/parking.json"),
     ]);
 
     if (!configRes.ok) throw new Error("Failed to load config");
     const config = await configRes.json();
 
-    const handCraftedRecommendations = handCraftedRes.ok
-      ? await handCraftedRes.json()
-      : {};
     const parking = parkingRes.ok ? await parkingRes.json() : {};
+
+    const strategyPromises = (config.destinations || []).map((d) =>
+      fetch(`data/strategies/${d.slug}.json`).then((r) =>
+        r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
+      ),
+    );
+    const strategyResults = await Promise.all(strategyPromises);
+    const handCraftedRecommendations = {};
+    for (const result of strategyResults) {
+      if (result) handCraftedRecommendations[result.slug] = result.data;
+    }
 
     const recommendationPromises = (config.destinations || []).map((d) =>
       fetch(`data/recommendations/${d.slug}.json`).then((r) =>

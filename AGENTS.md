@@ -2,7 +2,7 @@
 
 ## Hand-crafted recommendations
 
-Hand-crafted recommendations are destination-specific, static options (e.g. “Park in on-site lot”) that appear as **blue** strategy cards. They are keyed by destination slug in `data/hand-crafted-recommendations.json` and are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
+Hand-crafted recommendations are destination-specific, static options (e.g. “Park in on-site lot”) that appear as **blue** strategy cards. Each destination has a file `data/strategies/<destination-slug>.json` containing an array of recommendations. They are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
 
 ### Schema
 
@@ -29,31 +29,29 @@ Each **step** has:
 
 ### Example
 
+**File:** `data/strategies/acrisure-amphitheater.json`
+
 ```json
-{
-  "handCraftedRecommendations": {
-    "acrisure-amphitheater": [
+[
+  {
+    "title": "Park in on-site lot",
+    "body": "Use the venue's 400-space attached lot at 201 Market Ave SW.",
+    "steps": [
       {
-        "title": "Park in on-site lot",
-        "body": "Use the venue's 400-space attached lot at 201 Market Ave SW.",
-        "steps": [
-          {
-            "mode": "drive",
-            "location": { "latitude": 42.9638, "longitude": -85.6722 },
-            "cost": 15,
-            "distance": null
-          },
-          {
-            "mode": "walk",
-            "location": null,
-            "cost": 0,
-            "distance": 0.05
-          }
-        ]
+        "mode": "drive",
+        "location": { "latitude": 42.9638, "longitude": -85.6722 },
+        "cost": 15,
+        "distance": null
+      },
+      {
+        "mode": "walk",
+        "location": null,
+        "cost": 0,
+        "distance": 0.05
       }
     ]
   }
-}
+]
 ```
 
 ### When they are shown
