@@ -13,7 +13,6 @@
       "longitude": -85.6722
     }
   ],
-  "defaultDestination": "Van Andel Arena",
   "validModes": [
     "drive",
     "rideshare",
@@ -51,11 +50,6 @@
     "walkMiles": 0.5,
     "parkingMins": 10,
     "costDollars": 10
-  },
-  "defaultCosts": {
-    "micromobility": 4,
-    "transit": 1.75,
-    "rideshare": 15
   },
   "linkTexts": {
     "viewTransitRoute": "View transit route on Google Maps",

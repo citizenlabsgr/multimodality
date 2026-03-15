@@ -46,11 +46,6 @@ const FALLBACK_DATA = {
     parkingMins: 10,
     costDollars: 10,
   },
-  defaultCosts: {
-    micromobility: 4,
-    transit: 1.75,
-    rideshare: 15,
-  },
   destinations: [],
   recommendations: {},
   handCraftedRecommendations: {},
@@ -281,7 +276,7 @@ function getDestinationFromHashPath() {
   return null;
 }
 
-// Data routes: #/data or #/data/<path> (e.g. #/data/config, #/data/parking/premium-ramps)
+// Data routes: #/data or #/data/<path> (e.g. #/data/parking, #/data/parking/premium-ramps)
 function isDataRoute() {
   const hash = window.location.hash.slice(1);
   return hash === "/data" || hash.startsWith("/data/");
@@ -495,7 +490,7 @@ function updateDataViewMap(points) {
   dataMap.invalidateSize();
 }
 
-// Path after /data/ (e.g. "config", "parking", "parking/premium-ramps"). Returns "" for #/data. Strips query string.
+// Path after /data/ (e.g. "parking", "parking/premium-ramps"). Returns "" for #/data. Strips query string.
 function getDataRoutePath() {
   const hash = window.location.hash.slice(1);
   const pathPart =
@@ -534,7 +529,6 @@ function renderDataView() {
   if (path === "") {
     // Index: list datasets with links
     const links = [
-      { href: "#/data/config", label: "config" },
       { href: "#/data/parking", label: "parking" },
       { href: "#/data/strategies", label: "strategies" },
     ];
@@ -730,12 +724,7 @@ function renderDataView() {
   let title = path;
   let data = null;
 
-  if (path === "config") {
-    title = "config.json";
-    const { handCraftedRecommendations, recommendations, ...configOnly } =
-      appData;
-    data = configOnly;
-  } else if (path.startsWith("parking/")) {
+  if (path.startsWith("parking/")) {
     const fileKey = path.slice("parking/".length);
     const parkingKeys = {
       "premium-ramps": "premiumRamps",
