@@ -47,9 +47,9 @@
     "flexibilityEarlyMins": 15,
     "flexibilityLateMins": 0,
     "people": 1,
-    "walkMiles": 0.5,
+    "walkMiles": 1.5,
     "parkingMins": 10,
-    "costDollars": 10
+    "costDollars": 40
   },
   "linkTexts": {
     "viewTransitRoute": "View transit route on Google Maps",

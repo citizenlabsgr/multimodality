@@ -42,9 +42,9 @@ const FALLBACK_DATA = {
     flexibilityEarlyMins: 15,
     flexibilityLateMins: 0,
     people: 1,
-    walkMiles: 0.5,
+    walkMiles: 1.5,
     parkingMins: 10,
-    costDollars: 10,
+    costDollars: 40,
   },
   destinations: [],
   recommendations: {},
@@ -569,7 +569,7 @@ function renderDataView() {
     );
     if (dataViewParkingModes) {
       dataViewParkingModes.classList.remove("hidden");
-      dataViewParkingModes.innerHTML = parkingModeList
+      const buttonsHtml = parkingModeList
         .map((mode) => {
           const label =
             MODE_DISPLAY_LABELS[mode] || appData.modeLabels?.[mode] || mode;
@@ -580,13 +580,19 @@ function renderDataView() {
           const newHash = newModes.length
             ? `#/data/parking?modes=${newModes.join(",")}`
             : "#/data/parking";
-          const base = "rounded-lg border py-2 data-parking-mode-btn";
+          const base = "rounded-lg border px-3 py-2 data-parking-mode-btn";
           const unselectedClass = "border-slate-300 hover:bg-slate-100";
           const selectedClass =
             "border-slate-900 bg-slate-900 text-white hover:bg-slate-800";
           return `<button type="button" class="${base} ${selected ? selectedClass : unselectedClass}" data-mode="${mode}" data-hash="${newHash}">${label}</button>`;
         })
         .join("");
+      dataViewParkingModes.innerHTML = `
+        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
+        <div class="ml-auto flex items-center gap-2">
+          <span class="text-sm font-medium text-slate-700">Parking Modes:</span>
+          <div class="grid grid-cols-3 gap-2">${buttonsHtml}</div>
+        </div>`;
       dataViewParkingModes
         .querySelectorAll(".data-parking-mode-btn")
         .forEach((btn) => {
@@ -659,52 +665,43 @@ function renderDataView() {
     );
     if (dataViewStrategiesFilters) {
       dataViewStrategiesFilters.classList.remove("hidden");
-      const buttons = [
-        {
-          label: "All",
-          selected: showAll,
-          hash: "#/data/strategies",
-        },
-        ...destinations.map((d) => {
-          const selected = !showAll && selectedSlugs.includes(d.slug);
-          const newSlugs = showAll
-            ? [d.slug]
-            : selected
-              ? selectedSlugs.filter((s) => s !== d.slug)
-              : [...selectedSlugs, d.slug];
-          const hash =
-            newSlugs.length > 0
-              ? `#/data/strategies?destinations=${newSlugs.join(",")}`
-              : "#/data/strategies";
-          return {
-            label: d.name,
-            selected,
-            hash,
-          };
-        }),
+      const selectedValue =
+        showAll || selectedSlugs.length !== 1 ? "" : selectedSlugs[0];
+      const options = [
+        { value: "", label: "All" },
+        ...destinations.map((d) => ({ value: d.slug, label: d.name })),
       ];
-      const base = "rounded-lg border py-2 data-strategies-dest-btn";
-      const unselectedClass = "border-slate-300 hover:bg-slate-100";
-      const selectedClass =
-        "border-slate-900 bg-slate-900 text-white hover:bg-slate-800";
-      dataViewStrategiesFilters.innerHTML = buttons
-        .map(
-          (b) =>
-            `<button type="button" class="${base} ${b.selected ? selectedClass : unselectedClass}" data-hash="${b.hash}">${escapeHtml(b.label)}</button>`,
-        )
-        .join("");
+      dataViewStrategiesFilters.innerHTML = `
+        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
+        <div class="ml-auto flex items-center gap-2">
+          <label for="dataStrategiesDestination" class="text-sm font-medium text-slate-700">Destination Strategies:</label>
+          <select
+            id="dataStrategiesDestination"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+          >
+            ${options
+              .map(
+                (o) =>
+                  `<option value="${escapeHtml(o.value)}"${o.value === selectedValue ? " selected" : ""}>${escapeHtml(o.label)}</option>`,
+              )
+              .join("")}
+          </select>
+        </div>`;
       dataViewStrategiesFilters
-        .querySelectorAll(".data-strategies-dest-btn")
-        .forEach((btn) => {
-          btn.addEventListener("click", () => {
-            window.location.hash = btn.getAttribute("data-hash");
-          });
+        .querySelector("#dataStrategiesDestination")
+        ?.addEventListener("change", (e) => {
+          const value = e.target.value;
+          window.location.hash =
+            value === ""
+              ? "#/data/strategies"
+              : `#/data/strategies?destinations=${value}`;
         });
     }
 
-    const slugsToShow = showAll
-      ? destinations.map((d) => d.slug)
-      : selectedSlugs;
+    const slugsToShow =
+      showAll || selectedSlugs.length !== 1
+        ? destinations.map((d) => d.slug)
+        : selectedSlugs;
     const allStrategyPoints = [];
     slugsToShow.forEach((slug) => {
       const data = appData.handCraftedRecommendations?.[slug] ?? null;

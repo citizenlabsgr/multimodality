@@ -288,10 +288,10 @@
               <div class="flex items-center justify-between">
                 <label class="text-sm font-medium">Willing to walk</label>
                 <span class="text-sm text-slate-600">
-                  <span id="walkValue">0.5</span
+                  <span id="walkValue">1.5</span
                   ><span id="walkUnit"> miles</span>
                   <span id="walkTime"
-                    >(<span id="walkTimeValue">10</span> min)</span
+                    >(<span id="walkTimeValue">30</span> min)</span
                   >
                 </span>
               </div>
@@ -299,9 +299,9 @@
                 id="walkSlider"
                 type="range"
                 min="0"
-                max="1.5"
+                max="2"
                 step="0.1"
-                value="0.5"
+                value="1.5"
                 class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               />
             </div>
@@ -313,7 +313,7 @@
                   >Willing to pay</label
                 >
                 <span class="text-sm text-slate-600">
-                  <span id="costPrefix">$</span><span id="costValue">10</span>
+                  <span id="costPrefix">$</span><span id="costValue">40</span>
                 </span>
               </div>
               <input
@@ -321,7 +321,7 @@
                 type="range"
                 min="0"
                 max="50"
-                value="10"
+                value="40"
                 step="1"
                 class="w-full mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
               />
@@ -373,11 +373,11 @@
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
           <div
             id="dataViewParkingModes"
-            class="hidden mt-2 mb-3 grid grid-cols-3 gap-2"
+            class="hidden mt-2 mb-3 flex items-center gap-2"
           ></div>
           <div
             id="dataViewStrategiesFilters"
-            class="hidden mt-2 mb-3 grid grid-cols-3 gap-2"
+            class="hidden mt-2 mb-3 flex items-center gap-2"
           ></div>
           <div id="dataViewIndex" class="space-y-1"></div>
           <div
