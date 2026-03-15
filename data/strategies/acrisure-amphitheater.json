@@ -1,13 +1,13 @@
 [
   {
     "title": "Park in on-site lot",
-    "body": "Use the venue's attached lot. Reserve in advance for concerts.",
+    "body": "Use the venue's small attached lot. Reserve in advance for concerts.",
     "steps": [
       {
         "mode": "drive",
         "location": {
-          "latitude": 42.9638,
-          "longitude": -85.6722
+          "latitude": 42.95832,
+          "longitude": -85.67839
         },
         "cost": 30,
         "distance": null
@@ -22,7 +22,7 @@
   },
   {
     "title": "Rideshare to the venue",
-    "body": "Book an Uber or Lyft to the amphitheater.",
+    "body": "Book an Uber or Lyft directly to the amphitheater. You might want to ask to get out of the car early if traffic is backed up.",
     "steps": [
       {
         "mode": "rideshare",

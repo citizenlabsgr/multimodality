@@ -1,5 +1,47 @@
 # Agent guidance
 
+## Destinations
+
+Destinations are listed in `data/destinations.json` and define the venues the user can choose (e.g. Van Andel Arena, Acrisure Amphitheater). The app loads this file at startup and uses it for the destination selector, strategy files per destination, and the data view map.
+
+### Schema
+
+The file has a single key **`destinations`**: an array of destination objects.
+
+Each **destination** has:
+
+| Attribute  | Type   | Required | Description                            |
+| ---------- | ------ | -------- | -------------------------------------- |
+| `name`     | string | yes      | Display name (e.g. "Van Andel Arena"). |
+| `slug`     | string | yes      | URL-safe id (e.g. "van-andel-arena").  |
+| `location` | object | yes      | Coordinates; see below.                |
+
+**`location`** must be an object with:
+
+| Attribute   | Type   | Required | Description |
+| ----------- | ------ | -------- | ----------- |
+| `latitude`  | number | yes      | Latitude.   |
+| `longitude` | number | yes      | Longitude.  |
+
+### Example
+
+**File:** `data/destinations.json`
+
+```json
+{
+  "destinations": [
+    {
+      "name": "Van Andel Arena",
+      "slug": "van-andel-arena",
+      "location": {
+        "latitude": 42.962979222900344,
+        "longitude": -85.67185878753664
+      }
+    }
+  ]
+}
+```
+
 ## Hand-crafted recommendations
 
 Hand-crafted recommendations are destination-specific, static options (e.g. “Park in on-site lot”) that appear as **blue** strategy cards. Each destination has a file `data/strategies/<destination-slug>.json` containing an array of recommendations. They are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).

@@ -55,9 +55,38 @@ const FALLBACK_DATA = {
 
 async function loadData() {
   try {
-    const configRes = await fetch("data/config.json");
+    const [configRes, destinationsRes] = await Promise.all([
+      fetch("data/config.json"),
+      fetch("data/destinations.json"),
+    ]);
     if (!configRes.ok) throw new Error("Failed to load config");
     const config = await configRes.json();
+    const destinationsData = destinationsRes.ok
+      ? await destinationsRes.json()
+      : { destinations: [] };
+    const rawDestinations = Array.isArray(destinationsData.destinations)
+      ? destinationsData.destinations
+      : [];
+    const destinations = rawDestinations.map((d) => {
+      const loc = d.location;
+      const lat =
+        typeof loc?.latitude === "number"
+          ? loc.latitude
+          : typeof d.latitude === "number"
+            ? d.latitude
+            : null;
+      const lng =
+        typeof loc?.longitude === "number"
+          ? loc.longitude
+          : typeof d.longitude === "number"
+            ? d.longitude
+            : null;
+      return {
+        ...d,
+        latitude: lat != null ? roundCoord5(lat) : null,
+        longitude: lng != null ? roundCoord5(lng) : null,
+      };
+    });
 
     const parkingCategories = [
       { file: "premium-ramps.json", key: "premiumRamps" },
@@ -93,7 +122,7 @@ async function loadData() {
       }
     });
 
-    const strategyPromises = (config.destinations || []).map((d) =>
+    const strategyPromises = destinations.map((d) =>
       fetch(`data/strategies/${d.slug}.json`).then((r) =>
         r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
       ),
@@ -104,7 +133,7 @@ async function loadData() {
       if (result) handCraftedRecommendations[result.slug] = result.data;
     }
 
-    const recommendationPromises = (config.destinations || []).map((d) =>
+    const recommendationPromises = destinations.map((d) =>
       fetch(`data/recommendations/${d.slug}.json`).then((r) =>
         r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
       ),
@@ -118,6 +147,7 @@ async function loadData() {
 
     appData = {
       ...config,
+      destinations,
       handCraftedRecommendations,
       recommendations,
       linkTexts: config.linkTexts || {},
@@ -312,7 +342,7 @@ function getPointsFromData(data, path) {
       typeof destination?.longitude === "number" ? destination.longitude : null;
     data.forEach((strategy) => {
       const steps = strategy.steps || [];
-      steps.forEach((step) => {
+      steps.forEach((step, stepIndex) => {
         const loc = step.location;
         let lat = null;
         let lng = null;
@@ -339,6 +369,7 @@ function getPointsFromData(data, path) {
             lat,
             lng,
             strategyTitle: strategy.title || null,
+            stepNumber: stepIndex + 1,
             stepMode: step.mode || null,
             cost,
             distance,
@@ -358,6 +389,11 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function roundCoord5(n) {
+  if (typeof n !== "number" || Number.isNaN(n)) return n;
+  return Math.round(n * 1e5) / 1e5;
 }
 
 function formatParkingPrice(pricing) {
@@ -392,12 +428,28 @@ function updateDataViewMap(points) {
   const tableStyle =
     "border-collapse:collapse;font-size:12px;font-family:system-ui,sans-serif";
   const thStyle =
-    "text-align:left;padding:4px 8px 4px 0;border-bottom:1px solid #e2e8f0;font-weight:600;color:#64748b";
-  const tdStyle = "padding:4px 0;border-bottom:1px solid #e2e8f0";
+    "text-align:left;padding:4px 16px 4px 0;border-bottom:1px solid #e2e8f0;font-weight:600;color:#64748b;vertical-align:top";
+  const tdStyle =
+    "padding:4px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top";
   points.forEach((p) => {
-    const marker = L.marker([p.lat, p.lng]);
+    const isStrategyStep =
+      p.strategyTitle != null ||
+      p.stepNumber != null ||
+      p.stepMode != null ||
+      (p.destinationName != null && p.slug == null);
+    const isDestination = p.isDestination === true;
+    const isParking = p.parkingItem != null;
+    const marker = L.marker([p.lat, p.lng], {
+      draggable: isStrategyStep || isDestination || isParking,
+    });
+    if (isDestination) marker._originalLatLng = L.latLng(p.lat, p.lng);
+    if (isStrategyStep || isParking)
+      marker._originalLatLng = L.latLng(p.lat, p.lng);
     let popupContent = "";
-    if (p.categoryName != null || p.locationName != null || p.price != null) {
+    if (
+      (p.categoryName != null || p.locationName != null || p.price != null) &&
+      !isParking
+    ) {
       const rows = [];
       if (p.categoryName != null && p.categoryName !== "")
         rows.push(
@@ -415,26 +467,112 @@ function updateDataViewMap(points) {
         rows.length > 0
           ? `<table style="${tableStyle}">${rows.join("")}</table>`
           : "";
-    } else if (
-      p.strategyTitle != null ||
-      p.stepMode != null ||
-      p.cost != null ||
-      p.distance != null ||
-      p.destinationName != null
-    ) {
+    } else if (isParking) {
+      const coordsJson = JSON.stringify(
+        {
+          latitude: roundCoord5(p.lat),
+          longitude: roundCoord5(p.lng),
+        },
+        null,
+        2,
+      );
       const rows = [];
-      if (p.destinationName != null && p.destinationName !== "")
+      if (p.categoryName != null && p.categoryName !== "")
         rows.push(
-          `<tr><th style="${thStyle}">Destination</th><td style="${tdStyle}">${escapeHtml(p.destinationName)}</td></tr>`,
+          `<tr><th style="${thStyle}">Category</th><td style="${tdStyle}">${escapeHtml(p.categoryName)}</td></tr>`,
         );
+      if (p.locationName != null && p.locationName !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Location</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+        );
+      if (p.price != null && p.price !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Price</th><td style="${tdStyle}">${escapeHtml(p.price)}</td></tr>`,
+        );
+      rows.push(
+        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy JSON</button></div></td></tr>`,
+      );
+      const tableHtml = `<table style="${tableStyle}">${rows.join("")}</table>`;
+      const div = document.createElement("div");
+      div.innerHTML = tableHtml;
+      const copyBtn = div.querySelector(".data-view-copy-json");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const ll = marker.getLatLng();
+          const obj = {
+            ...p.parkingItem,
+            latitude: roundCoord5(ll.lat),
+            longitude: roundCoord5(ll.lng),
+          };
+          const json = JSON.stringify(obj, null, 2);
+          navigator.clipboard?.writeText(json).then(() => {
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.textContent = "Copy JSON";
+            }, 1500);
+          });
+        });
+      }
+      marker.on("dragend", function () {
+        const ll = this.getLatLng();
+        const content = this.getPopup().getContent();
+        const coordsEl =
+          content && content.querySelector
+            ? content.querySelector(".data-view-popup-coords")
+            : null;
+        if (coordsEl) {
+          coordsEl.textContent = JSON.stringify(
+            {
+              latitude: roundCoord5(ll.lat),
+              longitude: roundCoord5(ll.lng),
+            },
+            null,
+            2,
+          );
+        }
+        const orig = this._originalLatLng;
+        if (orig && copyBtn) {
+          const tol = 1e-6;
+          const moved =
+            Math.abs(ll.lat - orig.lat) > tol ||
+            Math.abs(ll.lng - orig.lng) > tol;
+          if (moved) {
+            copyBtn.classList.remove("hidden");
+            copyBtn.textContent = "Copy JSON";
+          } else {
+            copyBtn.classList.add("hidden");
+          }
+        }
+      });
+      marker.bindPopup(div);
+    } else if (isStrategyStep) {
+      const coordsJson = JSON.stringify(
+        {
+          latitude: roundCoord5(p.lat),
+          longitude: roundCoord5(p.lng),
+        },
+        null,
+        2,
+      );
+      const rows = [];
       if (p.strategyTitle != null && p.strategyTitle !== "")
         rows.push(
           `<tr><th style="${thStyle}">Strategy</th><td style="${tdStyle}">${escapeHtml(p.strategyTitle)}</td></tr>`,
         );
-      if (p.stepMode != null && p.stepMode !== "")
+      if (p.stepNumber != null)
         rows.push(
-          `<tr><th style="${thStyle}">Step</th><td style="${tdStyle}">${escapeHtml(p.stepMode)}</td></tr>`,
+          `<tr><th style="${thStyle}">Step</th><td style="${tdStyle}">${p.stepNumber}</td></tr>`,
         );
+      if (p.stepMode != null && p.stepMode !== "") {
+        const modeLabel = getModeLabel(p.stepMode);
+        const displayMode =
+          modeLabel && modeLabel.length > 0
+            ? modeLabel.charAt(0).toUpperCase() + modeLabel.slice(1)
+            : modeLabel;
+        rows.push(
+          `<tr><th style="${thStyle}">Mode</th><td style="${tdStyle}">${escapeHtml(displayMode)}</td></tr>`,
+        );
+      }
       if (p.cost != null && p.cost !== "")
         rows.push(
           `<tr><th style="${thStyle}">Cost</th><td style="${tdStyle}">${escapeHtml(p.cost)}</td></tr>`,
@@ -443,14 +581,141 @@ function updateDataViewMap(points) {
         rows.push(
           `<tr><th style="${thStyle}">Distance</th><td style="${tdStyle}">${escapeHtml(p.distance)}</td></tr>`,
         );
-      popupContent =
-        rows.length > 0
-          ? `<table style="${tableStyle}">${rows.join("")}</table>`
-          : "";
+      rows.push(
+        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy JSON</button></div></td></tr>`,
+      );
+      const tableHtml = `<table style="${tableStyle}">${rows.join("")}</table>`;
+      const div = document.createElement("div");
+      div.innerHTML = tableHtml;
+      const copyBtn = div.querySelector(".data-view-copy-json");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const ll = marker.getLatLng();
+          const json = JSON.stringify(
+            {
+              latitude: roundCoord5(ll.lat),
+              longitude: roundCoord5(ll.lng),
+            },
+            null,
+            2,
+          );
+          navigator.clipboard?.writeText(json).then(() => {
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.textContent = "Copy JSON";
+            }, 1500);
+          });
+        });
+      }
+      marker.on("dragend", function () {
+        const ll = this.getLatLng();
+        const content = this.getPopup().getContent();
+        const coordsEl =
+          content && content.querySelector
+            ? content.querySelector(".data-view-popup-coords")
+            : null;
+        if (coordsEl) {
+          coordsEl.textContent = JSON.stringify(
+            {
+              latitude: roundCoord5(ll.lat),
+              longitude: roundCoord5(ll.lng),
+            },
+            null,
+            2,
+          );
+        }
+        const orig = this._originalLatLng;
+        if (orig && copyBtn) {
+          const tol = 1e-6;
+          const moved =
+            Math.abs(ll.lat - orig.lat) > tol ||
+            Math.abs(ll.lng - orig.lng) > tol;
+          if (moved) {
+            copyBtn.classList.remove("hidden");
+            copyBtn.textContent = "Copy JSON";
+          } else {
+            copyBtn.classList.add("hidden");
+          }
+        }
+      });
+      marker.bindPopup(div);
+    } else if (isDestination) {
+      const coordsJson = JSON.stringify(
+        {
+          latitude: roundCoord5(p.lat),
+          longitude: roundCoord5(p.lng),
+        },
+        null,
+        2,
+      );
+      const rows = [];
+      rows.push(
+        `<tr><th style="${thStyle}">Name</th><td style="${tdStyle}">${escapeHtml(p.destinationName)}</td></tr>`,
+      );
+      if (p.slug != null && p.slug !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Slug</th><td style="${tdStyle}">${escapeHtml(p.slug)}</td></tr>`,
+        );
+      rows.push(
+        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy JSON</button></div></td></tr>`,
+      );
+      const tableHtml = `<table style="${tableStyle}">${rows.join("")}</table>`;
+      const div = document.createElement("div");
+      div.innerHTML = tableHtml;
+      const copyBtn = div.querySelector(".data-view-copy-json");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const ll = marker.getLatLng();
+          const obj = {
+            latitude: roundCoord5(ll.lat),
+            longitude: roundCoord5(ll.lng),
+          };
+          const json = JSON.stringify(obj, null, 2);
+          navigator.clipboard?.writeText(json).then(() => {
+            copyBtn.textContent = "Copied!";
+            setTimeout(() => {
+              copyBtn.textContent = "Copy JSON";
+            }, 1500);
+          });
+        });
+      }
+      marker.on("dragend", function () {
+        const ll = this.getLatLng();
+        const content = this.getPopup().getContent();
+        const coordsEl =
+          content && content.querySelector
+            ? content.querySelector(".data-view-popup-coords")
+            : null;
+        if (coordsEl) {
+          coordsEl.textContent = JSON.stringify(
+            {
+              latitude: roundCoord5(ll.lat),
+              longitude: roundCoord5(ll.lng),
+            },
+            null,
+            2,
+          );
+        }
+        const orig = this._originalLatLng;
+        if (orig && copyBtn) {
+          const tol = 1e-6;
+          const moved =
+            Math.abs(ll.lat - orig.lat) > tol ||
+            Math.abs(ll.lng - orig.lng) > tol;
+          if (moved) {
+            copyBtn.classList.remove("hidden");
+            copyBtn.textContent = "Copy JSON";
+          } else {
+            copyBtn.classList.add("hidden");
+          }
+        }
+      });
+      marker.bindPopup(div);
     } else if (p.label) {
       popupContent = escapeHtml(p.label);
     }
-    if (popupContent) marker.bindPopup(popupContent);
+    if (popupContent && !isStrategyStep && !isDestination && !isParking)
+      marker.bindPopup(popupContent);
     marker.addTo(dataMapMarkersLayer);
   });
   // Draw lines between consecutive strategy step points (same destination + strategy)
@@ -519,11 +784,15 @@ function renderDataView() {
 
   const isIndex = path === "" || path === "parking";
   const hideDetail =
-    isIndex || path === "strategies" || path.startsWith("strategies/");
+    isIndex ||
+    path === "strategies" ||
+    path.startsWith("strategies/") ||
+    path === "destinations";
   dataViewIndex.classList.toggle("hidden", !isIndex);
   dataViewDetail.classList.toggle("hidden", hideDetail);
   document.getElementById("dataViewParkingModes")?.classList.add("hidden");
   document.getElementById("dataViewStrategiesFilters")?.classList.add("hidden");
+  document.getElementById("dataViewDestinationsBar")?.classList.add("hidden");
   document.getElementById("dataViewMap")?.classList.add("hidden");
 
   if (path === "") {
@@ -531,6 +800,7 @@ function renderDataView() {
     const links = [
       { href: "#/data/parking", label: "parking" },
       { href: "#/data/strategies", label: "strategies" },
+      { href: "#/data/destinations", label: "destinations" },
     ];
     const destinations = Array.isArray(appData.destinations)
       ? appData.destinations
@@ -547,6 +817,37 @@ function renderDataView() {
           `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
       )
       .join("");
+    return;
+  }
+
+  if (path === "destinations") {
+    const destinations = Array.isArray(appData.destinations)
+      ? appData.destinations
+      : [];
+    const dataViewDestinationsBar = document.getElementById(
+      "dataViewDestinationsBar",
+    );
+    if (dataViewDestinationsBar) {
+      dataViewDestinationsBar.classList.remove("hidden");
+      dataViewDestinationsBar.innerHTML = `
+        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">←</a>
+        <span class="ml-auto text-sm font-medium text-slate-700">Destinations</span>`;
+    }
+    const destinationPoints = destinations
+      .filter(
+        (d) =>
+          typeof d.latitude === "number" && typeof d.longitude === "number",
+      )
+      .map((d) => ({
+        lat: d.latitude,
+        lng: d.longitude,
+        isDestination: true,
+        destinationName: d.name || d.slug || "Destination",
+        slug: d.slug,
+      }));
+    updateDataViewMap(destinationPoints);
+    dataViewIndex.classList.add("hidden");
+    dataViewDetail.classList.add("hidden");
     return;
   }
 
@@ -635,6 +936,7 @@ function renderDataView() {
               categoryName,
               locationName: item.name || item.location || "—",
               price: formatParkingPrice(item.pricing),
+              parkingItem: { ...item },
             });
           }
         });
@@ -775,6 +1077,7 @@ function renderDataView() {
         categoryName,
         locationName: item.name || item.location || "—",
         price: formatParkingPrice(item.pricing),
+        parkingItem: { ...item },
       }));
   } else {
     points = getPointsFromData(data, path);
@@ -1561,7 +1864,7 @@ function renderResults() {
       loc &&
       typeof loc.latitude === "number" &&
       typeof loc.longitude === "number"
-        ? `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`
+        ? `${roundCoord5(loc.latitude)}, ${roundCoord5(loc.longitude)}`
         : "—";
     const formatDistance = (d) =>
       d != null && typeof d === "number" ? `${d} mi` : "—";
