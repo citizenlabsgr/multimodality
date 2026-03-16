@@ -108,7 +108,7 @@ Fitting hand-crafted recommendations are rendered **first** (blue cards), follow
 
 ## Parking data
 
-Parking data is split by category under `data/parking/<category>.json` (e.g. `premium-ramps.json`, `city-garages.json`, `surface-lots.json`, `metered-parking.json`, `bike.json`, `micromobility.json`). The app merges these at load time and shows them on the **data** view (`#/data/parking`) with a map and mode filters. Each category applies to one or more transport **modes** (`drive`, `bike`, `micromobility`).
+Parking data is split by category under `data/parking/<category>.json` (e.g. `garages.json`, `lots.json`, `meters.json`, `racks.json`, `micromobility.json`). The app merges these at load time and shows them on the **data** view (`#/data/parking`) with a map and mode filters. Each category applies to one or more transport **modes** (`drive`, `bike`, `micromobility`).
 
 ### Schema
 
@@ -122,34 +122,32 @@ Each parking file has:
 
 Each **item** (parking location) has:
 
-| Attribute      | Type   | Required | Description                                                                 |
-| -------------- | ------ | -------- | --------------------------------------------------------------------------- |
-| `latitude`     | number | yes      | Latitude for the map.                                                       |
-| `longitude`    | number | yes      | Longitude for the map.                                                      |
-| `name`         | string | no\*     | Location name (e.g. "Arena Place Garage"). Use `name` or `location`.        |
-| `location`     | string | no\*     | Area description when there is no single place name (e.g. metered streets). |
-| `address`      | string | no       | Street address.                                                             |
-| `pricing`      | object | no       | Price info; shown in map popups. See below.                                 |
-| `availability` | string | no       | e.g. "Good availability".                                                   |
-
-\*At least one of `name` or `location` is recommended so the map popup has a label. Distance is computed later from latitude/longitude.
+| Attribute      | Type   | Required | Description                                                     |
+| -------------- | ------ | -------- | --------------------------------------------------------------- |
+| `location`     | object | yes      | Coordinates: `{ "latitude": number, "longitude": number }`.     |
+| `name`         | string | no       | Display name for the map and popup (e.g. "Arena Place Garage"). |
+| `address`      | string | no       | Street address.                                                 |
+| `pricing`      | object | no       | Price info; shown in map popups. See below.                     |
+| `availability` | string | no       | e.g. "Good availability".                                       |
 
 **`pricing`** (optional): an object. The app displays one value for the map popup, chosen in this order: `rate`, then `evening`, then `daytime`, then `events`. If none are present, the popup shows "Free". Examples: `{ "rate": "$8-$10 for 4 hours" }` or `{ "daytime": "Max $27", "evening": "$27-$30", "events": "$27-$30" }`.
 
 ### Example
 
-**File:** `data/parking/premium-ramps.json`
+**File:** `data/parking/garages.json`
 
 ```json
 {
-  "name": "Premium ramps",
+  "name": "Garages",
   "modes": ["drive"],
   "items": [
     {
       "name": "Arena Place Garage",
       "address": "130 Ionia Ave SW, Grand Rapids, MI 49503",
-      "latitude": 42.9634,
-      "longitude": -85.6681,
+      "location": {
+        "latitude": 42.9634,
+        "longitude": -85.6681
+      },
       "pricing": {
         "daytime": "Max $27",
         "evening": "$27-$30",

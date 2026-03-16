@@ -89,11 +89,10 @@ async function loadData() {
     });
 
     const parkingCategories = [
-      { file: "premium-ramps.json", key: "premiumRamps" },
-      { file: "city-garages.json", key: "cityGarages" },
-      { file: "surface-lots.json", key: "surfaceLots" },
-      { file: "metered-parking.json", key: "meteredParking" },
-      { file: "bike.json", key: "bike" },
+      { file: "garages.json", key: "garages" },
+      { file: "lots.json", key: "lots" },
+      { file: "meters.json", key: "meters" },
+      { file: "racks.json", key: "racks" },
       { file: "micromobility.json", key: "micromobility" },
     ];
     const parkingResolves = await Promise.all(
@@ -102,11 +101,10 @@ async function loadData() {
       ),
     );
     const parking = {
-      premiumRamps: [],
-      cityGarages: [],
-      surfaceLots: [],
-      meteredParking: [],
-      bike: [],
+      garages: [],
+      lots: [],
+      meters: [],
+      racks: [],
       micromobility: [],
       notes: {},
       modes: {},
@@ -322,14 +320,13 @@ function getPointsFromData(data, path) {
   if (!data) return points;
   if (path.startsWith("parking/") && Array.isArray(data)) {
     data.forEach((item) => {
-      if (
-        typeof item.latitude === "number" &&
-        typeof item.longitude === "number"
-      ) {
+      const lat = item.location?.latitude ?? item.latitude;
+      const lng = item.location?.longitude ?? item.longitude;
+      if (typeof lat === "number" && typeof lng === "number") {
         points.push({
-          lat: item.latitude,
-          lng: item.longitude,
-          label: item.name || item.location || "Location",
+          lat,
+          lng,
+          label: item.name || "Location",
         });
       }
     });
@@ -500,7 +497,6 @@ function updateDataViewMap(points) {
         copyBtn.addEventListener("click", () => {
           const ll = marker.getLatLng();
           const obj = {
-            ...p.parkingItem,
             latitude: roundCoord5(ll.lat),
             longitude: roundCoord5(ll.lng),
           };
@@ -852,89 +848,68 @@ function renderDataView() {
   }
 
   if (path === "parking") {
-    // Modes that have parking data (from modes)
-    const modesByCategory = appData.parking?.modes || {};
-    const parkingModeList = [
-      ...new Set(Object.values(modesByCategory).flat().filter(Boolean)),
+    const parkingKeys = [
+      { file: "garages", key: "garages" },
+      { file: "lots", key: "lots" },
+      { file: "meters", key: "meters" },
+      { file: "racks", key: "racks" },
+      { file: "micromobility", key: "micromobility" },
     ];
     const params = parseFragment();
-    const selectedModes = params.modes
-      ? params.modes
-          .split(",")
-          .map((m) => m.trim())
-          .filter((m) => parkingModeList.includes(m))
-      : [];
+    const datasetParam = params.dataset ? String(params.dataset).trim() : "";
+    const categoryNames = appData.parking?.categoryNames || {};
+    const selectedKey =
+      datasetParam && parkingKeys.some((p) => p.key === datasetParam)
+        ? datasetParam
+        : "";
 
     const dataViewParkingModes = document.getElementById(
       "dataViewParkingModes",
     );
     if (dataViewParkingModes) {
       dataViewParkingModes.classList.remove("hidden");
-      const buttonsHtml = parkingModeList
-        .map((mode) => {
-          const label =
-            MODE_DISPLAY_LABELS[mode] || appData.modeLabels?.[mode] || mode;
-          const selected = selectedModes.includes(mode);
-          const newModes = selected
-            ? selectedModes.filter((m) => m !== mode)
-            : [...selectedModes, mode];
-          const newHash = newModes.length
-            ? `#/data/parking?modes=${newModes.join(",")}`
-            : "#/data/parking";
-          const base = "rounded-lg border px-3 py-2 data-parking-mode-btn";
-          const unselectedClass = "border-slate-300 hover:bg-slate-100";
-          const selectedClass =
-            "border-slate-900 bg-slate-900 text-white hover:bg-slate-800";
-          return `<button type="button" class="${base} ${selected ? selectedClass : unselectedClass}" data-mode="${mode}" data-hash="${newHash}">${label}</button>`;
-        })
-        .join("");
+      const optionsHtml = [
+        '<option value="">All</option>',
+        ...parkingKeys.map(
+          (p) =>
+            `<option value="${escapeHtml(p.key)}"${selectedKey === p.key ? " selected" : ""}>${escapeHtml(categoryNames[p.key] || p.file)}</option>`,
+        ),
+      ].join("");
       dataViewParkingModes.innerHTML = `
         <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
         <div class="ml-auto flex items-center gap-2">
-          <span class="text-sm font-medium text-slate-700">Parking Modes:</span>
-          <div class="grid grid-cols-3 gap-2">${buttonsHtml}</div>
+          <label for="data-parking-dataset" class="text-sm font-medium text-slate-700">Parking Dataset:</label>
+          <select id="data-parking-dataset" class="data-parking-dataset-select rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">${optionsHtml}</select>
         </div>`;
       dataViewParkingModes
-        .querySelectorAll(".data-parking-mode-btn")
-        .forEach((btn) => {
-          btn.addEventListener("click", () => {
-            window.location.hash = btn.getAttribute("data-hash");
-          });
+        .querySelector(".data-parking-dataset-select")
+        .addEventListener("change", (e) => {
+          const value = e.target.value;
+          const newHash = value
+            ? `#/data/parking?dataset=${encodeURIComponent(value)}`
+            : "#/data/parking";
+          window.location.hash = newHash;
         });
     }
 
-    const parkingKeys = [
-      { file: "premium-ramps", key: "premiumRamps" },
-      { file: "city-garages", key: "cityGarages" },
-      { file: "surface-lots", key: "surfaceLots" },
-      { file: "metered-parking", key: "meteredParking" },
-      { file: "bike", key: "bike" },
-      { file: "micromobility", key: "micromobility" },
-    ];
-    const filteredKeys =
-      selectedModes.length === 0
-        ? parkingKeys
-        : parkingKeys.filter((p) => {
-            const modeList = modesByCategory[p.key] || [];
-            return selectedModes.some((m) => modeList.includes(m));
-          });
+    const filteredKeys = selectedKey
+      ? parkingKeys.filter((p) => p.key === selectedKey)
+      : parkingKeys;
 
     const allParkingPoints = [];
-    const categoryNames = appData.parking?.categoryNames || {};
     filteredKeys.forEach((p) => {
       const items = appData.parking?.[p.key];
       const categoryName = categoryNames[p.key] || p.file;
       if (Array.isArray(items)) {
         items.forEach((item) => {
-          if (
-            typeof item.latitude === "number" &&
-            typeof item.longitude === "number"
-          ) {
+          const lat = item.location?.latitude ?? item.latitude;
+          const lng = item.location?.longitude ?? item.longitude;
+          if (typeof lat === "number" && typeof lng === "number") {
             allParkingPoints.push({
-              lat: item.latitude,
-              lng: item.longitude,
+              lat,
+              lng,
               categoryName,
-              locationName: item.name || item.location || "—",
+              locationName: item.name || "—",
               price: formatParkingPrice(item.pricing),
               parkingItem: { ...item },
             });
@@ -1026,11 +1001,10 @@ function renderDataView() {
   if (path.startsWith("parking/")) {
     const fileKey = path.slice("parking/".length);
     const parkingKeys = {
-      "premium-ramps": "premiumRamps",
-      "city-garages": "cityGarages",
-      "surface-lots": "surfaceLots",
-      "metered-parking": "meteredParking",
-      bike: "bike",
+      garages: "garages",
+      lots: "lots",
+      meters: "meters",
+      racks: "racks",
       micromobility: "micromobility",
     };
     const categoryKey = parkingKeys[fileKey] || fileKey;
@@ -1055,30 +1029,33 @@ function renderDataView() {
   if (path.startsWith("parking/") && Array.isArray(data)) {
     const fileKey = path.slice("parking/".length);
     const parkingKeys = {
-      "premium-ramps": "premiumRamps",
-      "city-garages": "cityGarages",
-      "surface-lots": "surfaceLots",
-      "metered-parking": "meteredParking",
-      bike: "bike",
+      garages: "garages",
+      lots: "lots",
+      meters: "meters",
+      racks: "racks",
       micromobility: "micromobility",
     };
     const categoryKey = parkingKeys[fileKey] || fileKey;
     const categoryName =
       appData.parking?.categoryNames?.[categoryKey] || fileKey;
     points = data
-      .filter(
-        (item) =>
-          typeof item.latitude === "number" &&
-          typeof item.longitude === "number",
-      )
-      .map((item) => ({
-        lat: item.latitude,
-        lng: item.longitude,
-        categoryName,
-        locationName: item.name || item.location || "—",
-        price: formatParkingPrice(item.pricing),
-        parkingItem: { ...item },
-      }));
+      .filter((item) => {
+        const lat = item.location?.latitude ?? item.latitude;
+        const lng = item.location?.longitude ?? item.longitude;
+        return typeof lat === "number" && typeof lng === "number";
+      })
+      .map((item) => {
+        const lat = item.location?.latitude ?? item.latitude;
+        const lng = item.location?.longitude ?? item.longitude;
+        return {
+          lat,
+          lng,
+          categoryName,
+          locationName: item.name || "—",
+          price: formatParkingPrice(item.pricing),
+          parkingItem: { ...item },
+        };
+      });
   } else {
     points = getPointsFromData(data, path);
   }

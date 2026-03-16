@@ -946,7 +946,7 @@ test.describe("Parking Enforcement Logic", () => {
 });
 
 test.describe("Data routes", () => {
-  test("should show parking data and mode filters at #/data/parking", async ({
+  test("should show parking data and dataset dropdown at #/data/parking", async ({
     page,
   }) => {
     await page.goto("/");
@@ -957,8 +957,11 @@ test.describe("Data routes", () => {
     await expect(page.locator("#dataView")).toBeVisible();
     await expect(page.locator("#dataViewParkingModes")).toBeVisible();
     await expect(
-      page.locator("#dataViewParkingModes button[data-mode='drive']"),
+      page.locator("#data-parking-dataset.data-parking-dataset-select"),
     ).toBeVisible();
+    await expect(
+      page.locator("#data-parking-dataset option[value='']"),
+    ).toHaveText("All");
     await expect(page.locator("#dataViewMap")).toBeVisible();
   });
 

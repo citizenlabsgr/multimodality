@@ -1,11 +1,12 @@
 {
-  "name": "Metered Street Parking",
+  "name": "Metered Parking",
   "modes": ["drive"],
   "items": [
     {
-      "location": "Streets surrounding Van Andel Arena",
-      "latitude": 42.9634,
-      "longitude": -85.6681,
+      "location": {
+        "latitude": 42.96132,
+        "longitude": -85.6734
+      },
       "pricing": {
         "rate": "$1.25-$2.00 per half hour in prime areas",
         "hourlyRate": "$2.50-$4.00 per hour",

@@ -1,0 +1,15 @@
+{
+  "name": "Bike Racks",
+  "modes": ["bike"],
+  "items": [
+    {
+      "name": "Van Andel Arena main entrance",
+      "address": "130 Fulton St W, Grand Rapids, MI 49503",
+      "location": {
+        "latitude": 42.96338,
+        "longitude": -85.67162
+      },
+      "availability": "Multiple racks near main entrance"
+    }
+  ]
+}

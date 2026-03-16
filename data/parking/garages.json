@@ -1,0 +1,48 @@
+{
+  "name": "Parking Garages",
+  "modes": ["drive"],
+  "items": [
+    {
+      "name": "Arena Place Garage",
+      "address": "130 Ionia Ave SW, Grand Rapids, MI 49503",
+      "location": {
+        "latitude": 42.96217,
+        "longitude": -85.67288
+      },
+      "pricing": {
+        "daytime": "Max $27",
+        "evening": "$27-$30",
+        "events": "$27-$30"
+      },
+      "availability": "Often better availability due to higher cost"
+    },
+    {
+      "name": "Studio Park Ramp",
+      "address": "123 Ionia Ave SW, Grand Rapids, MI 49503",
+      "location": {
+        "latitude": 42.96037,
+        "longitude": -85.67204
+      },
+      "pricing": {
+        "daytime": "Max $27",
+        "evening": "$27-$30",
+        "events": "$27-$30"
+      },
+      "availability": "Good availability"
+    },
+    {
+      "name": "Ottawa-Fulton Ramp",
+      "address": "50 Ottawa Ave NW, Grand Rapids, MI 49503",
+      "location": {
+        "latitude": 42.9636,
+        "longitude": -85.67171
+      },
+      "pricing": {
+        "daytime": "$1.50/hour, max $12",
+        "evening": "$1.50/hour, max $12",
+        "events": "Event pricing may apply"
+      },
+      "availability": "Good availability"
+    }
+  ]
+}

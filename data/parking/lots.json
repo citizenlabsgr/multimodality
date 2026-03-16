@@ -1,0 +1,17 @@
+{
+  "name": "Parking Lots",
+  "modes": ["drive"],
+  "items": [
+    {
+      "name": "Market Street Lot",
+      "location": {
+        "latitude": 42.96144,
+        "longitude": -85.66797
+      },
+      "pricing": {
+        "rate": "$8-$10 for 4 hours"
+      },
+      "availability": "Limited, fills up quickly"
+    }
+  ]
+}

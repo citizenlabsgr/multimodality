@@ -1,20 +1,14 @@
 {
-  "name": "Micromobility Lot",
+  "name": "Micromobility Lots",
   "modes": ["micromobility"],
   "items": [
     {
       "name": "Van Andel Arena zone",
-      "location": "Fulton St W and surrounding blocks",
-      "latitude": 42.9634,
-      "longitude": -85.6681,
+      "location": {
+        "latitude": 42.9608,
+        "longitude": -85.67369
+      },
       "availability": "End your ride in the designated zone to avoid fees"
-    },
-    {
-      "name": "Downtown Grand Rapids core",
-      "location": "Monroe Center, Ionia, Ottawa area",
-      "latitude": 42.9648,
-      "longitude": -85.6695,
-      "availability": "Park scooters and bikes in designated corrals or approved street areas"
     }
   ]
 }
