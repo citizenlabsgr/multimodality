@@ -487,7 +487,7 @@ function updateDataViewMap(points) {
           `<tr><th style="${thStyle}">Price</th><td style="${tdStyle}">${escapeHtml(p.price)}</td></tr>`,
         );
       rows.push(
-        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy JSON</button></div></td></tr>`,
+        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy New JSON</button></div></td></tr>`,
       );
       const tableHtml = `<table style="${tableStyle}">${rows.join("")}</table>`;
       const div = document.createElement("div");
@@ -504,7 +504,7 @@ function updateDataViewMap(points) {
           navigator.clipboard?.writeText(json).then(() => {
             copyBtn.textContent = "Copied!";
             setTimeout(() => {
-              copyBtn.textContent = "Copy JSON";
+              copyBtn.textContent = "Copy New JSON";
             }, 1500);
           });
         });
@@ -534,7 +534,7 @@ function updateDataViewMap(points) {
             Math.abs(ll.lng - orig.lng) > tol;
           if (moved) {
             copyBtn.classList.remove("hidden");
-            copyBtn.textContent = "Copy JSON";
+            copyBtn.textContent = "Copy New JSON";
           } else {
             copyBtn.classList.add("hidden");
           }
@@ -551,13 +551,13 @@ function updateDataViewMap(points) {
         2,
       );
       const rows = [];
-      if (p.strategyTitle != null && p.strategyTitle !== "")
-        rows.push(
-          `<tr><th style="${thStyle}">Strategy</th><td style="${tdStyle}">${escapeHtml(p.strategyTitle)}</td></tr>`,
-        );
       if (p.stepNumber != null)
         rows.push(
           `<tr><th style="${thStyle}">Step</th><td style="${tdStyle}">${p.stepNumber}</td></tr>`,
+        );
+      if (p.strategyTitle != null && p.strategyTitle !== "")
+        rows.push(
+          `<tr><th style="${thStyle}">Strategy</th><td style="${tdStyle}">${escapeHtml(p.strategyTitle)}</td></tr>`,
         );
       if (p.stepMode != null && p.stepMode !== "") {
         const modeLabel = getModeLabel(p.stepMode);
@@ -578,7 +578,7 @@ function updateDataViewMap(points) {
           `<tr><th style="${thStyle}">Distance</th><td style="${tdStyle}">${escapeHtml(p.distance)}</td></tr>`,
         );
       rows.push(
-        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy JSON</button></div></td></tr>`,
+        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy New JSON</button></div></td></tr>`,
       );
       const tableHtml = `<table style="${tableStyle}">${rows.join("")}</table>`;
       const div = document.createElement("div");
@@ -598,7 +598,7 @@ function updateDataViewMap(points) {
           navigator.clipboard?.writeText(json).then(() => {
             copyBtn.textContent = "Copied!";
             setTimeout(() => {
-              copyBtn.textContent = "Copy JSON";
+              copyBtn.textContent = "Copy New JSON";
             }, 1500);
           });
         });
@@ -628,7 +628,7 @@ function updateDataViewMap(points) {
             Math.abs(ll.lng - orig.lng) > tol;
           if (moved) {
             copyBtn.classList.remove("hidden");
-            copyBtn.textContent = "Copy JSON";
+            copyBtn.textContent = "Copy New JSON";
           } else {
             copyBtn.classList.add("hidden");
           }
@@ -653,7 +653,7 @@ function updateDataViewMap(points) {
           `<tr><th style="${thStyle}">Slug</th><td style="${tdStyle}">${escapeHtml(p.slug)}</td></tr>`,
         );
       rows.push(
-        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy JSON</button></div></td></tr>`,
+        `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy New JSON</button></div></td></tr>`,
       );
       const tableHtml = `<table style="${tableStyle}">${rows.join("")}</table>`;
       const div = document.createElement("div");
@@ -670,7 +670,7 @@ function updateDataViewMap(points) {
           navigator.clipboard?.writeText(json).then(() => {
             copyBtn.textContent = "Copied!";
             setTimeout(() => {
-              copyBtn.textContent = "Copy JSON";
+              copyBtn.textContent = "Copy New JSON";
             }, 1500);
           });
         });
@@ -700,7 +700,7 @@ function updateDataViewMap(points) {
             Math.abs(ll.lng - orig.lng) > tol;
           if (moved) {
             copyBtn.classList.remove("hidden");
-            copyBtn.textContent = "Copy JSON";
+            copyBtn.textContent = "Copy New JSON";
           } else {
             copyBtn.classList.add("hidden");
           }
@@ -863,6 +863,37 @@ function renderDataView() {
         ? datasetParam
         : "";
 
+    // Modes that have parking data: drive, micromobility (Lime), bike. When none selected, show all.
+    const PARKING_DATA_MODES = ["drive", "micromobility", "bike"];
+    const modesParam = params.modes ? String(params.modes).trim() : "";
+    const selectedModes =
+      modesParam === ""
+        ? []
+        : modesParam
+            .split(",")
+            .map((m) => m.trim())
+            .filter((m) => PARKING_DATA_MODES.includes(m));
+
+    function buildDataParkingHash(opts) {
+      const q = [];
+      if (opts.dataset) q.push("dataset=" + encodeURIComponent(opts.dataset));
+      if (opts.modes && opts.modes.length > 0)
+        q.push("modes=" + opts.modes.join(","));
+      return "#/data/parking" + (q.length > 0 ? "?" + q.join("&") : "");
+    }
+
+    // Dataset dropdown options: when modes are selected, only show categories that match those modes.
+    const keysForDropdown =
+      selectedModes.length === 0
+        ? parkingKeys
+        : parkingKeys.filter((p) => {
+            const categoryModes = appData.parking?.modes?.[p.key] || [];
+            return categoryModes.some((m) => selectedModes.includes(m));
+          });
+    const effectiveKey = keysForDropdown.some((p) => p.key === selectedKey)
+      ? selectedKey
+      : "";
+
     const dataViewParkingModes = document.getElementById(
       "dataViewParkingModes",
     );
@@ -870,31 +901,78 @@ function renderDataView() {
       dataViewParkingModes.classList.remove("hidden");
       const optionsHtml = [
         '<option value="">All</option>',
-        ...parkingKeys.map(
+        ...keysForDropdown.map(
           (p) =>
-            `<option value="${escapeHtml(p.key)}"${selectedKey === p.key ? " selected" : ""}>${escapeHtml(categoryNames[p.key] || p.file)}</option>`,
+            `<option value="${escapeHtml(p.key)}"${effectiveKey === p.key ? " selected" : ""}>${escapeHtml(categoryNames[p.key] || p.file)}</option>`,
         ),
       ].join("");
+      const modeButtonsHtml = PARKING_DATA_MODES.map(
+        (mode) =>
+          `<button type="button" class="data-parking-mode-btn rounded-lg border border-slate-300 py-2 px-3 text-sm font-medium transition-colors" data-mode="${escapeHtml(mode)}" title="${escapeHtml(MODE_DISPLAY_LABELS[mode] || mode)}">${MODE_DISPLAY_LABELS[mode] || mode}</button>`,
+      ).join("");
       dataViewParkingModes.innerHTML = `
         <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
-        <div class="ml-auto flex items-center gap-2">
-          <label for="data-parking-dataset" class="text-sm font-medium text-slate-700">Parking Dataset:</label>
+        <div class="flex-1 flex justify-center items-center gap-2 flex-wrap">
+          <span class="text-sm font-medium text-slate-700">Parking Modes:</span>
+          ${modeButtonsHtml}
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="data-parking-dataset" class="text-sm font-medium text-slate-700">Dataset:</label>
           <select id="data-parking-dataset" class="data-parking-dataset-select rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">${optionsHtml}</select>
         </div>`;
+      PARKING_DATA_MODES.forEach((mode) => {
+        const btn = dataViewParkingModes.querySelector(
+          `.data-parking-mode-btn[data-mode="${mode}"]`,
+        );
+        if (btn) {
+          const active = selectedModes.includes(mode);
+          btn.classList.toggle("bg-slate-900", active);
+          btn.classList.toggle("text-white", active);
+          btn.classList.toggle("border-slate-900", active);
+          if (!active) {
+            btn.classList.add(
+              "bg-white",
+              "text-slate-700",
+              "hover:bg-slate-100",
+            );
+          } else {
+            btn.classList.add("hover:bg-slate-800");
+          }
+          btn.addEventListener("click", () => {
+            const current = parseFragment();
+            const currentModes =
+              current.modes || ""
+                ? String(current.modes)
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter((m) => PARKING_DATA_MODES.includes(m))
+                : [];
+            const idx = currentModes.indexOf(mode);
+            const nextModes =
+              idx >= 0
+                ? currentModes.filter((_, i) => i !== idx)
+                : [...currentModes, mode];
+            window.location.hash = buildDataParkingHash({
+              dataset: current.dataset || effectiveKey || undefined,
+              modes: nextModes,
+            });
+          });
+        }
+      });
       dataViewParkingModes
         .querySelector(".data-parking-dataset-select")
         .addEventListener("change", (e) => {
           const value = e.target.value;
-          const newHash = value
-            ? `#/data/parking?dataset=${encodeURIComponent(value)}`
-            : "#/data/parking";
-          window.location.hash = newHash;
+          window.location.hash = buildDataParkingHash({
+            dataset: value || undefined,
+            modes: selectedModes,
+          });
         });
     }
 
-    const filteredKeys = selectedKey
-      ? parkingKeys.filter((p) => p.key === selectedKey)
-      : parkingKeys;
+    const filteredKeys = effectiveKey
+      ? keysForDropdown.filter((p) => p.key === effectiveKey)
+      : keysForDropdown;
 
     const allParkingPoints = [];
     filteredKeys.forEach((p) => {
@@ -944,9 +1022,14 @@ function renderDataView() {
       dataViewStrategiesFilters.classList.remove("hidden");
       const selectedValue =
         showAll || selectedSlugs.length !== 1 ? "" : selectedSlugs[0];
+      const sortedDestinations = [...destinations].sort((a, b) =>
+        (a.name || "").localeCompare(b.name || "", undefined, {
+          sensitivity: "base",
+        }),
+      );
       const options = [
         { value: "", label: "All" },
-        ...destinations.map((d) => ({ value: d.slug, label: d.name })),
+        ...sortedDestinations.map((d) => ({ value: d.slug, label: d.name })),
       ];
       dataViewStrategiesFilters.innerHTML = `
         <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
