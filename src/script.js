@@ -1,4 +1,4 @@
-// Load data from data/ folder (config, strategies per destination, per-destination recommendations, parking)
+// Load data from data/ folder (config, strategies per destination, built-in mode strategies, parking)
 let appData = null;
 
 // Same icons/labels as the visit page mode buttons (index.html)
@@ -131,16 +131,16 @@ async function loadData() {
       if (result) handCraftedRecommendations[result.slug] = result.data;
     }
 
-    const recommendationPromises = destinations.map((d) =>
-      fetch(`data/recommendations/${d.slug}.json`).then((r) =>
-        r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
-      ),
-    );
-    const recommendationResults = await Promise.all(recommendationPromises);
+    // Shared mode-combination narratives (formerly data/recommendations/<slug>.json per destination).
+    let builtInModeRecommendations = {};
+    const builtInRes = await fetch("data/built-in-recommendations.json");
+    if (builtInRes.ok) {
+      builtInModeRecommendations = await builtInRes.json();
+    }
 
     const recommendations = {};
-    for (const result of recommendationResults) {
-      if (result) recommendations[result.slug] = result.data;
+    for (const d of destinations) {
+      recommendations[d.slug] = builtInModeRecommendations;
     }
 
     appData = {
@@ -792,27 +792,21 @@ function renderDataView() {
   document.getElementById("dataViewMap")?.classList.add("hidden");
 
   if (path === "") {
-    // Index: list datasets with links
-    const links = [
-      { href: "#/data/parking", label: "parking" },
-      { href: "#/data/strategies", label: "strategies" },
+    // Index: list datasets with links (visual break before strategies)
+    const geoLinks = [
       { href: "#/data/destinations", label: "destinations" },
+      { href: "#/data/parking", label: "parking" },
     ];
-    const destinations = Array.isArray(appData.destinations)
-      ? appData.destinations
-      : [];
-    destinations.forEach((d) => {
-      links.push({
-        href: `#/data/recommendations/${d.slug}`,
-        label: `recommendations/${d.slug}`,
-      });
-    });
-    dataViewIndex.innerHTML = links
-      .map(
-        (l) =>
-          `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
-      )
-      .join("");
+    const strategiesLink = { href: "#/data/strategies", label: "strategies" };
+    dataViewIndex.innerHTML =
+      geoLinks
+        .map(
+          (l) =>
+            `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
+        )
+        .join("") +
+      `<div class="my-4 h-px bg-slate-200" role="separator" aria-hidden="true"></div>` +
+      `<a href="${strategiesLink.href}" class="block text-blue-600 hover:underline">${strategiesLink.label}</a>`;
     return;
   }
 
@@ -1077,6 +1071,11 @@ function renderDataView() {
     return;
   }
 
+  if (path.startsWith("recommendations/")) {
+    window.location.hash = "#/data";
+    return;
+  }
+
   // Detail: show one dataset
   let title = path;
   let data = null;
@@ -1099,10 +1098,6 @@ function renderDataView() {
     const slug = path.slice("strategies/".length);
     title = `strategies/${slug}.json`;
     data = appData.handCraftedRecommendations?.[slug] ?? null;
-  } else if (path.startsWith("recommendations/")) {
-    const slug = path.slice("recommendations/".length);
-    title = `recommendations/${slug}.json`;
-    data = appData.recommendations?.[slug] ?? null;
   }
 
   dataViewDetailTitle.textContent = title;
