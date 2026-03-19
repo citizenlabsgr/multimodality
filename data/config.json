@@ -18,7 +18,8 @@
   },
   "handCraftedModeLabels": {
     "drive": "Drive to parking",
-    "rideshare": "Take rideshare"
+    "rideshare": "Take rideshare",
+    "shuttle": "Take DASH shuttle"
   },
   "costLabels": {
     "drive": "Willing to pay",

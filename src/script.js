@@ -1422,7 +1422,6 @@ window.addEventListener("hashchange", () => {
       destinationSelect.value = state.destination;
       destinationSelect.classList.remove("placeholder");
     }
-    allRecommendations = null;
   }
 
   const params = parseFragment();
@@ -1974,16 +1973,12 @@ function renderResults() {
       placeholders,
     );
 
-    const mapLinkForLocation = (loc) => {
-      if (
-        !loc ||
-        typeof loc.latitude !== "number" ||
-        typeof loc.longitude !== "number"
-      )
-        return null;
-      const q = `${loc.latitude},${loc.longitude}`;
-      return `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
-    };
+    const mapLinkForLocation = (loc) =>
+      loc &&
+      typeof loc.latitude === "number" &&
+      typeof loc.longitude === "number"
+        ? googleMapsPinUrl(loc.latitude, loc.longitude)
+        : null;
 
     const venueName = state.destination || "the venue";
     const stepDescription = (step, index, isLastWalk) => {
@@ -2416,6 +2411,243 @@ function processRecommendationData(recData, values) {
   return processed;
 }
 
+function haversineMiles(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const R = 3959;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
+}
+
+function googleMapsPinUrl(latitude, longitude) {
+  if (typeof latitude !== "number" || typeof longitude !== "number")
+    return null;
+  const q = `${latitude},${longitude}`;
+  return `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
+}
+
+function estimateParkingCostRange(pricing, category) {
+  const fallbacks = {
+    meters: { min: 1, max: 7 },
+    lots: { min: 8, max: 11 },
+    garages: { min: 8, max: 30 },
+  };
+  const fb = fallbacks[category] || fallbacks.garages;
+  if (!pricing || typeof pricing !== "object") return { ...fb };
+  const text = Object.values(pricing).join(" ");
+  const nums = [];
+  const re = /\$(\d+(?:\.\d+)?)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    nums.push(Number.parseFloat(m[1]));
+  }
+  if (nums.length === 0) return { ...fb };
+  return { min: Math.min(...nums), max: Math.max(...nums) };
+}
+
+function garageVariantAndPriority(costRange) {
+  if (costRange.max >= 20 || costRange.min >= 20) {
+    return { variantKey: "premiumRamp", priority: 60 };
+  }
+  return { variantKey: "cheaperGarage", priority: 50 };
+}
+
+// Drive-only options derived from parking datasets (distance vs venue + parsed cost tiers).
+function buildParkingBasedDriveRecommendations(state) {
+  if (!state?.destination || !appData?.parking) return [];
+  const dest = appData.destinations?.find(
+    (d) => d.name === state.destination || d.slug === state.destination,
+  );
+  if (
+    !dest ||
+    typeof dest.latitude !== "number" ||
+    typeof dest.longitude !== "number"
+  ) {
+    return [];
+  }
+  const vLat = dest.latitude;
+  const vLng = dest.longitude;
+  const destName = dest.name || state.destination;
+  const walkBudget = state.walkMiles ?? 0;
+  const out = [];
+
+  const driveCategories = [
+    { key: "garages", id: "garages" },
+    { key: "lots", id: "lots" },
+    { key: "meters", id: "meters" },
+  ];
+
+  for (const { key, id } of driveCategories) {
+    const modes = appData.parking.modes?.[key];
+    if (Array.isArray(modes) && !modes.includes("drive")) continue;
+    const items = appData.parking[key];
+    if (!Array.isArray(items)) continue;
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const loc = item.location;
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      ) {
+        continue;
+      }
+      const distanceMi = haversineMiles(
+        loc.latitude,
+        loc.longitude,
+        vLat,
+        vLng,
+      );
+      if (distanceMi > walkBudget + 1e-9) continue;
+
+      const costRange = estimateParkingCostRange(item.pricing, id);
+      let variantKey;
+      let priority;
+      let minWalkMiles = 0.1;
+      if (id === "meters") {
+        variantKey = "meteredParking";
+        priority = 30;
+      } else if (id === "lots") {
+        variantKey = "affordableLot";
+        priority = 40;
+        minWalkMiles = 0.5;
+      } else {
+        const g = garageVariantAndPriority(costRange);
+        variantKey = g.variantKey;
+        priority = g.priority;
+      }
+      if (walkBudget + 1e-9 < minWalkMiles) continue;
+
+      const itemLabel = item.name || item.address || "Parking";
+      const pricingNote = item.pricing
+        ? Object.values(item.pricing).slice(0, 3).join(" · ")
+        : "";
+      const link = googleMapsPinUrl(loc.latitude, loc.longitude);
+
+      let title;
+      if (id === "meters") {
+        title = "Park at metered street parking";
+      } else if (id === "lots") {
+        title = "Park at affordable surface lot and walk";
+      } else if (variantKey === "premiumRamp") {
+        title = "Park at premium parking garage";
+      } else {
+        title = "Park at parking garage";
+      }
+
+      const walkLabel =
+        distanceMi >= 0.095 ? `${distanceMi.toFixed(2)} mi` : "a short";
+      const costLabel =
+        costRange.min === costRange.max
+          ? `about $${costRange.min}`
+          : `$${costRange.min}–$${costRange.max}`;
+      const body = `${itemLabel} is ~${walkLabel} from ${destName}. Typical cost: ${costLabel}.${pricingNote ? " " + pricingNote : ""}`;
+
+      const parkingItemKey = `${id}-${i}-${slugifyParkingItemKey(itemLabel)}`;
+
+      const meta = {
+        requiredModes: ["drive"],
+        minWalkMiles,
+        minCost: costRange.min,
+        maxCost: costRange.max,
+        priority,
+      };
+
+      const steps = [
+        {
+          title: `Park at ${itemLabel}`,
+          description: item.address
+            ? `${item.address}. ${pricingNote || "Confirm current rates on site."}`
+            : `${pricingNote || "Confirm rates and hours before you park."}`,
+          link,
+        },
+        {
+          title: "Walk to destination",
+          description: `Walk from your parking spot to ${destName} (~${walkLabel}).`,
+        },
+      ];
+
+      let badge = "Budget-friendly";
+      if (id === "meters") badge = "Affordable";
+      else if (variantKey === "premiumRamp") badge = "Convenient";
+
+      out.push({
+        title,
+        body,
+        badge,
+        steps,
+        _metadata: meta,
+        metadata: meta,
+        modeKey: "drive",
+        variantKey,
+        parkingWalkMiles: distanceMi,
+        parkingItemKey,
+        fromParkingData: true,
+      });
+    }
+  }
+
+  const parkingEnforced = isParkingEnforced(state.day, state.time);
+  if (!parkingEnforced) {
+    const weekend = ["saturday", "sunday"].includes(
+      String(state.day || "").toLowerCase(),
+    );
+    const searchQ = `street parking near ${destName}, Grand Rapids, MI`;
+    const freeMeta = {
+      requiredModes: ["drive"],
+      minWalkMiles: 0.1,
+      minCost: 0,
+      maxCost: 0,
+      priority: 10,
+      conditions: { parkingEnforced: false },
+    };
+    out.push({
+      title: "Find free street parking",
+      body: weekend
+        ? "Spend 20 minutes in traffic circling the area to find street parking. Meters are not enforced on the weekend."
+        : "Spend 20 minutes in traffic circling the area to find street parking. Meters are not enforced outside weekday enforcement hours.",
+      badge: "Free",
+      isDiscouraged: true,
+      steps: [
+        {
+          title: "Spend 20 minutes in traffic looking for free street parking",
+          description:
+            "Circle the blocks looking for free unmetered parking. Watch for odd-even winter restrictions. This often takes 20+ minutes.",
+          link: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQ)}`,
+          linkText: "View area on Google Maps",
+        },
+        {
+          title: "Park and walk",
+          description: `Once you find a spot, park and walk up to {walkMiles} miles to ${destName}.`,
+        },
+      ],
+      _metadata: freeMeta,
+      metadata: freeMeta,
+      modeKey: "drive",
+      variantKey: "freeStreet",
+      parkingItemKey: "freeStreet-synthetic",
+      fromParkingData: true,
+    });
+  }
+
+  return out;
+}
+
+function slugifyParkingItemKey(label) {
+  return String(label)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 48);
+}
+
 // Get all recommendations for a destination, flattened with metadata
 function getAllRecommendationsForDestination(destination) {
   const allRecs = [];
@@ -2709,13 +2941,14 @@ function calculateScore(rec, state) {
         score -= 5; // Base penalty for free street parking when parking is enforced
       }
     }
+
+    if (typeof rec.parkingWalkMiles === "number") {
+      score += Math.max(0, 0.4 - rec.parkingWalkMiles) * 6;
+    }
   }
 
   return score;
 }
-
-// Cache all recommendations for performance
-let allRecommendations = null;
 
 function buildRecommendation() {
   // Guard against state not being initialized
@@ -2734,13 +2967,12 @@ function buildRecommendation() {
     ),
   };
 
-  // Get all recommendations (cache for performance)
-  if (!allRecommendations) {
-    allRecommendations = getAllRecommendationsForDestination(state.destination);
-  }
+  const staticRecs = getAllRecommendationsForDestination(state.destination);
+  const parkingDriveRecs = buildParkingBasedDriveRecommendations(state);
+  const allRecs = [...staticRecs, ...parkingDriveRecs];
 
   // Filter recommendations by basic constraints
-  const filtered = allRecommendations.filter((rec) => {
+  const filtered = allRecs.filter((rec) => {
     return (
       matchesModes(rec, modes) &&
       matchesWalkDistance(rec, walkMiles) &&
@@ -2754,8 +2986,15 @@ function buildRecommendation() {
     score: calculateScore(rec, state),
   }));
 
-  // Sort by score (highest first)
-  scored.sort((a, b) => b.score - a.score);
+  // Sort by score (highest first), then prefer shorter walks for parking-derived ties
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const aw =
+      typeof a.rec.parkingWalkMiles === "number" ? a.rec.parkingWalkMiles : 99;
+    const bw =
+      typeof b.rec.parkingWalkMiles === "number" ? b.rec.parkingWalkMiles : 99;
+    return aw - bw;
+  });
 
   // Get primary recommendation; fall back to first real option if top is "no options"
   let primaryScored = scored[0];
@@ -2804,10 +3043,18 @@ function buildRecommendation() {
     if (secondScored) {
       // For drive mode, show alternate if it's a different variant or has good score
       if (primaryScored.rec.modeKey === "drive") {
-        // Show alternate if it's a different variant (e.g., meteredParking as alternate for cheaperGarage)
+        const primaryKey = primaryScored.rec.parkingItemKey;
+        const secondKey = secondScored.rec.parkingItemKey;
+        const differentParkingSpot =
+          primaryKey &&
+          secondKey &&
+          secondKey !== primaryKey &&
+          secondScored.rec.modeKey === "drive";
+        // Show alternate if it's a different variant, another parking pin, or another mode
         if (
           secondScored.rec.modeKey === "drive" &&
-          secondScored.rec.variantKey !== primaryScored.rec.variantKey
+          (secondScored.rec.variantKey !== primaryScored.rec.variantKey ||
+            differentParkingSpot)
         ) {
           alternate = processRecommendationData(secondScored.rec, placeholders);
         } else if (secondScored.rec.modeKey !== primaryScored.rec.modeKey) {
@@ -2845,9 +3092,6 @@ async function init() {
 
   // Load data first
   await loadData();
-
-  // Reset recommendations cache when data is loaded
-  allRecommendations = null;
 
   // Initialize state from loaded data
   state = {
