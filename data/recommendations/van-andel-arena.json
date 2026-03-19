@@ -22,31 +22,6 @@
       ]
     }
   },
-  "drive+transit": {
-    "default": {
-      "title": "Park at Rapid stop, take transit",
-      "body": "Park near a Rapid transit stop and take the bus to get closer to your destination.",
-      "badge": "Cost saver",
-      "_metadata": {
-        "requiredModes": ["drive", "transit"],
-        "minWalkMiles": 0.1,
-        "minCost": 1.75,
-        "priority": 95
-      },
-      "steps": [
-        {
-          "title": "Park near a Rapid stop",
-          "description": "Find parking near a Rapid transit stop. This area will have more available parking."
-        },
-        {
-          "title": "Board The Rapid",
-          "description": "Walk to the Rapid stop and board the bus. Ride to a stop that's within walking distance of your destination.",
-          "linkTemplate": "https://www.google.com/maps/dir/?api=1&destination={destinationEncoded}&travelmode=transit",
-          "linkText": "View transit route on Google Maps"
-        }
-      ]
-    }
-  },
   "drive+micromobility": {
     "default": {
       "title": "Park farther, use Lime for last mile",
@@ -66,60 +41,6 @@
         {
           "title": "Find and ride a Lime scooter or bike",
           "description": "Open the Lime app and locate the nearest available scooter or bike. Unlock it and ride directly to your destination."
-        }
-      ]
-    }
-  },
-  "transit+shuttle": {
-    "default": {
-      "title": "Take Rapid, then DASH",
-      "body": "Ride The Rapid to downtown, then use the free DASH shuttle to get closer to your destination.",
-      "badge": "Efficient",
-      "_metadata": {
-        "requiredModes": ["transit", "shuttle"],
-        "minWalkMiles": 0.1,
-        "minCost": 2,
-        "priority": 80
-      },
-      "steps": [
-        {
-          "title": "Board The Rapid",
-          "description": "Go to your nearest Rapid stop and board the bus. Ride to a downtown stop that's near a DASH connection point.",
-          "linkTemplate": "https://www.google.com/maps/dir/?api=1&destination={destinationEncoded}&travelmode=transit",
-          "linkText": "View transit route on Google Maps"
-        },
-        {
-          "title": "Transfer to DASH",
-          "description": "Get off The Rapid and walk to the nearest DASH stop. Board the free DASH shuttle and ride it closer to your destination."
-        },
-        {
-          "title": "Walk to destination",
-          "description": "Get off the DASH shuttle and walk the remaining distance to your destination."
-        }
-      ]
-    }
-  },
-  "transit": {
-    "default": {
-      "title": "The Rapid + short walk",
-      "body": "Plan your route to a Rapid stop near your destination. Avoid transfers if possible. After getting off, walk the remaining distance.",
-      "badge": "Chill",
-      "_metadata": {
-        "requiredModes": ["transit"],
-        "minWalkMiles": 0.1,
-        "minCost": 2,
-        "priority": 70
-      },
-      "steps": [
-        {
-          "title": "Take The Rapid",
-          "description": "Go to your nearest Rapid stop and board the bus. Ride to a stop near your destination. Avoid transfers if possible.",
-          "linkTemplate": "https://www.google.com/maps/dir/?api=1&destination={destinationEncoded}&travelmode=transit",
-          "linkText": "View transit route on Google Maps"
-        },
-        {
-          "title": "Walk to destination",
-          "description": "Get off The Rapid and walk the remaining distance to your destination."
         }
       ]
     }
@@ -191,28 +112,6 @@
         {
           "title": "Walk to destination",
           "description": "Get off the DASH shuttle at a stop near your destination and walk the remaining distance."
-        }
-      ]
-    }
-  },
-  "bike": {
-    "default": {
-      "title": "Bike to your destination and lock up nearby",
-      "body": "Ride your bike to your destination. Find a bike rack or secure post near the entrance to lock up. This avoids parking entirely.",
-      "badge": "No parking",
-      "_metadata": {
-        "requiredModes": ["bike"],
-        "minCost": 0,
-        "priority": 55
-      },
-      "steps": [
-        {
-          "title": "Ride your bike to destination",
-          "description": "Ride your bike to your destination."
-        },
-        {
-          "title": "Lock up your bike",
-          "description": "Find a bike rack or secure post near the entrance and lock up your bike."
         }
       ]
     }
