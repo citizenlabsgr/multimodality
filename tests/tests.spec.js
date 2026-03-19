@@ -569,6 +569,34 @@ test.describe("Parking Enforcement Logic", () => {
     await expect(results).toContainText("not willing to pay for parking");
   });
 
+  test("should show no options when unwilling to pay during enforcement even with long walk distance", async ({
+    page,
+  }) => {
+    // Regression: walk > 0.5 must not suppress drive noCost while meters are enforced (no free-street card then).
+    await page.goto(
+      "/#/visit/van-andel-arena?day=friday&time=600&modes=drive&walk=1.5&pay=0",
+    );
+    const results = page.locator("#results");
+    await results.waitFor();
+
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      if (
+        !state ||
+        state.costDollars !== 0 ||
+        state.day !== "friday" ||
+        state.time !== "18:00" ||
+        state.walkMiles !== 1.5 ||
+        !state.modes.includes("drive")
+      ) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 7000 });
+
+    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("not willing to pay for parking");
+  });
+
   test("should recommend paid parking when arriving after 7pm on weekday and unwilling to pay", async ({
     page,
   }) => {

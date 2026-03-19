@@ -2458,6 +2458,164 @@ function garageVariantAndPriority(costRange) {
   return { variantKey: "cheaperGarage", priority: 50 };
 }
 
+// "No options" cards (formerly in data/recommendations per destination). Same rules for all venues.
+const SYNTHETIC_NO_OPTIONS_RECIPES = [
+  {
+    modeKey: "drive+shuttle",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're driving and using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["drive", "shuttle"],
+      minWalkMiles: 0.1,
+      minCost: 0,
+      priority: 100,
+    },
+  },
+  {
+    modeKey: "drive+transit",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're driving and taking transit but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["drive", "transit"],
+      minWalkMiles: 0.1,
+      minCost: 1.75,
+      priority: 95,
+    },
+  },
+  {
+    modeKey: "drive+micromobility",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're driving and using micromobility but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["drive", "micromobility"],
+      minWalkMiles: 0.1,
+      minCost: 4,
+      priority: 90,
+    },
+  },
+  {
+    modeKey: "drive",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're driving but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["drive"],
+      minWalkMiles: 0.1,
+      minCost: 0,
+      priority: 50,
+    },
+  },
+  {
+    modeKey: "drive",
+    variantKey: "noCost",
+    title: "No options available",
+    body: "Parking meters are enforced Monday-Friday 8am-7pm. Since you're not willing to pay for parking, there are no options available during enforcement hours.",
+    metadata: {
+      requiredModes: ["drive"],
+      minCost: 0,
+      priority: 0,
+      conditions: { parkingEnforced: true },
+    },
+  },
+  {
+    modeKey: "transit+shuttle",
+    variantKey: "noCost",
+    title: "No options available",
+    body: "The Rapid fare is $1.75. Consider adjusting your budget to see recommendations.",
+    metadata: {
+      requiredModes: ["transit", "shuttle"],
+      minCost: 2,
+      priority: 80,
+    },
+  },
+  {
+    modeKey: "transit+shuttle",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're taking The Rapid and using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["transit", "shuttle"],
+      minWalkMiles: 0.1,
+      minCost: 2,
+      priority: 80,
+    },
+  },
+  {
+    modeKey: "transit",
+    variantKey: "noCost",
+    title: "No options available",
+    body: "The Rapid fare is $1.75. Consider adjusting your budget to see recommendations.",
+    metadata: {
+      requiredModes: ["transit"],
+      minCost: 2,
+      priority: 70,
+    },
+  },
+  {
+    modeKey: "transit",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're taking The Rapid but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["transit"],
+      minWalkMiles: 0.1,
+      minCost: 2,
+      priority: 70,
+    },
+  },
+  {
+    modeKey: "rideshare",
+    variantKey: "noCost",
+    title: "No options available",
+    body: "Rideshare services typically cost at least $20 (to account for return trip). Prices are often higher on weekends and during events due to surge pricing. Consider adjusting your budget to see recommendations.",
+    metadata: {
+      requiredModes: ["rideshare"],
+      minCost: 10,
+      priority: 85,
+    },
+  },
+  {
+    modeKey: "micromobility",
+    variantKey: "noCost",
+    title: "No options available",
+    body: "Lime typically costs at least $4. Consider adjusting your budget to see recommendations.",
+    metadata: {
+      requiredModes: ["micromobility"],
+      minCost: 4,
+      priority: 65,
+    },
+  },
+  {
+    modeKey: "shuttle",
+    variantKey: "noWalk",
+    title: "No options available",
+    body: "You're using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
+    metadata: {
+      requiredModes: ["shuttle"],
+      minWalkMiles: 0.1,
+      minCost: 0,
+      priority: 60,
+    },
+  },
+];
+
+function buildSyntheticNoOptionsRecommendations() {
+  return SYNTHETIC_NO_OPTIONS_RECIPES.map(
+    ({ modeKey, variantKey, title, body, metadata }) => ({
+      title,
+      body,
+      isNoOptions: true,
+      modeKey,
+      variantKey,
+      _metadata: metadata,
+      metadata,
+    }),
+  );
+}
+
 // Drive-only options derived from parking datasets (distance vs venue + parsed cost tiers).
 function buildParkingBasedDriveRecommendations(state) {
   if (!state?.destination || !appData?.parking) return [];
@@ -2744,12 +2902,6 @@ function matchesCost(rec, costDollars, state) {
         return false;
       }
 
-      // Check if there's free parking available
-      const hasFreeParkingAvailable = state.walkMiles > 0.5;
-      if (hasFreeParkingAvailable) {
-        return false; // Don't show noCost if free parking is available
-      }
-
       const requiredMeteredCost = calculateRequiredMeteredParkingCost(
         state.day,
         state.time,
@@ -2968,8 +3120,9 @@ function buildRecommendation() {
   };
 
   const staticRecs = getAllRecommendationsForDestination(state.destination);
+  const syntheticNoOptions = buildSyntheticNoOptionsRecommendations();
   const parkingDriveRecs = buildParkingBasedDriveRecommendations(state);
-  const allRecs = [...staticRecs, ...parkingDriveRecs];
+  const allRecs = [...staticRecs, ...syntheticNoOptions, ...parkingDriveRecs];
 
   // Filter recommendations by basic constraints
   const filtered = allRecs.filter((rec) => {
