@@ -620,6 +620,60 @@ test.describe("Parking Enforcement Logic", () => {
     await expect(results).toContainText("not willing to pay for parking");
   });
 
+  test("Friday 6pm with pay $5 should not treat teaser garage rates as in-budget; alternate includes metered street", async ({
+    page,
+  }) => {
+    // Regression: city data mixes a low hourly "rate" with high event prices; $5 must not match $2–$50+ garages.
+    await page.goto(
+      "/#/visit/van-andel-arena?day=friday&time=600&modes=drive,rideshare,shuttle&pay=5",
+    );
+    const results = page.locator("#results");
+    await results.waitFor();
+
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      if (
+        !state ||
+        state.costDollars !== 5 ||
+        state.day !== "friday" ||
+        state.time !== "18:00"
+      ) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 7000 });
+
+    const resultsText = await results.textContent();
+    expect(resultsText).not.toMatch(/\$2[–-]\$5[0-9]/);
+    expect(resultsText).toContain("Alternate Strategy");
+    expect(resultsText.toLowerCase()).toContain("metered");
+  });
+
+  test("Friday 6pm with pay $15 and drive+shuttle should recommend a parking garage", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=friday&time=600&modes=drive,rideshare,shuttle&pay=15",
+    );
+    const results = page.locator("#results");
+    await results.waitFor();
+
+    await expect(async () => {
+      const state = await page.evaluate(() => window.state);
+      if (
+        !state ||
+        state.costDollars !== 15 ||
+        state.day !== "friday" ||
+        state.time !== "18:00"
+      ) {
+        throw new Error(`State not initialized: ${JSON.stringify(state)}`);
+      }
+    }).toPass({ timeout: 7000 });
+
+    const resultsText = await results.textContent();
+    expect(resultsText).toContain("Recommended Strategy");
+    expect(resultsText).toContain("parking garage");
+  });
+
   test("should recommend paid parking when arriving after 7pm on weekday and unwilling to pay", async ({
     page,
   }) => {
@@ -910,7 +964,12 @@ test.describe("Parking Enforcement Logic", () => {
     }).toPass({ timeout: 7000 });
 
     const results = page.locator("#results");
-    await expect(results).toContainText("parking garage");
+    const resultsText = await results.textContent();
+    // Garages use event-tier pricing; short walk + mid budget may rank metered ahead of ramps
+    expect(
+      resultsText.includes("parking garage") ||
+        resultsText.includes("metered street parking"),
+    ).toBe(true);
     await expect(results).not.toContainText("surface lot");
     await expect(results).not.toContainText("affordable surface lot");
   });

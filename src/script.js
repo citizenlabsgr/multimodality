@@ -2475,6 +2475,25 @@ function estimateParkingCostRange(pricing, category) {
   };
   const fb = fallbacks[category] || fallbacks.garages;
   if (!pricing || typeof pricing !== "object") return { ...fb };
+
+  // Garages/lots list a low hourly "rate" alongside much higher event/daytime prices.
+  // For venue visits, prefer the events tier so budgets match realistic structured parking cost.
+  if (
+    (category === "garages" || category === "lots") &&
+    typeof pricing.events === "string" &&
+    pricing.events.trim()
+  ) {
+    const nums = [];
+    const re = /\$(\d+(?:\.\d+)?)/g;
+    let m;
+    while ((m = re.exec(pricing.events)) !== null) {
+      nums.push(Number.parseFloat(m[1]));
+    }
+    if (nums.length > 0) {
+      return { min: Math.min(...nums), max: Math.max(...nums) };
+    }
+  }
+
   const text = Object.values(pricing).join(" ");
   const nums = [];
   const re = /\$(\d+(?:\.\d+)?)/g;
@@ -3036,6 +3055,15 @@ function calculateScore(rec, state) {
     score += 50;
   }
 
+  // When meters are enforced and the user budgets for structured parking, prefer a ramp over park-far + DASH
+  if (rec.modeKey === "drive+shuttle") {
+    const parkingEnforced = isParkingEnforced(state.day, state.time);
+    const safeCostDollars = state.costDollars ?? 0;
+    if (parkingEnforced && safeCostDollars >= 10) {
+      score -= 75;
+    }
+  }
+
   // Boost score for rideshare
   if (rec.modeKey === "rideshare") {
     score += 30;
@@ -3224,10 +3252,26 @@ function buildRecommendation() {
 
   // If no explicit alternate (or it was filtered out), check if second-best option should be shown as alternate
   if (!useExplicitAlternate) {
-    // Use first option that isn't primary and isn't noOptions (handles fallback when primary was changed)
-    const secondScored = scored.find(
-      (s) => s !== primaryScored && s.score > 0 && !s.rec.isNoOptions,
-    );
+    let secondScored = null;
+    // Prefer metered street parking as alternate when primary is drive+DASH (fits low budgets / enforcement)
+    if (
+      primaryScored.rec.modeKey === "drive+shuttle" &&
+      modes.includes("drive")
+    ) {
+      secondScored = scored.find(
+        (s) =>
+          s !== primaryScored &&
+          s.rec.modeKey === "drive" &&
+          s.rec.variantKey === "meteredParking" &&
+          s.score > 0 &&
+          !s.rec.isNoOptions,
+      );
+    }
+    if (!secondScored) {
+      secondScored = scored.find(
+        (s) => s !== primaryScored && s.score > 0 && !s.rec.isNoOptions,
+      );
+    }
     if (secondScored) {
       // For drive mode, show alternate if it's a different variant or has good score
       if (primaryScored.rec.modeKey === "drive") {
