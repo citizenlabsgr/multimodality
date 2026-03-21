@@ -1,3 +1,9 @@
+/* Softer text selection than browser default (often very dark) */
+::selection {
+  background-color: rgb(203 213 225); /* slate-300 */
+  color: rgb(15 23 42); /* slate-900 */
+}
+
 #preferencesSection.disabled {
   opacity: 0.5;
   pointer-events: none;

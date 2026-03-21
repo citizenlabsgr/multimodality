@@ -211,6 +211,13 @@ function generateTimeOptions() {
 let state = null;
 let validModes = null;
 
+/** Modes preselected when the URL omits `modes` (explicit `modes=` clears selection). */
+function defaultVisitModes() {
+  const preferred = ["drive", "rideshare", "shuttle"];
+  if (!Array.isArray(validModes)) return [...preferred];
+  return preferred.filter((m) => validModes.includes(m));
+}
+
 // Track if day/time/people/walk/pay have been changed from defaults
 let dayChanged = false;
 let timeChanged = false;
@@ -952,9 +959,9 @@ function renderDataView() {
         );
         if (btn) {
           const active = selectedModes.includes(mode);
-          btn.classList.toggle("bg-slate-900", active);
-          btn.classList.toggle("text-white", active);
-          btn.classList.toggle("border-slate-900", active);
+          btn.classList.toggle("bg-sky-100", active);
+          btn.classList.toggle("border-sky-500", active);
+          btn.classList.toggle("border-slate-300", !active);
           if (!active) {
             btn.classList.add(
               "bg-white",
@@ -962,7 +969,8 @@ function renderDataView() {
               "hover:bg-slate-100",
             );
           } else {
-            btn.classList.add("hover:bg-slate-800");
+            btn.classList.remove("hover:bg-slate-100");
+            btn.classList.add("text-slate-900", "hover:bg-sky-200");
           }
           btn.addEventListener("click", () => {
             const current = parseFragment();
@@ -1063,7 +1071,7 @@ function renderDataView() {
           <label for="dataStrategiesDestination" class="text-sm font-medium text-slate-700">Destination Strategies:</label>
           <select
             id="dataStrategiesDestination"
-            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+            class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:border-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-700"
           >
             ${options
               .map(
@@ -1523,16 +1531,16 @@ window.addEventListener("hashchange", () => {
 function highlightMode() {
   document.querySelectorAll(".modeBtn").forEach((btn) => {
     const active = state.modes.includes(btn.dataset.mode);
-    btn.classList.toggle("bg-slate-900", active);
-    btn.classList.toggle("text-white", active);
-    btn.classList.toggle("border-slate-900", active);
+    btn.classList.toggle("bg-sky-100", active);
+    btn.classList.toggle("border-sky-500", active);
+    btn.classList.toggle("border-slate-300", !active);
     // Update hover state based on active state (only if not disabled)
     if (!btn.disabled) {
       if (active) {
         btn.classList.remove("hover:bg-slate-100");
-        btn.classList.add("hover:bg-slate-800");
+        btn.classList.add("hover:bg-sky-200");
       } else {
-        btn.classList.remove("hover:bg-slate-800");
+        btn.classList.remove("hover:bg-sky-200");
         btn.classList.add("hover:bg-slate-100");
       }
     }
@@ -1629,16 +1637,16 @@ function updateModesSectionState() {
     btn.disabled = !isEnabled;
     if (!isEnabled) {
       btn.classList.add("opacity-50", "cursor-not-allowed");
-      btn.classList.remove("hover:bg-slate-100", "hover:bg-slate-800");
+      btn.classList.remove("hover:bg-slate-100", "hover:bg-sky-200");
     } else {
       btn.classList.remove("opacity-50", "cursor-not-allowed");
       // Add appropriate hover state based on active state
       const isActive = state.modes.includes(btn.dataset.mode);
       if (isActive) {
         btn.classList.remove("hover:bg-slate-100");
-        btn.classList.add("hover:bg-slate-800");
+        btn.classList.add("hover:bg-sky-200");
       } else {
-        btn.classList.remove("hover:bg-slate-800");
+        btn.classList.remove("hover:bg-sky-200");
         btn.classList.add("hover:bg-slate-100");
       }
     }
@@ -2070,7 +2078,7 @@ function renderResults() {
               }
               return `
               <li class="flex gap-2">
-                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">${
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center">${
                   index + 1
                 }</span>
                 <div class="flex-1 pt-0.5">
@@ -2212,7 +2220,7 @@ function renderResults() {
               .map(
                 (step, index) => `
               <li class="flex gap-2">
-                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">${
+                <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center">${
                   index + 1
                 }</span>
                 <div class="flex-1 pt-0.5">
@@ -2270,7 +2278,7 @@ function renderResults() {
         </div>
         <div class="space-y-2">
           <div class="flex gap-2">
-            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-900 text-white text-xs font-bold flex items-center justify-center">1</span>
+            <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center">1</span>
             <div class="flex-1 pt-0.5">
               <div class="font-semibold text-sm text-slate-900">${
                 recommendation.instruction || recommendation.title
@@ -3292,13 +3300,13 @@ async function init() {
 
   // Read from URL fragment
   const params = parseFragment();
-  if (params.modes) {
+  if (params.modes !== undefined) {
     const modesArray = params.modes
-      .split(",")
-      .filter((m) => validModes.includes(m));
-    if (modesArray.length > 0) {
-      state.modes = modesArray;
-    }
+      ? params.modes.split(",").filter((m) => validModes.includes(m))
+      : [];
+    state.modes = modesArray;
+  } else {
+    state.modes = defaultVisitModes();
   }
 
   if (params.day) {
@@ -3464,7 +3472,7 @@ function resetAll() {
   state.time = ""; // Don't prefill time
   state.flexibilityEarlyMins = appData.defaults.flexibilityEarlyMins;
   state.flexibilityLateMins = appData.defaults.flexibilityLateMins;
-  state.modes = [];
+  state.modes = defaultVisitModes();
   state.people = appData.defaults.people;
   state.walkMiles = appData.defaults.walkMiles;
   state.parkingMins = appData.defaults.parkingMins;
@@ -3562,7 +3570,10 @@ function resetModes() {
     newParts.push(`people=${encodeURIComponent(params.people)}`);
   }
 
-  // Update URL without modes, walk, or pay
+  // Explicit empty modes so reload does not re-apply defaults
+  newParts.push("modes=");
+
+  // Update URL without walk or pay (modes cleared via modes=)
   const queryString = newParts.length > 0 ? `?${newParts.join("&")}` : "";
   window.location.hash = getDestinationPath() + queryString;
 

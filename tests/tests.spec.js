@@ -158,6 +158,18 @@ test.describe("URL Fragment Permutations", () => {
     expect(await page.evaluate(() => window.state.modes)).toEqual([]);
   });
 
+  test("should default to drive, rideshare, and shuttle when modes omitted", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit/van-andel-arena?day=monday&time=600");
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => window.state.modes)).toEqual([
+      "drive",
+      "rideshare",
+      "shuttle",
+    ]);
+  });
+
   test("should handle URL-encoded parameters", async ({ page }) => {
     await page.goto("/#/visit/van-andel-arena?day=next%20week&time=700");
     await page.waitForTimeout(500);
@@ -177,13 +189,14 @@ test.describe("URL Fragment Permutations", () => {
     await page.locator("#timeSelect").selectOption({ value: "17:00" });
     await page.waitForTimeout(300);
 
-    const driveButton = page.locator('[data-mode="drive"]');
-    await driveButton.click();
+    // Drive, rideshare, and DASH are preselected; add transit and expect it in the URL
+    await page.locator('[data-mode="transit"]').click();
     await page.waitForTimeout(300);
 
     const url = page.url();
     expect(url).toContain("#/visit/van-andel-arena");
-    expect(url).toContain("modes=drive");
+    expect(url).toContain("transit");
+    expect(url).toMatch(/modes=[^&]*transit/);
   });
 
   test("should update fragment when time is selected", async ({ page }) => {
@@ -212,7 +225,9 @@ test.describe("URL Fragment Permutations", () => {
     await page.locator("#timeSelect").selectOption({ value: "17:00" });
     await page.waitForTimeout(300);
 
-    await page.locator('[data-mode="drive"]').click();
+    // Default is drive + rideshare + shuttle; turn off rideshare and shuttle, add transit → drive + transit
+    await page.locator('[data-mode="rideshare"]').click();
+    await page.locator('[data-mode="shuttle"]').click();
     await page.locator('[data-mode="transit"]').click();
     await page.waitForTimeout(300);
 
