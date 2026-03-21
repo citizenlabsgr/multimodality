@@ -3,6 +3,10 @@ install:
 	npm install --no-save @playwright/test
 	npx playwright install chromium
 
+.PHONY: sync_parking
+sync_parking:
+	python scripts/sync_parking.py
+
 .PHONY: all
 all: format test
 

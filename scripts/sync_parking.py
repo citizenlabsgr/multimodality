@@ -1,0 +1,288 @@
+#!/usr/bin/env python
+
+"""
+Regenerate data/parking/garages.json and data/parking/lots.json from the
+City of Grand Rapids Visitor Parking ArcGIS web map (same source as
+https://grandrapids.maps.arcgis.com/apps/webappviewer/index.html?id=19d11d58264249d4a4ca9f96758fc252).
+
+Meters, bike racks, and micromobility are not layers on that map; those JSON
+files are left unchanged.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
+from pathlib import Path
+
+# Web AppBuilder app item (Visitor Parking)
+DEFAULT_WEB_APP_ITEM_ID = "19d11d58264249d4a4ca9f96758fc252"
+SHARING_REST = "https://www.arcgis.com/sharing/rest"
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+OUT_GARAGES = REPO_ROOT / "data/parking/garages.json"
+OUT_LOTS = REPO_ROOT / "data/parking/lots.json"
+
+PAGE_SIZE = 2000
+
+
+def http_get_json(url: str) -> dict:
+    req = urllib.request.Request(url, headers={"User-Agent": "multimodality-parking-sync/1.0"})
+    with urllib.request.urlopen(req, timeout=120) as resp:
+        return json.loads(resp.read().decode())
+
+
+def web_map_item_id_from_app(app_item_id: str) -> str:
+    data = http_get_json(f"{SHARING_REST}/content/items/{app_item_id}/data?f=json")
+    return data["map"]["itemId"]
+
+
+def find_parking_layers(map_item_id: str) -> dict[str, dict]:
+    data = http_get_json(f"{SHARING_REST}/content/items/{map_item_id}/data?f=json")
+    found: dict[str, dict] = {}
+    for layer in data.get("operationalLayers", []):
+        url = layer.get("url") or ""
+        if "Parking_Facilities" in url:
+            found["facilities"] = {
+                "url": url.rstrip("/"),
+                "definition": (layer.get("layerDefinition") or {}).get("definitionExpression"),
+            }
+        elif "Neighborhood_Lots" in url:
+            found["neighborhood"] = {
+                "url": url.rstrip("/"),
+                "definition": (layer.get("layerDefinition") or {}).get("definitionExpression"),
+            }
+    return found
+
+
+def query_all_features(layer_url: str, where: str) -> list[dict]:
+    """Paged /query; geometry rings in WGS84 (lon, lat)."""
+    features: list[dict] = []
+    offset = 0
+    while True:
+        params = urllib.parse.urlencode(
+            {
+                "where": where,
+                "outFields": "*",
+                "returnGeometry": "true",
+                "outSR": "4326",
+                "resultOffset": str(offset),
+                "resultRecordCount": str(PAGE_SIZE),
+                "f": "json",
+            }
+        )
+        url = f"{layer_url}/query?{params}"
+        batch = http_get_json(url)
+        if batch.get("error"):
+            raise RuntimeError(batch["error"])
+        chunk = batch.get("features") or []
+        features.extend(chunk)
+        if batch.get("exceededTransferLimit") and len(chunk) == PAGE_SIZE:
+            offset += PAGE_SIZE
+        else:
+            break
+    return features
+
+
+def ring_centroid_lat_lon(rings: list) -> tuple[float, float] | None:
+    if not rings or not rings[0]:
+        return None
+    ring = rings[0]
+    lons = [p[0] for p in ring if len(p) >= 2]
+    lats = [p[1] for p in ring if len(p) >= 2]
+    if not lons:
+        return None
+    return sum(lats) / len(lats), sum(lons) / len(lons)
+
+
+def is_garage(attrs: dict) -> bool:
+    t = (attrs.get("TYPE_") or "").lower()
+    if "ramp" in t:
+        return True
+    n = (attrs.get("NAME") or "").lower()
+    return "ramp" in n
+
+
+def _pricing_val(v) -> str | None:
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s or s.lower() in ("no rate", "n/a", "none"):
+        return None
+    return s
+
+
+def build_pricing(attrs: dict) -> dict | None:
+    pricing: dict = {}
+    dm = _pricing_val(attrs.get("DAILY_MAX"))
+    if dm:
+        pricing["daytime"] = dm
+    ev = _pricing_val(attrs.get("evening"))
+    if ev:
+        pricing["evening"] = ev
+    ec = _pricing_val(attrs.get("EVENT_CHRG"))
+    if ec:
+        pricing["events"] = ec
+    half = _pricing_val(attrs.get("HALF_HR_RT"))
+    if half:
+        pricing["rate"] = half
+    hr = _pricing_val(attrs.get("Hour_Rate"))
+    if hr:
+        pricing["hourlyRate"] = hr
+    return pricing or None
+
+
+def build_availability(attrs: dict) -> str | None:
+    parts: list[str] = []
+    sp = attrs.get("SPACES")
+    if sp is not None and not (isinstance(sp, float) and math.isnan(sp)):
+        try:
+            parts.append(f"{int(sp)} spaces")
+        except (TypeError, ValueError):
+            parts.append(f"{sp} spaces")
+    fp = _pricing_val(attrs.get("FREE_PARK"))
+    if fp:
+        parts.append(fp)
+    dash = attrs.get("DASH_LINE")
+    if dash:
+        parts.append(f"DASH: {str(dash).strip()}")
+    if not parts:
+        return None
+    return "; ".join(parts)
+
+
+def feature_to_item(f: dict) -> dict | None:
+    geom = f.get("geometry") or {}
+    rings = geom.get("rings")
+    if not rings:
+        return None
+    centroid = ring_centroid_lat_lon(rings)
+    if not centroid:
+        return None
+    lat, lon = centroid
+    attrs = f.get("attributes") or {}
+    name = attrs.get("NAME")
+    item: dict = {
+        "location": {
+            "latitude": round(lat, 6),
+            "longitude": round(lon, 6),
+        }
+    }
+    if name:
+        item["name"] = str(name).strip()
+    addr = attrs.get("ADDRESS")
+    if addr:
+        item["address"] = str(addr).strip()
+    p = build_pricing(attrs)
+    if p:
+        item["pricing"] = p
+    av = build_availability(attrs)
+    if av:
+        item["availability"] = av
+    return item
+
+
+def dedupe_items(items: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    out: list[dict] = []
+    for it in items:
+        key = (it.get("name") or "").strip().lower()
+        if not key:
+            loc = it.get("location") or {}
+            key = f"{loc.get('latitude')},{loc.get('longitude')}"
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+    return out
+
+
+def sort_by_name(items: list[dict]) -> list[dict]:
+    return sorted(items, key=lambda x: ((x.get("name") or "").lower(), x["location"]["latitude"]))
+
+
+def main() -> int:
+    app_id = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_WEB_APP_ITEM_ID
+    try:
+        map_id = web_map_item_id_from_app(app_id)
+        layers = find_parking_layers(map_id)
+    except (urllib.error.URLError, KeyError, json.JSONDecodeError) as e:
+        print(f"Failed to load web map from app {app_id!r}: {e}", file=sys.stderr)
+        return 1
+
+    if "facilities" not in layers or "neighborhood" not in layers:
+        print(
+            "Web map is missing expected layers (Parking_Facilities and/or Neighborhood_Lots).",
+            file=sys.stderr,
+        )
+        return 1
+
+    fac = layers["facilities"]
+    neigh = layers["neighborhood"]
+
+    fac_where = fac["definition"] or "1=1"
+    neigh_where = neigh["definition"] or "1=1"
+
+    try:
+        fac_features = query_all_features(fac["url"], fac_where)
+        neigh_features = query_all_features(neigh["url"], neigh_where)
+    except RuntimeError as e:
+        print(f"ArcGIS query failed: {e}", file=sys.stderr)
+        return 1
+
+    garages_raw: list[dict] = []
+    lots_from_facilities: list[dict] = []
+
+    for f in fac_features:
+        attrs = f.get("attributes") or {}
+        item = feature_to_item(f)
+        if not item:
+            continue
+        if is_garage(attrs):
+            garages_raw.append(item)
+        else:
+            lots_from_facilities.append(item)
+
+    lots_from_neigh: list[dict] = []
+    for f in neigh_features:
+        item = feature_to_item(f)
+        if item:
+            lots_from_neigh.append(item)
+
+    garages = sort_by_name(dedupe_items(garages_raw))
+    lots = sort_by_name(dedupe_items(lots_from_neigh + lots_from_facilities))
+
+    note = (
+        "Generated by scripts/sync_parking.py from the City of Grand Rapids "
+        "Visitor Parking map. Garage vs lot follows ramp-style facilities vs other types; "
+        "the Parking_Facilities layer uses the same filter as the live web map. "
+        "Metered areas, bike racks, and micromobility are not synced from this map."
+    )
+
+    garages_doc = {
+        "name": "Parking Garages",
+        "modes": ["drive"],
+        "note": note,
+        "items": garages,
+    }
+    lots_doc = {
+        "name": "Parking Lots",
+        "modes": ["drive"],
+        "note": note,
+        "items": lots,
+    }
+
+    OUT_GARAGES.write_text(json.dumps(garages_doc, indent=2) + "\n", encoding="utf-8")
+    OUT_LOTS.write_text(json.dumps(lots_doc, indent=2) + "\n", encoding="utf-8")
+
+    print(f"Wrote {len(garages)} garages -> {OUT_GARAGES.relative_to(REPO_ROOT)}")
+    print(f"Wrote {len(lots)} lots -> {OUT_LOTS.relative_to(REPO_ROOT)}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

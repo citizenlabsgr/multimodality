@@ -326,7 +326,11 @@ function getPointsFromData(data, path) {
         points.push({
           lat,
           lng,
-          label: item.name || "Location",
+          label: item.name || "Unnamed",
+          address:
+            typeof item.address === "string" && item.address.trim() !== ""
+              ? item.address.trim()
+              : "",
         });
       }
     });
@@ -454,7 +458,17 @@ function updateDataViewMap(points) {
         );
       if (p.locationName != null && p.locationName !== "")
         rows.push(
-          `<tr><th style="${thStyle}">Location</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+          `<tr><th style="${thStyle}">Name</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+        );
+      const tableAddress =
+        (typeof p.address === "string" && p.address.trim()) ||
+        (p.parkingItem &&
+          typeof p.parkingItem.address === "string" &&
+          p.parkingItem.address.trim()) ||
+        "";
+      if (tableAddress)
+        rows.push(
+          `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(tableAddress)}</td></tr>`,
         );
       if (p.price != null && p.price !== "")
         rows.push(
@@ -480,7 +494,17 @@ function updateDataViewMap(points) {
         );
       if (p.locationName != null && p.locationName !== "")
         rows.push(
-          `<tr><th style="${thStyle}">Location</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+          `<tr><th style="${thStyle}">Name</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+        );
+      const parkingAddress =
+        p.parkingItem &&
+        typeof p.parkingItem.address === "string" &&
+        p.parkingItem.address.trim() !== ""
+          ? p.parkingItem.address.trim()
+          : "";
+      if (parkingAddress)
+        rows.push(
+          `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(parkingAddress)}</td></tr>`,
         );
       if (p.price != null && p.price !== "")
         rows.push(
@@ -708,7 +732,15 @@ function updateDataViewMap(points) {
       });
       marker.bindPopup(div);
     } else if (p.label) {
-      popupContent = escapeHtml(p.label);
+      const labelRows = [
+        `<tr><th style="${thStyle}">Name</th><td style="${tdStyle}">${escapeHtml(p.label)}</td></tr>`,
+      ];
+      if (typeof p.address === "string" && p.address.trim() !== "") {
+        labelRows.push(
+          `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(p.address.trim())}</td></tr>`,
+        );
+      }
+      popupContent = `<table style="${tableStyle}">${labelRows.join("")}</table>`;
     }
     if (popupContent && !isStrategyStep && !isDestination && !isParking)
       marker.bindPopup(popupContent);
@@ -2446,13 +2478,6 @@ function estimateParkingCostRange(pricing, category) {
   return { min: Math.min(...nums), max: Math.max(...nums) };
 }
 
-function garageVariantAndPriority(costRange) {
-  if (costRange.max >= 20 || costRange.min >= 20) {
-    return { variantKey: "premiumRamp", priority: 60 };
-  }
-  return { variantKey: "cheaperGarage", priority: 50 };
-}
-
 // "No options" cards (formerly in data/recommendations per destination). Same rules for all venues.
 const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
@@ -2672,9 +2697,8 @@ function buildParkingBasedDriveRecommendations(state) {
         priority = 40;
         minWalkMiles = 0.5;
       } else {
-        const g = garageVariantAndPriority(costRange);
-        variantKey = g.variantKey;
-        priority = g.priority;
+        variantKey = "parkingGarage";
+        priority = 55;
       }
       if (walkBudget + 1e-9 < minWalkMiles) continue;
 
@@ -2689,8 +2713,6 @@ function buildParkingBasedDriveRecommendations(state) {
         title = "Park at metered street parking";
       } else if (id === "lots") {
         title = "Park at affordable surface lot and walk";
-      } else if (variantKey === "premiumRamp") {
-        title = "Park at premium parking garage";
       } else {
         title = "Park at parking garage";
       }
@@ -2729,7 +2751,6 @@ function buildParkingBasedDriveRecommendations(state) {
 
       let badge = "Budget-friendly";
       if (id === "meters") badge = "Affordable";
-      else if (variantKey === "premiumRamp") badge = "Convenient";
 
       out.push({
         title,
@@ -2967,12 +2988,6 @@ function matchesCost(rec, costDollars, state) {
       }
     }
 
-    if (rec.variantKey === "cheaperGarage") {
-      // If user can walk 0.5+ miles and can pay $8-$11, prefer surface lot
-      // But if they can't walk 0.5 miles, show garage
-      // This preference is handled in scoring, not filtering
-    }
-
     return true;
   }
 
@@ -3057,28 +3072,32 @@ function calculateScore(rec, state) {
       }
     }
 
-    // Higher cost options get higher scores (premium > garage > lot > meter > free)
-    if (rec.variantKey === "premiumRamp") {
-      score += 10;
-    } else if (rec.variantKey === "cheaperGarage") {
-      score += 5;
-      // Prefer affordableLot over cheaperGarage when walk distance is sufficient
+    // Garages: prefer higher listed prices (better chance of availability); data carries the amounts.
+    if (rec.variantKey === "parkingGarage") {
+      const maxC = rec.metadata?.maxCost;
+      const minC = rec.metadata?.minCost;
+      if (typeof maxC === "number" && Number.isFinite(maxC)) {
+        score +=
+          maxC * 2 +
+          (typeof minC === "number" && Number.isFinite(minC) ? minC * 0.25 : 0);
+      } else {
+        score += 5;
+      }
       if (
         state.walkMiles >= 0.5 &&
         effectiveCostDollars >= 8 &&
         effectiveCostDollars < 12
       ) {
-        score -= 2; // Lower score to prefer affordableLot
+        score -= 2; // Slight preference for surface lots in mid-budget + sufficient walk
       }
     } else if (rec.variantKey === "affordableLot") {
       score += 3;
-      // Boost score when walk distance is sufficient
       if (
         state.walkMiles >= 0.5 &&
         effectiveCostDollars >= 8 &&
         effectiveCostDollars < 12
       ) {
-        score += 2; // Higher score to prefer over cheaperGarage
+        score += 2;
       }
     } else if (rec.variantKey === "meteredParking") {
       score += 1;
@@ -3134,9 +3153,22 @@ function buildRecommendation() {
     score: calculateScore(rec, state),
   }));
 
-  // Sort by score (highest first), then prefer shorter walks for parking-derived ties
+  // Sort by score (highest first), then pricier garages, then shorter walks for parking ties
   scored.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
+    const ag =
+      a.rec.variantKey === "parkingGarage" ? a.rec.metadata?.maxCost : null;
+    const bg =
+      b.rec.variantKey === "parkingGarage" ? b.rec.metadata?.maxCost : null;
+    if (
+      typeof ag === "number" &&
+      typeof bg === "number" &&
+      Number.isFinite(ag) &&
+      Number.isFinite(bg) &&
+      ag !== bg
+    ) {
+      return bg - ag;
+    }
     const aw =
       typeof a.rec.parkingWalkMiles === "number" ? a.rec.parkingWalkMiles : 99;
     const bw =
@@ -3169,7 +3201,7 @@ function buildRecommendation() {
     // Don't show surface lot alternate if user can't walk 0.5+ miles
     if (
       primaryScored.rec.modeKey === "drive" &&
-      primaryScored.rec.variantKey === "cheaperGarage" &&
+      primaryScored.rec.variantKey === "parkingGarage" &&
       walkMiles < 0.5 &&
       primary.alternate.title &&
       primary.alternate.title.toLowerCase().includes("surface lot")
