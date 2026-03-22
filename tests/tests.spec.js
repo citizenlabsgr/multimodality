@@ -254,6 +254,76 @@ test.describe("URL Fragment Permutations", () => {
   });
 });
 
+test.describe("Bike-only recommendations", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("shows green recommended strategy with map link to nearest rack", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=bike",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Recommended Strategy");
+    await expect(results).toContainText("Bike to the venue");
+    await expect(results.locator(".border-green-200").first()).toBeVisible();
+
+    await page.locator('button:has-text("Show steps")').first().click();
+    await page.waitForTimeout(200);
+    await expect(results).toContainText("Walk to the venue");
+    await expect(results.getByText(/Park at|Find bike parking/)).toBeVisible();
+    const rackLink = results
+      .locator('a[href*="google.com/maps"]')
+      .filter({ hasText: "View in maps" })
+      .first();
+    await expect(rackLink).toBeVisible();
+    await expect(rackLink).toHaveAttribute("href", /maps\?q=|maps\/search/);
+  });
+
+  test("van-andel bike-only shows recommended strategy with rack map link", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=saturday&time=700&modes=bike",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Recommended Strategy");
+    await expect(results).toContainText("Bike to the venue");
+
+    await page.locator('button:has-text("Show steps")').first().click();
+    await page.waitForTimeout(200);
+    await expect(
+      results
+        .locator('a[href*="google.com/maps"]')
+        .filter({ hasText: "View in maps" })
+        .first(),
+    ).toBeVisible();
+  });
+
+  test("keeps willing to pay slider enabled when only bike is selected", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=bike",
+    );
+    await page.waitForSelector("#preferencesSection");
+    await page.waitForTimeout(400);
+
+    const costSlider = page.locator("#costSlider");
+    await expect(costSlider).toBeEnabled();
+    await expect(page.locator("#costValue")).not.toHaveText("—");
+  });
+});
+
 test.describe("Option fragment (strategy steps expanded)", () => {
   // Use params that show strategy cards with steps
   const resultsParams = "modes=drive&day=monday&time=600&walk=0.5&pay=10";

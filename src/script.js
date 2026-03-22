@@ -1381,10 +1381,9 @@ function updatePreferencesVisibility() {
     if (walkTime) walkTime.style.display = "inline";
   }
 
-  // Cost slider: disabled for bike mode (biking is free) or if shuttle is the only mode (DASH is free)
+  // Cost slider: disabled if shuttle is the only mode (DASH is free)
   const costDisabled =
-    state.modes.includes("bike") ||
-    (state.modes.length === 1 && state.modes.includes("shuttle"));
+    state.modes.length === 1 && state.modes.includes("shuttle");
   costSlider.disabled = costDisabled;
   if (costDisabled) {
     costValue.textContent = "—";
@@ -1666,7 +1665,7 @@ function updateModesSectionState() {
     if (!isEnabled) {
       costSlider.disabled = true;
     } else {
-      // Re-enable if not disabled by other logic (e.g., bike mode)
+      // Re-enable if not disabled by other logic (e.g., shuttle-only mode)
       // updatePreferencesVisibility will handle the actual state
       updatePreferencesVisibility();
     }
@@ -3152,6 +3151,107 @@ function calculateScore(rec, state) {
   return score;
 }
 
+/** Bike strategy: nearest rack from parking data (or Maps search fallback) with a map link. */
+function buildBikeRackRecommendation(state) {
+  if (!state?.modes?.includes("bike") || !appData?.parking) return [];
+
+  const dest = appData.destinations?.find(
+    (d) => d.name === state.destination || d.slug === state.destination,
+  );
+  const destName = dest?.name || state.destination || "the venue";
+  const vLat = dest?.latitude;
+  const vLng = dest?.longitude;
+
+  const racks = appData.parking.racks;
+  let link = null;
+  let rackLabel = "the nearest bike rack";
+  let rackToVenueMi = null;
+
+  if (
+    Array.isArray(racks) &&
+    racks.length > 0 &&
+    typeof vLat === "number" &&
+    typeof vLng === "number"
+  ) {
+    let best = null;
+    let bestD = Infinity;
+    for (const item of racks) {
+      const loc = item?.location;
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      ) {
+        continue;
+      }
+      const d = haversineMiles(loc.latitude, loc.longitude, vLat, vLng);
+      if (d < bestD) {
+        bestD = d;
+        best = item;
+      }
+    }
+    if (best?.location) {
+      link = googleMapsPinUrl(best.location.latitude, best.location.longitude);
+      rackLabel = (best.name && String(best.name).trim()) || "this bike rack";
+      rackToVenueMi = bestD;
+    }
+  }
+
+  if (!link) {
+    const q = encodeURIComponent(
+      `bike rack near ${destName}, Grand Rapids, MI`,
+    );
+    link = `https://www.google.com/maps/search/?api=1&query=${q}`;
+  }
+
+  const walkFromRackText =
+    typeof rackToVenueMi === "number"
+      ? rackToVenueMi < 0.095
+        ? `a very short walk from the rack to ${destName}.`
+        : `About ${rackToVenueMi.toFixed(2)} mi on foot from the rack to ${destName}.`
+      : `Walk from your bike to ${destName}.`;
+
+  const meta = {
+    requiredModes: ["bike"],
+    minCost: 0,
+    priority: 70,
+  };
+
+  const body =
+    typeof rackToVenueMi === "number"
+      ? `Lock up at ${rackLabel} (${rackToVenueMi.toFixed(2)} mi from ${destName}), then walk the rest.`
+      : `Find a bike rack near ${destName}, ride in, and walk the final stretch.`;
+
+  return [
+    {
+      title: "Bike to the venue",
+      body,
+      badge: "Healthy",
+      modeKey: "bike",
+      variantKey: "nearestRack",
+      metadata: meta,
+      _metadata: meta,
+      steps: [
+        {
+          title:
+            typeof rackToVenueMi === "number"
+              ? `Park at ${rackLabel}`
+              : "Find bike parking near the venue",
+          description:
+            typeof rackToVenueMi === "number"
+              ? `Closest rack in our data is ${rackToVenueMi.toFixed(2)} mi from the venue. Open the map for directions to that pin.`
+              : `Use Google Maps to find a public bike rack near ${destName}.`,
+          link,
+        },
+        {
+          title: "Walk to the venue",
+          description: walkFromRackText,
+        },
+      ],
+    },
+  ];
+}
+
 function buildRecommendation() {
   // Guard against state not being initialized
   if (!state) return { primary: null, alternate: null };
@@ -3170,9 +3270,15 @@ function buildRecommendation() {
   };
 
   const staticRecs = getAllRecommendationsForDestination(state.destination);
+  const bikeRackRecs = buildBikeRackRecommendation(state);
   const syntheticNoOptions = buildSyntheticNoOptionsRecommendations();
   const parkingDriveRecs = buildParkingBasedDriveRecommendations(state);
-  const allRecs = [...staticRecs, ...syntheticNoOptions, ...parkingDriveRecs];
+  const allRecs = [
+    ...staticRecs,
+    ...bikeRackRecs,
+    ...syntheticNoOptions,
+    ...parkingDriveRecs,
+  ];
 
   // Filter recommendations by basic constraints
   const filtered = allRecs.filter((rec) => {

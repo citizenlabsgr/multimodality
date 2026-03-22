@@ -3,10 +3,6 @@ install:
 	npm install --no-save @playwright/test
 	npx playwright install chromium
 
-.PHONY: sync_parking
-sync_parking:
-	python scripts/sync_parking.py
-
 .PHONY: all
 all: format test
 
@@ -25,3 +21,8 @@ dev: install
 .PHONY: run
 run:
 	npx --yes live-server --no-browser --ignorePattern=test-results
+
+.PHONY: data
+data:
+	python scripts/fetch_car_parking.py
+	python scripts/fetch_bike_parking.py
