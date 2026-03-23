@@ -254,6 +254,95 @@ test.describe("URL Fragment Permutations", () => {
   });
 });
 
+test.describe("Visit page strategy cards gating", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("shows no strategy cards on #/visit until destination, day, time, and a mode", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#results")).toBeEmpty();
+    await expect(page.locator("#results")).not.toContainText(
+      "Recommended Strategy",
+    );
+    await expect(page.locator("#results")).not.toContainText("Ideal Strategy");
+  });
+
+  test("shows no cards when destination and modes are set but day or time is missing", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit/van-andel-arena?modes=drive");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#results")).toBeEmpty();
+
+    await page.goto("/#/visit/van-andel-arena?modes=drive&day=monday");
+    await page.waitForTimeout(500);
+    await expect(page.locator("#results")).toBeEmpty();
+  });
+
+  test("shows strategy cards when destination, day, time, and at least one mode are set", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit/van-andel-arena?day=monday&time=600");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#results")).not.toBeEmpty();
+    await expect(page.locator("#results")).toContainText(
+      "Recommended Strategy",
+    );
+  });
+
+  test("shows no cards when modes are explicitly empty even with destination, day, and time", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit/van-andel-arena?modes=&day=monday&time=600");
+    await page.waitForTimeout(500);
+
+    await expect(page.locator("#results")).toBeEmpty();
+  });
+});
+
+test.describe("Rideshare round-trip budget", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("shows red unknown-strategy card when willing to pay is below typical round-trip rideshare", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=tuesday&time=700&modes=rideshare&pay=15",
+    );
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("No options available");
+    await expect(results.locator(".border-red-200").first()).toBeVisible();
+  });
+
+  test("shows recommended rideshare when willing to pay meets round-trip threshold", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=tuesday&time=700&modes=rideshare&pay=20",
+    );
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Recommended Strategy");
+    await expect(results).toContainText("Request a rideshare");
+    await expect(results).not.toContainText("Unknown Strategy");
+  });
+});
+
 test.describe("Bike-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");

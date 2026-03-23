@@ -1361,58 +1361,30 @@ function updatePreferencesVisibility() {
   const costPrefix = document.getElementById("costPrefix");
   const costLabel = document.getElementById("costLabel");
 
-  // Walk slider: disabled only if rideshare is the ONLY mode (everyone can walk a little)
-  // If other modes are selected that need walking distance, keep it enabled
-  const walkDisabled =
-    state.modes.length === 1 && state.modes.includes("rideshare");
   const walkTime = document.getElementById("walkTime");
   const walkTimeValue = document.getElementById("walkTimeValue");
-  walkSlider.disabled = walkDisabled;
-  if (walkDisabled) {
-    walkValue.textContent = "—";
-    walkUnit.textContent = "";
-    if (walkTime) walkTime.style.display = "none";
-  } else {
-    walkValue.textContent = state.walkMiles.toFixed(1);
-    walkUnit.textContent = " miles";
-    // Calculate walking time (assuming 3 mph average walking speed)
-    const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
-    if (walkTimeValue) walkTimeValue.textContent = walkMinutes;
-    if (walkTime) walkTime.style.display = "inline";
-  }
+  walkValue.textContent = state.walkMiles.toFixed(1);
+  walkUnit.textContent = " miles";
+  const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+  if (walkTimeValue) walkTimeValue.textContent = walkMinutes;
+  if (walkTime) walkTime.style.display = "inline";
 
-  // Cost slider: disabled if shuttle is the only mode (DASH is free)
-  const costDisabled =
-    state.modes.length === 1 && state.modes.includes("shuttle");
-  costSlider.disabled = costDisabled;
-  if (costDisabled) {
-    costValue.textContent = "—";
-    costPrefix.textContent = "";
-  } else {
-    // For transit and micromobility, show total cost (per-person * people), otherwise show per-person cost
-    const displayCost =
-      state.modes.includes("transit") || state.modes.includes("micromobility")
-        ? state.costDollars * state.people
-        : state.costDollars;
-    // Show as whole dollar amount
-    costValue.textContent = Math.round(displayCost);
-    costPrefix.textContent = "$";
-  }
+  // For transit and micromobility, show total cost (per-person * people), otherwise show per-person cost
+  const displayCost =
+    state.modes.includes("transit") || state.modes.includes("micromobility")
+      ? state.costDollars * state.people
+      : state.costDollars;
+  costValue.textContent = Math.round(displayCost);
+  costPrefix.textContent = "$";
 
   // Update cost label based on primary mode
   const primaryMode = state.modes.length > 0 ? state.modes[0] : "drive";
   costLabel.textContent = getCostLabel(primaryMode);
 
-  // Gray out entire section if all preferences are disabled
-  const allDisabled = walkDisabled && costDisabled;
-  const preferencesSection = document.getElementById("preferencesSection");
-  const preferencesHeading = document.getElementById("preferencesHeading");
-  if (preferencesSection) {
-    preferencesSection.classList.toggle("opacity-50", allDisabled);
-  }
-  if (preferencesHeading) {
-    preferencesHeading.classList.toggle("opacity-50", allDisabled);
-  }
+  // Sliders use the same gate as mode buttons (where/when complete), not selected mode
+  const prefsEnabled = checkRequiredFields();
+  if (walkSlider) walkSlider.disabled = !prefsEnabled;
+  if (costSlider) costSlider.disabled = !prefsEnabled;
 }
 
 // Toggle mode selection (multi-select)
@@ -1522,6 +1494,8 @@ window.addEventListener("hashchange", () => {
       updatePreferencesVisibility();
     }
   }
+  // Hash-only navigations skip init(); sync section + sliders after all params (day/time may follow modes).
+  updateModesSectionState();
   updateResults();
   updateMinimizeButtonState();
   // Don't update fragment here to avoid loop
@@ -1651,25 +1625,7 @@ function updateModesSectionState() {
     }
   });
 
-  // Disable sliders when modes section is disabled
-  if (walkSlider) {
-    if (!isEnabled) {
-      walkSlider.disabled = true;
-    } else {
-      // Re-enable if not disabled by other logic (e.g., rideshare mode)
-      // updatePreferencesVisibility will handle the actual state
-      updatePreferencesVisibility();
-    }
-  }
-  if (costSlider) {
-    if (!isEnabled) {
-      costSlider.disabled = true;
-    } else {
-      // Re-enable if not disabled by other logic (e.g., shuttle-only mode)
-      // updatePreferencesVisibility will handle the actual state
-      updatePreferencesVisibility();
-    }
-  }
+  updatePreferencesVisibility();
 }
 
 // Update reset button visibility based on required fields
@@ -1921,9 +1877,28 @@ function handCraftedRecFits(rec) {
   return true;
 }
 
+/** Strategy cards only after destination, day, time, and at least one mode are set. */
+function isVisitContextCompleteForStrategies() {
+  if (!state) return false;
+  const dest =
+    typeof state.destination === "string" && state.destination.trim() !== "";
+  return Boolean(
+    dest &&
+    state.day &&
+    state.time &&
+    Array.isArray(state.modes) &&
+    state.modes.length > 0,
+  );
+}
+
 function renderResults() {
   const resultsEl = document.getElementById("results");
+  if (!resultsEl) return;
   resultsEl.innerHTML = "";
+
+  if (!isVisitContextCompleteForStrategies()) {
+    return;
+  }
 
   const { primary, alternate } = buildRecommendation();
 
@@ -3022,6 +2997,13 @@ function matchesCost(rec, costDollars, state) {
   if (bothWaysModes.includes(rec.modeKey)) {
     const minBothWays = minCost !== undefined ? 2 * minCost : undefined;
     const maxBothWays = maxCost !== undefined ? 2 * maxCost : undefined;
+    // Synthetic noCost cards warn when budget is below round-trip minimum; they must stay in the pool then
+    if (rec.isNoOptions && rec.variantKey === "noCost") {
+      if (minBothWays !== undefined) {
+        return costDollars < minBothWays;
+      }
+      return true;
+    }
     if (minBothWays !== undefined && costDollars < minBothWays) {
       return false;
     }
