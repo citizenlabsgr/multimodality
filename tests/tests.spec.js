@@ -413,6 +413,102 @@ test.describe("Bike-only recommendations", () => {
   });
 });
 
+test.describe("Micromobility-only recommendations", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("shows recommended strategy with map link to nearest Lime hub", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Recommended Strategy");
+    await expect(results).toContainText(
+      "Ride Lime from farther parking in your range",
+    );
+    await expect(results).toContainText("Closest Lime parking (may be full)");
+    await expect(results).not.toContainText(
+      "Find and ride a Lime scooter or bike",
+    );
+    await expect(results.locator(".border-green-200").first()).toBeVisible();
+    await expect(results.locator(".border-yellow-200").first()).toBeVisible();
+
+    await page.locator('button:has-text("Show steps")').first().click();
+    await page.waitForTimeout(200);
+    await expect(results).toContainText("Open the Lime app");
+    await expect(results).toContainText(
+      "Go to parking at the farther end of your range",
+    );
+    await expect(results).toContainText("Walk the rest of the way");
+    const limeAppLink = results
+      .locator('a[href*="li.me"]')
+      .filter({ hasText: "Get the Lime app" })
+      .first();
+    await expect(limeAppLink).toBeVisible();
+    const hubLink = results
+      .locator('a[href*="google.com/maps"]')
+      .filter({ hasText: "View in maps" })
+      .first();
+    await expect(hubLink).toBeVisible();
+    await expect(hubLink).toHaveAttribute("href", /maps\?q=|maps\/search/);
+  });
+
+  test("option=1 expands Lime hub strategy steps (Acrisure)", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40&option=1",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Hide steps");
+    await expect(results).toContainText(
+      "Ride Lime from farther parking in your range",
+    );
+    const firstStepsDiv = results.locator("[id^='steps-']").first();
+    await expect(firstStepsDiv).not.toHaveClass(/hidden/);
+    await expect(
+      results
+        .locator('a[href*="google.com/maps"]')
+        .filter({ hasText: "View in maps" })
+        .first(),
+    ).toBeVisible();
+    await expect(
+      results
+        .locator('a[href*="li.me"]')
+        .filter({ hasText: "Get the Lime app" })
+        .first(),
+    ).toBeVisible();
+  });
+
+  test("micromobility-only with pay=0 shows red card about Lime round-trip cost", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=0",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results.locator(".border-red-200").first()).toBeVisible();
+    await expect(results).toContainText("No options available");
+    await expect(results).toContainText("$8");
+    await expect(results).not.toContainText(
+      "Ride Lime from farther parking in your range",
+    );
+  });
+});
+
 test.describe("Option fragment (strategy steps expanded)", () => {
   // Use params that show strategy cards with steps
   const resultsParams = "modes=drive&day=monday&time=600&walk=0.5&pay=10";

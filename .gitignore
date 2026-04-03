@@ -1,3 +1,9 @@
+# Install
 node_modules/
 __pycache__/
+
+# Test
 test-results/
+
+# Data
+tmp/
