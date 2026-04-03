@@ -2235,7 +2235,11 @@ function renderResults() {
                     step.link
                       ? `<a href="${
                           step.link
-                        }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors">View in maps →</a>`
+                        }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors">${
+                          step.linkLabel
+                            ? escapeHtml(String(step.linkLabel))
+                            : "View in maps →"
+                        }</a>`
                       : ""
                   }
                 </div>
@@ -2627,7 +2631,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     modeKey: "micromobility",
     variantKey: "noCost",
     title: "No options available",
-    body: "Lime typically costs at least $4. Consider adjusting your budget to see recommendations.",
+    body: "Lime is paid in the app; plan for both directions (about $4 each way, roughly $8 round trip). Raise your willing-to-pay to see a recommendation with a map pin, or add another mode.",
     metadata: {
       requiredModes: ["micromobility"],
       minCost: 4,
@@ -2903,6 +2907,22 @@ function matchesCost(rec, costDollars, state) {
 
   const minCost = metadata.minCost;
   const maxCost = metadata.maxCost;
+  const budget = costDollars ?? 0;
+
+  // Synthetic red cards: pay-per-ride modes use minCost one-way; budget must cover both ways
+  // for real recs, but noCost variants should appear only when budget is below that threshold.
+  if (rec.isNoOptions && rec.variantKey === "noCost") {
+    const bothWaysSingleMode = ["rideshare", "transit", "micromobility"];
+    if (bothWaysSingleMode.includes(rec.modeKey) && minCost !== undefined) {
+      const minBothWays = 2 * minCost;
+      if (budget >= minBothWays) return false;
+      if (rec.modeKey === "micromobility") {
+        const modes = state.modes || [];
+        if (modes.length !== 1 || modes[0] !== "micromobility") return false;
+      }
+      return true;
+    }
+  }
 
   // For drive mode, handle parking enforcement logic
   if (rec.modeKey === "drive") {
@@ -3252,6 +3272,206 @@ function buildBikeRackRecommendation(state) {
   ];
 }
 
+/** Lime’s official app page (consumer site); links to App Store / Play. */
+const LIME_APP_DOWNLOAD_URL = "https://www.li.me/the-app";
+
+/** Max straight-line walk from a Lime pin to the venue we recommend (mi). */
+const MICROMOBILITY_MAX_WALK_TO_VENUE_MI = 0.5;
+
+function micromobilityHubLabelFromItem(item) {
+  const rawName = (item?.name && String(item.name).trim()) || "";
+  const rawAddress = (item?.address && String(item.address).trim()) || "";
+  const omitGenericHubName =
+    !rawName ||
+    /^designated parking zone$/i.test(rawName) ||
+    /^lime parking area \(approx\.\)$/i.test(rawName);
+  if (!omitGenericHubName && rawName) return rawName;
+  return rawAddress || "";
+}
+
+function sameMicromobilityPin(a, b) {
+  if (!a?.location || !b?.location) return a === b;
+  const la = a.location;
+  const lb = b.location;
+  return la.latitude === lb.latitude && la.longitude === lb.longitude;
+}
+
+function buildMicromobilityLimeHubSteps(
+  destName,
+  item,
+  hubToVenueMi,
+  intent,
+  maxWalkRadiusMi,
+  poolWasFallback,
+) {
+  const hubLabel = micromobilityHubLabelFromItem(item);
+  const link = googleMapsPinUrl(
+    item.location.latitude,
+    item.location.longitude,
+  );
+  const radiusPhrase = `about ${maxWalkRadiusMi.toFixed(2)} mi walk of ${destName}`;
+  const walkRestText =
+    hubToVenueMi < 0.095
+      ? `From that parking area to ${destName} is a very short walk.`
+      : `About ${hubToVenueMi.toFixed(2)} mi on foot from that parking area to ${destName} (straight line).`;
+
+  let step2Title;
+  let step2Description;
+  if (intent === "farthest") {
+    step2Title = "Go to parking at the farther end of your range";
+    if (poolWasFallback) {
+      step2Description = hubLabel
+        ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—no pin met the usual ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi walk cap; see the card note. Open the map for directions.`
+        : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—see the card note about the walk-distance cap. Open the map for directions.`;
+    } else {
+      step2Description = hubLabel
+        ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the farthest Lime-related pin in our data within ${radiusPhrase} (your walk limit or ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi, whichever is less). Open the map for directions.`
+        : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the farthest in our data within ${radiusPhrase}. Open the map for directions.`;
+    }
+  } else {
+    step2Title = "Go to the closest parking pin";
+    step2Description = hubLabel
+      ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the shortest walk among our Lime-related pins.`
+      : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the closest in our data.`;
+  }
+
+  return [
+    {
+      title: "Open the Lime app",
+      description:
+        "Find an available scooter or e-bike, see where you can start and end a ride, and unlock in the app. Pricing and ride rules are in the app.",
+      link: LIME_APP_DOWNLOAD_URL,
+      linkLabel: "Get the Lime app →",
+    },
+    {
+      title: step2Title,
+      description: `${step2Description} Check the Lime app for where you may park.`,
+      link,
+    },
+    {
+      title: "Walk the rest of the way",
+      description: walkRestText,
+    },
+  ];
+}
+
+/**
+ * Micromobility-only (no drive): recommend farthest Lime pin within walk budget as
+ * primary (green); optional alternate (yellow) for closest pin with availability caveat.
+ */
+function buildMicromobilityLimeHubRecommendation(state) {
+  if (
+    !state?.modes?.includes("micromobility") ||
+    state.modes.includes("drive") ||
+    !appData?.parking
+  ) {
+    return [];
+  }
+
+  const dest = appData.destinations?.find(
+    (d) => d.name === state.destination || d.slug === state.destination,
+  );
+  const destName = dest?.name || state.destination || "the venue";
+  const vLat = dest?.latitude;
+  const vLng = dest?.longitude;
+
+  const hubs = appData.parking.micromobility;
+  if (
+    !Array.isArray(hubs) ||
+    hubs.length === 0 ||
+    typeof vLat !== "number" ||
+    typeof vLng !== "number"
+  ) {
+    return [];
+  }
+
+  const walkBudget = state.walkMiles ?? 0;
+  const maxWalkToVenue = Math.min(
+    walkBudget,
+    MICROMOBILITY_MAX_WALK_TO_VENUE_MI,
+  );
+  const itemsWithDist = [];
+  for (const item of hubs) {
+    const loc = item?.location;
+    if (
+      !loc ||
+      typeof loc.latitude !== "number" ||
+      typeof loc.longitude !== "number"
+    ) {
+      continue;
+    }
+    const d = haversineMiles(loc.latitude, loc.longitude, vLat, vLng);
+    itemsWithDist.push({ item, d });
+  }
+  if (itemsWithDist.length === 0) return [];
+
+  let pool = itemsWithDist.filter(({ d }) => d <= maxWalkToVenue + 1e-9);
+  let walkRangeNote = "";
+  let poolWasFallback = false;
+  if (pool.length === 0) {
+    poolWasFallback = true;
+    pool = itemsWithDist;
+    walkRangeNote = ` None of our pins fall within about ${maxWalkToVenue.toFixed(2)} mi of ${destName} (your walk limit or ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi, whichever is less)—consider adjusting, or treat distances as approximate.`;
+  }
+
+  pool.sort((a, b) => a.d - b.d);
+  const closest = pool[0];
+  const farthest = pool[pool.length - 1];
+
+  const meta = {
+    requiredModes: ["micromobility"],
+    minCost: 4,
+    priority: 75,
+  };
+
+  const primary = {
+    title: "Ride Lime from farther parking in your range",
+    body: `Among Lime pins within about ${maxWalkToVenue.toFixed(2)} mi walk of ${destName} (capped at ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi), the farthest is about ${farthest.d.toFixed(2)} mi away (straight line)—often better odds than right at the entrance.${walkRangeNote}`,
+    badge: "On-demand",
+    modeKey: "micromobility",
+    variantKey: "farthestLimeHub",
+    metadata: meta,
+    _metadata: meta,
+    limeHubToVenueMi: farthest.d,
+    steps: buildMicromobilityLimeHubSteps(
+      destName,
+      farthest.item,
+      farthest.d,
+      "farthest",
+      maxWalkToVenue,
+      poolWasFallback,
+    ),
+  };
+
+  const showClosestAlternate = !sameMicromobilityPin(
+    closest.item,
+    farthest.item,
+  );
+  if (showClosestAlternate) {
+    primary.alternate = {
+      title: "Closest Lime parking (may be full)",
+      body: `About ${closest.d.toFixed(2)} mi on foot from this pin to ${destName}—the shortest option in our data. Busy areas often run low on vehicles or feel crowded; check the Lime app before you count on this spot.`,
+      badge: "Caution",
+      modeKey: "micromobility",
+      variantKey: "closestLimeHub",
+      metadata: meta,
+      _metadata: meta,
+      isDiscouraged: true,
+      limeHubToVenueMi: closest.d,
+      steps: buildMicromobilityLimeHubSteps(
+        destName,
+        closest.item,
+        closest.d,
+        "closest",
+        maxWalkToVenue,
+        poolWasFallback,
+      ),
+    };
+  }
+
+  return [primary];
+}
+
 function buildRecommendation() {
   // Guard against state not being initialized
   if (!state) return { primary: null, alternate: null };
@@ -3269,13 +3489,21 @@ function buildRecommendation() {
     ),
   };
 
-  const staticRecs = getAllRecommendationsForDestination(state.destination);
+  const limeHubRecs = buildMicromobilityLimeHubRecommendation(state);
+  const staticRecsRaw = getAllRecommendationsForDestination(state.destination);
+  const staticRecs =
+    limeHubRecs.length > 0
+      ? staticRecsRaw.filter(
+          (r) => !(r.modeKey === "micromobility" && r.variantKey === "default"),
+        )
+      : staticRecsRaw;
   const bikeRackRecs = buildBikeRackRecommendation(state);
   const syntheticNoOptions = buildSyntheticNoOptionsRecommendations();
   const parkingDriveRecs = buildParkingBasedDriveRecommendations(state);
   const allRecs = [
     ...staticRecs,
     ...bikeRackRecs,
+    ...limeHubRecs,
     ...syntheticNoOptions,
     ...parkingDriveRecs,
   ];
@@ -3315,7 +3543,12 @@ function buildRecommendation() {
       typeof a.rec.parkingWalkMiles === "number" ? a.rec.parkingWalkMiles : 99;
     const bw =
       typeof b.rec.parkingWalkMiles === "number" ? b.rec.parkingWalkMiles : 99;
-    return aw - bw;
+    if (aw !== bw) return aw - bw;
+    const alh =
+      typeof a.rec.limeHubToVenueMi === "number" ? a.rec.limeHubToVenueMi : 99;
+    const blh =
+      typeof b.rec.limeHubToVenueMi === "number" ? b.rec.limeHubToVenueMi : 99;
+    return alh - blh;
   });
 
   // Get primary recommendation; fall back to first real option if top is "no options"
