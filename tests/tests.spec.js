@@ -178,9 +178,6 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should update fragment when mode is selected", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(500);
-
     // Set required fields first (destination, day, time) so mode buttons are enabled
     await page
       .locator("#destinationSelect")
@@ -200,9 +197,6 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should update fragment when time is selected", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(500);
-
     const timeSelect = page.locator("#timeSelect");
     await timeSelect.selectOption({ value: "17:00" });
     await page.waitForTimeout(300);
@@ -214,9 +208,6 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should update fragment with multiple modes", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForTimeout(500);
-
     // Set required fields first (destination, day, time) so mode buttons are enabled
     await page
       .locator("#destinationSelect")
