@@ -53,6 +53,19 @@ const FALLBACK_DATA = {
   parking: {},
 };
 
+/** Official rider app flows (download / open app on mobile). */
+const UBER_APP_PAGE_URL = "https://m.uber.com/go/download";
+const LYFT_APP_PAGE_URL = "https://lyft.com/app";
+
+function attachRideshareAppLinksToBuiltInRecommendations(recs) {
+  const step0 = recs?.rideshare?.default?.steps?.[0];
+  if (!step0 || (Array.isArray(step0.links) && step0.links.length > 0)) return;
+  step0.links = [
+    { href: UBER_APP_PAGE_URL, label: "Uber app →" },
+    { href: LYFT_APP_PAGE_URL, label: "Lyft app →" },
+  ];
+}
+
 async function loadData() {
   try {
     const [configRes, destinationsRes] = await Promise.all([
@@ -136,6 +149,9 @@ async function loadData() {
     const builtInRes = await fetch("data/built-in-recommendations.json");
     if (builtInRes.ok) {
       builtInModeRecommendations = await builtInRes.json();
+      attachRideshareAppLinksToBuiltInRecommendations(
+        builtInModeRecommendations,
+      );
     }
 
     const recommendations = {};
@@ -1877,6 +1893,54 @@ function handCraftedRecFits(rec) {
   return true;
 }
 
+const STEP_LINK_BUTTON_CLASS =
+  "inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors";
+
+function recommendationStepLinkEntries(step) {
+  const out = [];
+  if (Array.isArray(step.links) && step.links.length > 0) {
+    for (const entry of step.links) {
+      const href = entry.href ?? entry.url;
+      if (typeof href !== "string" || href.length === 0) continue;
+      out.push({
+        href,
+        label:
+          entry.label != null && String(entry.label).length > 0
+            ? String(entry.label)
+            : "Open →",
+      });
+    }
+    return out;
+  }
+  if (step.link) {
+    out.push({
+      href: step.link,
+      label: step.linkLabel ? String(step.linkLabel) : "View in maps →",
+    });
+  }
+  return out;
+}
+
+function renderRecommendationStepLinkRowFromEntries(entries) {
+  if (!entries || entries.length === 0) return "";
+  const anchors = entries
+    .map((e) => {
+      if (!e || typeof e.href !== "string" || e.href.length === 0) return "";
+      const label = e.label != null ? String(e.label) : "Open →";
+      return `<a href="${escapeHtml(e.href)}" target="_blank" rel="noopener noreferrer" class="${STEP_LINK_BUTTON_CLASS}">${escapeHtml(label)}</a>`;
+    })
+    .filter(Boolean)
+    .join("");
+  if (!anchors) return "";
+  return `<div class="mt-1 flex flex-wrap gap-2">${anchors}</div>`;
+}
+
+function renderRecommendationStepLinks(step) {
+  return renderRecommendationStepLinkRowFromEntries(
+    recommendationStepLinkEntries(step),
+  );
+}
+
 /** Strategy cards only after destination, day, time, and at least one mode are set. */
 function isVisitContextCompleteForStrategies() {
   if (!state) return false;
@@ -2050,6 +2114,17 @@ function renderResults() {
                 if (mins != null)
                   description += " About " + formatTime(mins) + ".";
               }
+              const linkEntries = [];
+              if (!isLastWalk && step.mode === "rideshare") {
+                linkEntries.push(
+                  { href: UBER_APP_PAGE_URL, label: "Uber app →" },
+                  { href: LYFT_APP_PAGE_URL, label: "Lyft app →" },
+                );
+              }
+              if (mapHref)
+                linkEntries.push({ href: mapHref, label: "View in maps →" });
+              const stepLinksHtml =
+                renderRecommendationStepLinkRowFromEntries(linkEntries);
               return `
               <li class="flex gap-2">
                 <span class="flex-shrink-0 w-6 h-6 rounded-full bg-slate-700 text-white text-xs font-bold flex items-center justify-center">${
@@ -2058,11 +2133,7 @@ function renderResults() {
                 <div class="flex-1 pt-0.5">
                   <div class="font-semibold text-sm text-slate-900">${modeLabel}</div>
                   <div class="text-sm text-slate-600 mt-1 leading-relaxed">${description}</div>
-                  ${
-                    mapHref
-                      ? `<a href="${mapHref}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors">View in maps →</a>`
-                      : ""
-                  }
+                  ${stepLinksHtml}
                 </div>
               </li>
             `;
@@ -2206,17 +2277,7 @@ function renderResults() {
                       ? `<div class="text-sm text-slate-600 mt-1 leading-relaxed">${step.description}</div>`
                       : ""
                   }
-                  ${
-                    step.link
-                      ? `<a href="${
-                          step.link
-                        }" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block px-2.5 py-1 rounded border border-slate-300 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors">${
-                          step.linkLabel
-                            ? escapeHtml(String(step.linkLabel))
-                            : "View in maps →"
-                        }</a>`
-                      : ""
-                  }
+                  ${renderRecommendationStepLinks(step)}
                 </div>
               </li>
             `,
