@@ -11,6 +11,42 @@ const MODE_DISPLAY_LABELS = {
   bike: "🚲 Bike",
 };
 
+/** Short explainer for #/modes (what the planner uses each mode for). */
+const MODE_PAGE_DESCRIPTIONS = {
+  drive:
+    "You take your own car and park in a garage, surface lot, or at a meter. The planner shows hand-crafted parking options when they fit your budget and walk distance, then suggests other nearby parking from our Grand Rapids dataset.",
+  rideshare:
+    "Uber or Lyft picks you up and drops you off near the venue. Enable this when you are open to paying for a direct ride—fares often run higher on event nights due to surge pricing.",
+  transit:
+    "The Rapid (bus) gets you to a stop near the destination; you walk the last part. On the visit page, links can open Google Maps to search for transit stops near the venue.",
+  micromobility:
+    "Shared Lime scooters and bikes for short trips downtown. Unlock with the Lime app. The map shows Lime parking areas from our data—use them to end a ride legally near where you are going.",
+  shuttle:
+    "The free DASH shuttle loops through downtown and connects many garages and streets to stops near venues. You usually walk from the nearest stop to the door.",
+  bike: "You ride your own bicycle and park at a public rack. Pins are bike parking locations from OpenStreetMap near downtown Grand Rapids.",
+};
+
+/** Order of modes on #/modes (DASH before The Rapid). */
+const MODES_PAGE_ORDER = [
+  "drive",
+  "rideshare",
+  "shuttle",
+  "transit",
+  "micromobility",
+  "bike",
+];
+
+/** Downtown Grand Rapids — empty maps use this until route/stop data exists. */
+const MODES_PAGE_EMPTY_MAP_CENTER = [42.96333, -85.66806];
+const MODES_PAGE_EMPTY_MAP_ZOOM = 13;
+
+function modesPageOrderedList() {
+  const base = Array.isArray(validModes)
+    ? validModes
+    : FALLBACK_DATA.validModes;
+  return MODES_PAGE_ORDER.filter((m) => base.includes(m));
+}
+
 const FALLBACK_DATA = {
   validModes: [
     "drive",
@@ -331,6 +367,255 @@ function getDestinationFromHashPath() {
 function isDataRoute() {
   const hash = window.location.hash.slice(1);
   return hash === "/data" || hash.startsWith("/data/");
+}
+
+// Modes explainer: #/modes
+function isModesRoute() {
+  const hash = window.location.hash.slice(1);
+  const pathPart =
+    hash.indexOf("?") >= 0 ? hash.slice(0, hash.indexOf("?")) : hash;
+  return pathPart === "/modes" || pathPart === "/modes/";
+}
+
+const MODES_PAGE_PARKING_KEYS = [
+  "garages",
+  "lots",
+  "meters",
+  "racks",
+  "micromobility",
+];
+
+let modesPageMaps = {};
+
+function disposeModesPageMapsMatching(predicate) {
+  for (const id of Object.keys(modesPageMaps)) {
+    if (!predicate(id)) continue;
+    try {
+      modesPageMaps[id].remove();
+    } catch {
+      /* ignore */
+    }
+    delete modesPageMaps[id];
+  }
+}
+
+function disposeModesPageMaps() {
+  disposeModesPageMapsMatching(() => true);
+}
+
+function parkingItemsToModesPagePoints(items, defaultLabel) {
+  if (!Array.isArray(items)) return [];
+  const out = [];
+  for (const item of items) {
+    const lat = item.location?.latitude;
+    const lng = item.location?.longitude;
+    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    out.push({
+      lat,
+      lng,
+      label: item.name || defaultLabel,
+      address:
+        typeof item.address === "string" && item.address.trim() !== ""
+          ? item.address.trim()
+          : "",
+    });
+  }
+  return out;
+}
+
+function getParkingCategoryKeysForPlannerMode(mode) {
+  const parking = appData?.parking;
+  if (!parking?.modes) return [];
+  return MODES_PAGE_PARKING_KEYS.filter((key) =>
+    (parking.modes[key] || []).includes(mode),
+  );
+}
+
+function getModesPageMapPoints(mode) {
+  if (!appData) return [];
+  if (mode === "drive" || mode === "bike" || mode === "micromobility") {
+    const keys = getParkingCategoryKeysForPlannerMode(mode);
+    const points = [];
+    for (const key of keys) {
+      const catName = appData.parking?.categoryNames?.[key] || key;
+      points.push(
+        ...parkingItemsToModesPagePoints(appData.parking?.[key], catName),
+      );
+    }
+    return points;
+  }
+  return [];
+}
+
+function renderModesPageMap(containerId, points, options) {
+  const opts = options || {};
+  const showEmptyViewport = opts.showEmptyViewport === true;
+  const container = document.getElementById(containerId);
+  if (!container || typeof L === "undefined") return;
+  if (!showEmptyViewport && (!points || points.length === 0)) {
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  if (modesPageMaps[containerId]) {
+    try {
+      modesPageMaps[containerId].remove();
+    } catch {
+      /* ignore */
+    }
+    delete modesPageMaps[containerId];
+  }
+  const map = L.map(containerId, { scrollWheelZoom: false });
+  modesPageMaps[containerId] = map;
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map);
+  if (showEmptyViewport) {
+    map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
+    requestAnimationFrame(() => map.invalidateSize());
+    return;
+  }
+  const layer = L.layerGroup().addTo(map);
+  for (const p of points) {
+    const m = L.marker([p.lat, p.lng]);
+    let html = `<div style="font-size:12px"><strong>${escapeHtml(p.label)}</strong>`;
+    if (p.address) html += `<br>${escapeHtml(p.address)}`;
+    html += "</div>";
+    m.bindPopup(html);
+    m.addTo(layer);
+  }
+  if (points.length === 1) {
+    map.setView([points[0].lat, points[0].lng], 15);
+  } else {
+    map.fitBounds(L.latLngBounds(points.map((pt) => [pt.lat, pt.lng])), {
+      padding: [20, 20],
+      maxZoom: 15,
+    });
+  }
+  requestAnimationFrame(() => map.invalidateSize());
+}
+
+function hideModesView() {
+  const modesView = document.getElementById("modesView");
+  if (modesView) modesView.classList.add("hidden");
+  disposeModesPageMaps();
+}
+
+/**
+ * Renders mode explainers + maps into a container (#/modes or visit modal).
+ * @param {HTMLElement} sectionsEl
+ * @param {{ mapIdPrefix?: string, headingIdPrefix?: string }} [options]
+ */
+function renderModesPageInto(sectionsEl, options) {
+  const mapIdPrefix = options?.mapIdPrefix ?? "modes-page-map-";
+  const headingIdPrefix = options?.headingIdPrefix ?? "modes-section-";
+  if (!sectionsEl || !appData) return;
+
+  const modes = modesPageOrderedList();
+  const parts = [];
+  for (const mode of modes) {
+    const title = MODE_DISPLAY_LABELS[mode] || mode;
+    const body =
+      MODE_PAGE_DESCRIPTIONS[mode] ||
+      "This option is available on the visit page when you select it in your travel modes.";
+    const headingId = `${headingIdPrefix}${mode}-heading`;
+    const mapId = `${mapIdPrefix}${mode}`;
+    const showMap = mode !== "rideshare";
+    const emptyDataNote =
+      mode === "transit" || mode === "shuttle"
+        ? `<p class="text-xs text-slate-500 mt-2">Stop and route data are not loaded yet; map shows downtown Grand Rapids.</p>`
+        : "";
+    const mapBlock = showMap
+      ? `<div id="${mapId}" class="modes-page-map rounded-lg border border-slate-200 overflow-hidden z-0" role="img" aria-label="Map for ${escapeHtml(title)}"></div>${emptyDataNote}`
+      : "";
+    parts.push(
+      `<section class="border-t border-slate-200 pt-6 first:border-t-0 first:pt-0" aria-labelledby="${headingId}">` +
+        `<h3 id="${headingId}" class="font-medium text-base text-slate-900 mb-2">${escapeHtml(title)}</h3>` +
+        `<p class="text-sm text-slate-600 mb-3">${escapeHtml(body)}</p>` +
+        mapBlock +
+        `</section>`,
+    );
+  }
+  sectionsEl.innerHTML = parts.join("");
+
+  for (const mode of modes) {
+    if (mode === "rideshare") continue;
+    const mapId = `${mapIdPrefix}${mode}`;
+    if (mode === "transit" || mode === "shuttle") {
+      renderModesPageMap(mapId, [], { showEmptyViewport: true });
+      continue;
+    }
+    const pts = getModesPageMapPoints(mode);
+    renderModesPageMap(mapId, pts);
+  }
+}
+
+function openModesExplainModal() {
+  const modal = document.getElementById("modesExplainModal");
+  const sectionsEl = document.getElementById("modesExplainModalSections");
+  if (!modal || !sectionsEl || !appData) return;
+
+  disposeModesPageMapsMatching((id) => id.startsWith("modes-modal-map-"));
+
+  renderModesPageInto(sectionsEl, {
+    mapIdPrefix: "modes-modal-map-",
+    headingIdPrefix: "modes-modal-section-",
+  });
+
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modes-explain-modal-open");
+
+  requestAnimationFrame(() => {
+    for (const id of Object.keys(modesPageMaps)) {
+      if (
+        id.startsWith("modes-modal-map-") &&
+        modesPageMaps[id]?.invalidateSize
+      ) {
+        modesPageMaps[id].invalidateSize();
+      }
+    }
+  });
+
+  document.getElementById("modesExplainModalClose")?.focus();
+}
+
+function closeModesExplainModal() {
+  const modal = document.getElementById("modesExplainModal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  document.body.classList.remove("modes-explain-modal-open");
+  disposeModesPageMapsMatching((id) => id.startsWith("modes-modal-map-"));
+  const sectionsEl = document.getElementById("modesExplainModalSections");
+  if (sectionsEl) sectionsEl.innerHTML = "";
+}
+
+function renderModesView() {
+  const appView = document.getElementById("appView");
+  const dataView = document.getElementById("dataView");
+  const modesView = document.getElementById("modesView");
+  const sectionsEl = document.getElementById("modesPageSections");
+  const backLink = document.getElementById("modesPageBackLink");
+  if (!appView || !dataView || !modesView || !sectionsEl || !appData) return;
+
+  disposeModesPageMaps();
+
+  appView.classList.add("hidden");
+  dataView.classList.add("hidden");
+  modesView.classList.remove("hidden");
+  document.querySelector("main")?.classList.add("data-view-active");
+
+  if (backLink) {
+    backLink.href = "#" + getDestinationPath();
+  }
+
+  renderModesPageInto(sectionsEl, {
+    mapIdPrefix: "modes-page-map-",
+    headingIdPrefix: "modes-section-",
+  });
 }
 
 // Leaflet map for data view (parking/strategies with lat/long)
@@ -828,6 +1113,8 @@ function renderDataView() {
 
   const path = getDataRoutePath();
   if (path === null) return;
+
+  hideModesView();
 
   appView.classList.add("hidden");
   dataView.classList.remove("hidden");
@@ -1431,6 +1718,11 @@ window.addEventListener("hashchange", () => {
     renderDataView();
     return;
   }
+  if (isModesRoute()) {
+    renderModesView();
+    return;
+  }
+  hideModesView();
   hideDataView();
 
   // Don't process hashchange if state isn't initialized yet (e.g., during page load)
@@ -1609,16 +1901,25 @@ function checkRequiredFields() {
 
 // Enable/disable modes section based on required fields
 function updateModesSectionState() {
-  const preferencesSection = document.getElementById("preferencesSection");
+  const preferencesSectionControls = document.getElementById(
+    "preferencesSectionControls",
+  );
   const modeButtons = document.querySelectorAll(".modeBtn");
   const isEnabled = checkRequiredFields();
 
-  if (preferencesSection) {
+  if (preferencesSectionControls) {
     if (isEnabled) {
-      preferencesSection.classList.remove("disabled");
+      preferencesSectionControls.classList.remove("disabled");
     } else {
-      preferencesSection.classList.add("disabled");
+      preferencesSectionControls.classList.add("disabled");
     }
+  }
+
+  const resetModesBtn = document.getElementById("resetModesButton");
+  if (resetModesBtn) {
+    resetModesBtn.disabled = !isEnabled;
+    resetModesBtn.classList.toggle("pointer-events-none", !isEnabled);
+    resetModesBtn.classList.toggle("opacity-40", !isEnabled);
   }
 
   // Disable/enable mode buttons
@@ -2153,11 +2454,9 @@ function renderResults() {
             <h3 class="font-semibold text-base">${titleText}</h3>
           </div>
           <button type="button" id="${toggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
-            ${
-              stepsExpanded ? "Hide" : "Show"
-            } steps <span class="inline-block ml-1">${
+            <span class="inline-block mr-1">${
               stepsExpanded ? "▲" : "▼"
-            }</span>
+            }</span>${stepsExpanded ? "Hide" : "Show"} steps
           </button>
           <p class="text-sm text-slate-600 mt-1">${bodyText}</p>
         </div>
@@ -2181,8 +2480,8 @@ function renderResults() {
         }
         updateFragment();
         toggleBtn.innerHTML = isHidden
-          ? 'Show steps <span class="inline-block ml-1">▼</span>'
-          : 'Hide steps <span class="inline-block ml-1">▲</span>';
+          ? '<span class="inline-block mr-1">▼</span>Show steps'
+          : '<span class="inline-block mr-1">▲</span>Hide steps';
       });
     }
     resultsEl.appendChild(card);
@@ -2247,11 +2546,9 @@ function renderResults() {
             <h3 class="font-semibold text-base">${recommendation.title}</h3>
           </div>
           <button type="button" id="${toggleId}" class="absolute top-3 right-3 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors" aria-label="Toggle steps">
-            ${
-              stepsExpanded ? "Hide" : "Show"
-            } steps <span class="inline-block ml-1">${
+            <span class="inline-block mr-1">${
               stepsExpanded ? "▲" : "▼"
-            }</span>
+            }</span>${stepsExpanded ? "Hide" : "Show"} steps
           </button>
           <p class="text-sm text-slate-600 mt-1">${
             recommendation.body || recommendation.title
@@ -2299,13 +2596,9 @@ function renderResults() {
             expandedStrategies.add(strategyId);
           }
           updateFragment();
-          const arrow = toggleBtn.querySelector("span span");
-          if (arrow) {
-            arrow.textContent = isHidden ? "▼" : "▲";
-          }
           toggleBtn.innerHTML = isHidden
-            ? 'Show steps <span class="inline-block ml-1">▼</span>'
-            : 'Hide steps <span class="inline-block ml-1">▲</span>';
+            ? '<span class="inline-block mr-1">▼</span>Show steps'
+            : '<span class="inline-block mr-1">▲</span>Hide steps';
         });
       }
     } else {
@@ -3693,7 +3986,8 @@ async function init() {
   if (
     initialHash &&
     !initialHash.startsWith("/visit") &&
-    !initialHash.startsWith("/data")
+    !initialHash.startsWith("/data") &&
+    !initialHash.startsWith("/modes")
   ) {
     // If hash exists but doesn't start with /visit or /data, migrate it
     if (initialHash.includes("=")) {
@@ -3885,7 +4179,10 @@ async function init() {
 
   if (isDataRoute()) {
     renderDataView();
+  } else if (isModesRoute()) {
+    renderModesView();
   } else {
+    hideModesView();
     hideDataView();
   }
 }
@@ -4023,6 +4320,33 @@ if (resetModesButton) {
     resetModes();
   });
 }
+
+const modesExplainModal = document.getElementById("modesExplainModal");
+const openModesExplainModalBtn = document.getElementById(
+  "openModesExplainModal",
+);
+if (openModesExplainModalBtn) {
+  openModesExplainModalBtn.addEventListener("click", () => {
+    openModesExplainModal();
+  });
+}
+document
+  .getElementById("modesExplainModalClose")
+  ?.addEventListener("click", () => {
+    closeModesExplainModal();
+  });
+if (modesExplainModal) {
+  modesExplainModal.addEventListener("click", (e) => {
+    if (e.target === modesExplainModal) closeModesExplainModal();
+  });
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (modesExplainModal && !modesExplainModal.classList.contains("hidden")) {
+    e.preventDefault();
+    closeModesExplainModal();
+  }
+});
 
 // Attach mode button event listeners
 document.querySelectorAll(".modeBtn").forEach((btn) => {

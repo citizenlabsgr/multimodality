@@ -1375,3 +1375,56 @@ test.describe("Data routes", () => {
     await expect(page.locator("#dataViewMap")).toBeVisible();
   });
 });
+
+test.describe("Modes explain modal", () => {
+  test("opens full-page modal from visit page and closes with Escape", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+    await page.getByRole("button", { name: "Explain modes" }).click();
+    await page.waitForTimeout(600);
+
+    await expect(page.locator("#modesExplainModal")).toBeVisible();
+    await expect(page.locator("#modes-modal-map-drive")).toBeVisible();
+    await expect(
+      page.locator("#modesExplainModalSections h3").first(),
+    ).toBeVisible();
+
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    await expect(page.locator("#modesExplainModal")).toBeHidden();
+  });
+});
+
+test.describe("Modes route", () => {
+  test("should show mode explainers and maps at #/modes", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+    await page.goto("/#/modes");
+    await page.waitForTimeout(600);
+
+    await expect(page.locator("#modesView")).toBeVisible();
+    await expect(page.locator("#appView")).toBeHidden();
+    await expect(page.locator("#modesPageSections")).toBeVisible();
+    await expect(page.locator("#modes-page-map-drive")).toBeVisible();
+    await expect(page.locator("#modes-page-map-shuttle")).toBeVisible();
+    await expect(page.locator("#modes-page-map-transit")).toBeVisible();
+    await expect(page.locator("#modes-page-map-rideshare")).toHaveCount(0);
+    await expect(page.locator(".leaflet-container")).toHaveCount(5);
+
+    const headings = await page
+      .locator("#modesPageSections h3")
+      .allTextContents();
+    const dashIdx = headings.findIndex((t) => t.includes("DASH"));
+    const rapidIdx = headings.findIndex((t) => t.includes("Rapid"));
+    expect(dashIdx).toBeGreaterThan(-1);
+    expect(rapidIdx).toBeGreaterThan(-1);
+    expect(dashIdx).toBeLessThan(rapidIdx);
+
+    await page.locator("#modesPageBackLink").click();
+    await page.waitForTimeout(200);
+    await expect(page.locator("#appView")).toBeVisible();
+    await expect(page.locator("#modesView")).toBeHidden();
+  });
+});

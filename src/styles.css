@@ -4,12 +4,13 @@
   color: rgb(15 23 42); /* slate-900 */
 }
 
-#preferencesSection.disabled {
+/* Mode buttons and sliders; Explain modes sits in #preferencesSection header, outside controls */
+#preferencesSectionControls.disabled {
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;
 }
-#preferencesSection.disabled * {
+#preferencesSectionControls.disabled * {
   pointer-events: none;
   cursor: not-allowed;
 }
@@ -76,6 +77,15 @@
 main.data-view-active {
   max-width: 72rem;
 }
+/* Modes explainer page: one Leaflet map per mode */
+.modes-page-map {
+  height: 14rem;
+}
+
+body.modes-explain-modal-open {
+  overflow: hidden;
+}
+
 #dataView pre {
   font-size: 0.8125rem;
   max-height: 85vh;
