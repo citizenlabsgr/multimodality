@@ -2710,10 +2710,14 @@ function renderResults() {
     return;
   }
 
-  const { primary, alternate } = buildRecommendation();
+  const {
+    primary,
+    alternate,
+    emptyRecommendationPool = false,
+  } = buildRecommendation();
 
   // Build array of strategies so we can number them and support more than 2 later
-  const strategies = [primary, alternate].filter(Boolean);
+  let strategies = [primary, alternate].filter(Boolean);
   const slug = getDestinationSlug(state.destination);
   const handCraftedAll = appData?.handCraftedRecommendations?.[slug] || [];
   const handCrafted = handCraftedAll.filter(handCraftedRecFits);
@@ -2723,6 +2727,17 @@ function renderResults() {
       0,
     );
   handCrafted.sort((a, b) => handCraftedTotalCost(a) - handCraftedTotalCost(b));
+  if (emptyRecommendationPool && handCrafted.length > 0) {
+    strategies = [];
+  }
+  if (strategies.length === 0 && handCrafted.length === 0) {
+    const ph = buildRecommendationPlaceholders();
+    const emergency = processRecommendationData(
+      { ...GENERIC_NO_SUGGESTIONS_FALLBACK_REC },
+      ph,
+    );
+    if (emergency) strategies = [emergency];
+  }
   if (strategies.length === 0 && handCrafted.length === 0) return;
 
   // Render hand-crafted recommendations first when they fit preferences.
@@ -3348,7 +3363,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     modeKey: "transit+shuttle",
     variantKey: "noCost",
     title: "No options available",
-    body: "The Rapid fare is $1.75. Consider adjusting your budget to see recommendations.",
+    body: "The Rapid charges a fare each way. Raise your willing-to-pay to see recommendations, or add another mode.",
     metadata: {
       requiredModes: ["transit", "shuttle"],
       minCost: 2,
@@ -3371,7 +3386,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     modeKey: "transit",
     variantKey: "noCost",
     title: "No options available",
-    body: "The Rapid fare is $1.75. Consider adjusting your budget to see recommendations.",
+    body: "The Rapid charges a fare each way. Raise your willing-to-pay to see recommendations, or add another mode.",
     metadata: {
       requiredModes: ["transit"],
       minCost: 2,
@@ -3394,7 +3409,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     modeKey: "rideshare",
     variantKey: "noCost",
     title: "No options available",
-    body: "Rideshare services typically cost at least $20 (to account for return trip). Prices are often higher on weekends and during events due to surge pricing. Consider adjusting your budget to see recommendations.",
+    body: "Round-trip rideshare usually needs more budget than a single ride. Demand pricing can spike near events—raise willing-to-pay or add another mode.",
     metadata: {
       requiredModes: ["rideshare"],
       minCost: 10,
@@ -3405,7 +3420,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     modeKey: "micromobility",
     variantKey: "noCost",
     title: "No options available",
-    body: "Lime is paid in the app; plan for both directions (about $4 each way, roughly $8 round trip). Raise your willing-to-pay to see a recommendation with a map pin, or add another mode.",
+    body: "Lime charges per ride in the app, and you should budget for both directions. Raise your willing-to-pay to see a map pin, or add another mode.",
     metadata: {
       requiredModes: ["micromobility"],
       minCost: 4,
@@ -3424,7 +3439,29 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
       priority: 60,
     },
   },
+  {
+    modeKey: "bike",
+    variantKey: "noRackInWalkRange",
+    title: "No options available",
+    body: "No bike rack in our data sits within the walk you're willing to do from the venue. Try a longer walk allowance or another mode to see a map pin.",
+    metadata: {
+      requiredModes: ["bike"],
+      minCost: 0,
+      priority: 58,
+    },
+  },
 ];
+
+/** Shown when every automated strategy is filtered out (no matching rows in the pool). */
+const GENERIC_NO_SUGGESTIONS_FALLBACK_REC = {
+  title: "No options available",
+  body: "Nothing in our data matches these preferences. Try relaxing a setting or adding another mode.",
+  isNoOptions: true,
+  modeKey: "generic",
+  variantKey: "noSuggestionsFallback",
+  metadata: { priority: 1 },
+  _metadata: { priority: 1 },
+};
 
 function buildSyntheticNoOptionsRecommendations() {
   return SYNTHETIC_NO_OPTIONS_RECIPES.map(
@@ -3514,11 +3551,11 @@ function buildParkingBasedDriveRecommendations(state) {
 
       let title;
       if (id === "meters") {
-        title = "Park at metered street parking";
+        title = "Metered parking";
       } else if (id === "lots") {
-        title = "Park at affordable surface lot and walk";
+        title = "Lot parking";
       } else {
-        title = "Park at parking garage";
+        title = "Garage parking";
       }
 
       const walkLabel =
@@ -3527,7 +3564,8 @@ function buildParkingBasedDriveRecommendations(state) {
         costRange.min === costRange.max
           ? `about $${costRange.min}`
           : `$${costRange.min}–$${costRange.max}`;
-      const body = `${itemLabel} is ~${walkLabel} from ${destName}. Typical cost: ${costLabel}.${pricingNote ? " " + pricingNote : ""}`;
+      const body =
+        "We pick a garage, surface lot, or metered block from our data near this venue, then you walk in. Open steps for the map pin, address, and on-site details.";
 
       const parkingItemKey = `${id}-${i}-${slugifyParkingItemKey(itemLabel)}`;
 
@@ -3539,12 +3577,13 @@ function buildParkingBasedDriveRecommendations(state) {
         priority,
       };
 
+      const parkingDetailLine = `${itemLabel} is ~${walkLabel} from ${destName}. Typical cost: ${costLabel}.${pricingNote ? " " + pricingNote : ""}`;
       const steps = [
         {
           title: `Park at ${itemLabel}`,
           description: item.address
-            ? `${item.address}. ${pricingNote || "Confirm current rates on site."}`
-            : `${pricingNote || "Confirm rates and hours before you park."}`,
+            ? `${parkingDetailLine} ${item.address}`
+            : `${parkingDetailLine} Confirm rates and hours before you park.`,
           link,
         },
         {
@@ -3587,7 +3626,7 @@ function buildParkingBasedDriveRecommendations(state) {
       conditions: { parkingEnforced: false },
     };
     out.push({
-      title: "Find free street parking",
+      title: "Free street parking",
       body: weekend
         ? "Spend 20 minutes in traffic circling the area to find street parking. Meters are not enforced on the weekend."
         : "Spend 20 minutes in traffic circling the area to find street parking. Meters are not enforced outside weekday enforcement hours.",
@@ -3696,6 +3735,20 @@ function matchesCost(rec, costDollars, state) {
       }
       return true;
     }
+  }
+
+  if (
+    rec.isNoOptions &&
+    rec.modeKey === "bike" &&
+    rec.variantKey === "noRackInWalkRange"
+  ) {
+    const modes = state.modes || [];
+    if (modes.length !== 1 || modes[0] !== "bike") return false;
+    const walkBudget = state.walkMiles ?? 0;
+    const nearest = getNearestBikeRackDistanceMiles(state);
+    if (nearest !== null && nearest <= walkBudget + 1e-9) return false;
+    if (nearest === null && walkBudget > 1e-9) return false;
+    return true;
   }
 
   // For drive mode, handle parking enforcement logic
@@ -3952,6 +4005,43 @@ function calculateScore(rec, state) {
   return score;
 }
 
+/** Nearest bike rack pin to the selected destination, or null if none in data. */
+function findNearestBikeRackToDestination(state) {
+  if (!appData?.parking?.racks || !state?.destination) return null;
+  const dest = appData.destinations?.find(
+    (d) => d.name === state.destination || d.slug === state.destination,
+  );
+  const vLat = dest?.latitude;
+  const vLng = dest?.longitude;
+  if (typeof vLat !== "number" || typeof vLng !== "number") return null;
+  const racks = appData.parking.racks;
+  if (!Array.isArray(racks) || racks.length === 0) return null;
+  let best = null;
+  let bestD = Infinity;
+  for (const item of racks) {
+    const loc = item?.location;
+    if (
+      !loc ||
+      typeof loc.latitude !== "number" ||
+      typeof loc.longitude !== "number"
+    ) {
+      continue;
+    }
+    const d = haversineMiles(loc.latitude, loc.longitude, vLat, vLng);
+    if (d < bestD) {
+      bestD = d;
+      best = item;
+    }
+  }
+  if (!best || bestD === Infinity) return null;
+  return { item: best, miles: bestD };
+}
+
+function getNearestBikeRackDistanceMiles(state) {
+  const hit = findNearestBikeRackToDestination(state);
+  return hit ? hit.miles : null;
+}
+
 /** Bike strategy: nearest rack from parking data (or Maps search fallback) with a map link. */
 function buildBikeRackRecommendation(state) {
   if (!state?.modes?.includes("bike") || !appData?.parking) return [];
@@ -3960,42 +4050,27 @@ function buildBikeRackRecommendation(state) {
     (d) => d.name === state.destination || d.slug === state.destination,
   );
   const destName = dest?.name || state.destination || "the venue";
-  const vLat = dest?.latitude;
-  const vLng = dest?.longitude;
+  const walkBudget = state.walkMiles ?? 0;
 
-  const racks = appData.parking.racks;
   let link = null;
   let rackLabel = "the nearest bike rack";
-  let rackToVenueMi = null;
+  const nearestRack = findNearestBikeRackToDestination(state);
+  const rackToVenueMi = nearestRack ? nearestRack.miles : null;
 
-  if (
-    Array.isArray(racks) &&
-    racks.length > 0 &&
-    typeof vLat === "number" &&
-    typeof vLng === "number"
-  ) {
-    let best = null;
-    let bestD = Infinity;
-    for (const item of racks) {
-      const loc = item?.location;
-      if (
-        !loc ||
-        typeof loc.latitude !== "number" ||
-        typeof loc.longitude !== "number"
-      ) {
-        continue;
-      }
-      const d = haversineMiles(loc.latitude, loc.longitude, vLat, vLng);
-      if (d < bestD) {
-        bestD = d;
-        best = item;
-      }
-    }
-    if (best?.location) {
-      link = googleMapsPinUrl(best.location.latitude, best.location.longitude);
-      rackLabel = (best.name && String(best.name).trim()) || "this bike rack";
-      rackToVenueMi = bestD;
-    }
+  if (rackToVenueMi !== null && rackToVenueMi > walkBudget + 1e-9) {
+    return [];
+  }
+
+  if (rackToVenueMi === null && walkBudget <= 1e-9) {
+    return [];
+  }
+
+  if (nearestRack?.item?.location) {
+    const loc = nearestRack.item.location;
+    link = googleMapsPinUrl(loc.latitude, loc.longitude);
+    rackLabel =
+      (nearestRack.item.name && String(nearestRack.item.name).trim()) ||
+      "this bike rack";
   }
 
   if (!link) {
@@ -4017,11 +4092,14 @@ function buildBikeRackRecommendation(state) {
     minCost: 0,
     priority: 70,
   };
+  if (typeof rackToVenueMi === "number") {
+    meta.minWalkMiles = rackToVenueMi;
+  }
 
   const body =
     typeof rackToVenueMi === "number"
-      ? `Lock up at ${rackLabel} (${rackToVenueMi.toFixed(2)} mi from ${destName}), then walk the rest.`
-      : `Find a bike rack near ${destName}, ride in, and walk the final stretch.`;
+      ? "Rack at the pin from our data, then walk the rest of the way. Open steps for the map link and specifics."
+      : "Find a public rack near the venue, ride in, and walk the last stretch. Open steps for the map search and specifics.";
 
   return [
     {
@@ -4187,12 +4265,10 @@ function buildMicromobilityLimeHubRecommendation(state) {
   if (itemsWithDist.length === 0) return [];
 
   let pool = itemsWithDist.filter(({ d }) => d <= maxWalkToVenue + 1e-9);
-  let walkRangeNote = "";
   let poolWasFallback = false;
   if (pool.length === 0) {
     poolWasFallback = true;
     pool = itemsWithDist;
-    walkRangeNote = ` None of our pins fall within about ${maxWalkToVenue.toFixed(2)} mi of ${destName} (your walk limit or ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi, whichever is less)—consider adjusting, or treat distances as approximate.`;
   }
 
   pool.sort((a, b) => a.d - b.d);
@@ -4206,8 +4282,8 @@ function buildMicromobilityLimeHubRecommendation(state) {
   };
 
   const primary = {
-    title: "Ride Lime from farther parking in your range",
-    body: `Among Lime pins within about ${maxWalkToVenue.toFixed(2)} mi walk of ${destName} (capped at ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi), the farthest is about ${farthest.d.toFixed(2)} mi away (straight line)—often better odds than right at the entrance.${walkRangeNote}`,
+    title: "Use Lime and walk a short distance",
+    body: "Rent a Lime scooter or bike to speed up your travel time. Park it in a designated spot and walk a short distance.",
     badge: "On-demand",
     modeKey: "micromobility",
     variantKey: "farthestLimeHub",
@@ -4230,8 +4306,8 @@ function buildMicromobilityLimeHubRecommendation(state) {
   );
   if (showClosestAlternate) {
     primary.alternate = {
-      title: "Closest Lime parking (may be full)",
-      body: `About ${closest.d.toFixed(2)} mi on foot from this pin to ${destName}—the shortest option in our data. Busy areas often run low on vehicles or feel crowded; check the Lime app before you count on this spot.`,
+      title: "Use Lime and minimize walking",
+      body: "The closest pin in our data is your shortest walk, but it can be crowded. Open steps for the map pin and specifics.",
       badge: "Caution",
       modeKey: "micromobility",
       variantKey: "closestLimeHub",
@@ -4253,6 +4329,17 @@ function buildMicromobilityLimeHubRecommendation(state) {
   return [primary];
 }
 
+function buildRecommendationPlaceholders() {
+  const walkMiles = state?.walkMiles ?? 0;
+  return {
+    walkMiles: walkMiles.toFixed(1),
+    destination: state?.destination ?? "",
+    destinationEncoded: encodeURIComponent(
+      (state?.destination || "") + ", Grand Rapids, MI",
+    ),
+  };
+}
+
 function buildRecommendation() {
   // Guard against state not being initialized
   if (!state) return { primary: null, alternate: null };
@@ -4261,14 +4348,7 @@ function buildRecommendation() {
 
   if (!modes || modes.length === 0) return { primary: null, alternate: null };
 
-  // Prepare placeholder values
-  const placeholders = {
-    walkMiles: walkMiles.toFixed(1),
-    destination: state.destination,
-    destinationEncoded: encodeURIComponent(
-      state.destination + ", Grand Rapids, MI",
-    ),
-  };
+  const placeholders = buildRecommendationPlaceholders();
 
   const limeHubRecs = buildMicromobilityLimeHubRecommendation(state);
   const staticRecsRaw = getAllRecommendationsForDestination(state.destination);
@@ -4297,6 +4377,18 @@ function buildRecommendation() {
       matchesCost(rec, costDollars, state)
     );
   });
+
+  if (filtered.length === 0) {
+    const primary = processRecommendationData(
+      { ...GENERIC_NO_SUGGESTIONS_FALLBACK_REC },
+      placeholders,
+    );
+    return {
+      primary,
+      alternate: null,
+      emptyRecommendationPool: true,
+    };
+  }
 
   // Calculate scores and sort
   const scored = filtered.map((rec) => ({
@@ -4341,13 +4433,29 @@ function buildRecommendation() {
     primaryScored = scored.find((s) => !s.rec.isNoOptions && s.score > 0);
   }
   if (!primaryScored) {
-    return { primary: null, alternate: null };
+    const primary = processRecommendationData(
+      { ...GENERIC_NO_SUGGESTIONS_FALLBACK_REC },
+      placeholders,
+    );
+    return {
+      primary,
+      alternate: null,
+      emptyRecommendationPool: true,
+    };
   }
 
   // Process primary recommendation
   let primary = processRecommendationData(primaryScored.rec, placeholders);
   if (!primary) {
-    return { primary: null, alternate: null };
+    const fallbackPrimary = processRecommendationData(
+      { ...GENERIC_NO_SUGGESTIONS_FALLBACK_REC },
+      placeholders,
+    );
+    return {
+      primary: fallbackPrimary,
+      alternate: null,
+      emptyRecommendationPool: true,
+    };
   }
 
   // Handle alternate recommendation
@@ -4420,7 +4528,7 @@ function buildRecommendation() {
     }
   }
 
-  return { primary, alternate };
+  return { primary, alternate, emptyRecommendationPool: false };
 }
 
 // Initialize application

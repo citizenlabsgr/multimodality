@@ -6,7 +6,10 @@ function resultsIncludePaidStructuredParking(text) {
   return (
     text.includes("affordable surface lot") ||
     text.includes("parking garage") ||
-    text.includes("metered street parking")
+    text.includes("metered street parking") ||
+    text.includes("Garage parking") ||
+    text.includes("Metered parking") ||
+    text.includes("Lot parking")
   );
 }
 
@@ -299,6 +302,88 @@ test.describe("Visit page strategy cards gating", () => {
   });
 });
 
+test.describe("Empty recommendation pool (generic red fallback)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("shows generic red card when transit-only and no automated strategy matches", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=saturday&time=700&modes=transit&walk=1.5&pay=20",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results.locator(".border-red-200").first()).toBeVisible();
+    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("No options available");
+    await expect(results).toContainText("Nothing in our data matches");
+  });
+
+  test("does not show generic fallback copy when a hand-crafted strategy fits", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=drive&walk=1&pay=40",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results).toContainText("Ideal Strategy");
+    await expect(results).not.toContainText("Nothing in our data matches");
+  });
+});
+
+test.describe("Strategy card summaries (collapsed)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("drive recommendation summary omits prices and mile distances", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=saturday&time=700&modes=drive&walk=1&pay=20",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const recCard = page
+      .locator("#results > div")
+      .filter({ hasText: "Recommended Strategy" })
+      .first();
+    const summary = recCard.locator("p.text-slate-600").first();
+    await expect(summary).not.toContainText("Typical cost");
+    await expect(summary).not.toContainText(" mi");
+    await expect(summary).not.toContainText("$");
+  });
+
+  test("micromobility Lime primary summary omits numeric mile callouts", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const summary = page
+      .locator(".border-green-200")
+      .first()
+      .locator("p.text-slate-600")
+      .first();
+    const text = (await summary.textContent()) || "";
+    expect(text).not.toMatch(/\d+\.\d+\s*mi\b/i);
+    await expect(summary).toContainText("Rent a Lime scooter or bike");
+  });
+});
+
 test.describe("Rideshare round-trip budget", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
@@ -329,7 +414,7 @@ test.describe("Rideshare round-trip budget", () => {
 
     const results = page.locator("#results");
     await expect(results).toContainText("Recommended Strategy");
-    await expect(results).toContainText("Request a rideshare");
+    await expect(results).toContainText("Rideshare");
     await expect(results).not.toContainText("Unknown Strategy");
   });
 });
@@ -338,6 +423,36 @@ test.describe("Bike-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
+  });
+
+  test("bike-only with walk=0 shows red card when no rack at the venue", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=bike&walk=0",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results.locator(".border-red-200").first()).toBeVisible();
+    await expect(results).toContainText("No options available");
+    await expect(results).not.toContainText("Bike to the venue");
+  });
+
+  test("bike-only with walk=0.1 shows red card when no rack within that distance", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=bike&walk=0.1",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results.locator(".border-red-200").first()).toBeVisible();
+    await expect(results).toContainText("No options available");
+    await expect(results).not.toContainText("Bike to the venue");
   });
 
   test("shows green recommended strategy with map link to nearest rack", async ({
@@ -421,10 +536,8 @@ test.describe("Micromobility-only recommendations", () => {
 
     const results = page.locator("#results");
     await expect(results).toContainText("Recommended Strategy");
-    await expect(results).toContainText(
-      "Ride Lime from farther parking in your range",
-    );
-    await expect(results).toContainText("Closest Lime parking (may be full)");
+    await expect(results).toContainText("Use Lime and walk a short distance");
+    await expect(results).toContainText("Use Lime and minimize walking");
     await expect(results).not.toContainText(
       "Find and ride a Lime scooter or bike",
     );
@@ -462,9 +575,7 @@ test.describe("Micromobility-only recommendations", () => {
 
     const results = page.locator("#results");
     await expect(results).toContainText("Hide steps");
-    await expect(results).toContainText(
-      "Ride Lime from farther parking in your range",
-    );
+    await expect(results).toContainText("Use Lime and walk a short distance");
     const firstStepsDiv = results.locator("[id^='steps-']").first();
     await expect(firstStepsDiv).not.toHaveClass(/hidden/);
     await expect(
@@ -493,9 +604,9 @@ test.describe("Micromobility-only recommendations", () => {
     const results = page.locator("#results");
     await expect(results.locator(".border-red-200").first()).toBeVisible();
     await expect(results).toContainText("No options available");
-    await expect(results).toContainText("$8");
+    await expect(results).toContainText("Lime charges per ride in the app");
     await expect(results).not.toContainText(
-      "Ride Lime from farther parking in your range",
+      "Use Lime and walk a short distance",
     );
   });
 });
@@ -680,7 +791,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
       if (!state || state.costDollars !== 39) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
     await expect(page.locator("#results")).not.toContainText(
       "Rideshare to the venue",
     );
@@ -693,7 +804,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
       if (!state || state.costDollars !== 40) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
     await expect(page.locator("#results")).toContainText("Ideal Strategy");
     await expect(page.locator("#results")).toContainText(
       "Rideshare to the venue",
@@ -760,7 +871,7 @@ test.describe("Parking Enforcement Logic", () => {
 
     // Check that the recommendation is for paid parking (garage or lot) since user is willing to pay $10
     const resultsText = await page.locator("#results").textContent();
-    expect(resultsText).toContain("parking garage");
+    expect(resultsIncludePaidStructuredParking(resultsText)).toBe(true);
   });
 
   test("should recommend paid parking when arriving on weekend with low budget", async ({
@@ -777,9 +888,9 @@ test.describe("Parking Enforcement Logic", () => {
     const resultsText = await page.locator("#results").textContent();
     expect(resultsText).not.toContain("No options available");
     expect(
-      resultsText.includes("parking garage") ||
+      resultsIncludePaidStructuredParking(resultsText) ||
         resultsText.includes("free street") ||
-        resultsText.includes("parking"),
+        resultsText.includes("Free street parking"),
     ).toBe(true);
   });
 
@@ -831,7 +942,7 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
     // Check that the recommendation shows "Unknown Strategy"
     await expect(results).toContainText("Unknown Strategy");
@@ -860,7 +971,7 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
     await expect(results).toContainText("Unknown Strategy");
     await expect(results).toContainText("not willing to pay for parking");
@@ -886,7 +997,7 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
     const resultsText = await results.textContent();
     expect(resultsText).not.toMatch(/\$2[–-]\$5[0-9]/);
@@ -913,11 +1024,11 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
     const resultsText = await results.textContent();
     expect(resultsText).toContain("Recommended Strategy");
-    expect(resultsText).toContain("parking garage");
+    expect(resultsIncludePaidStructuredParking(resultsText)).toBe(true);
   });
 
   test("should recommend paid parking when arriving after 7pm on weekday and unwilling to pay", async ({
@@ -935,9 +1046,9 @@ test.describe("Parking Enforcement Logic", () => {
     const resultsText = await page.locator("#results").textContent();
     expect(resultsText).not.toContain("No options available");
     expect(
-      resultsText.includes("parking garage") ||
+      resultsIncludePaidStructuredParking(resultsText) ||
         resultsText.includes("free street") ||
-        resultsText.includes("parking"),
+        resultsText.includes("Free street parking"),
     ).toBe(true);
   });
 
@@ -955,9 +1066,9 @@ test.describe("Parking Enforcement Logic", () => {
     const resultsText = await page.locator("#results").textContent();
     expect(resultsText).not.toContain("No options available");
     expect(
-      resultsText.includes("parking garage") ||
+      resultsIncludePaidStructuredParking(resultsText) ||
         resultsText.includes("free street") ||
-        resultsText.includes("parking"),
+        resultsText.includes("Free street parking"),
     ).toBe(true);
   });
 
@@ -974,11 +1085,10 @@ test.describe("Parking Enforcement Logic", () => {
     const resultsText = await page.locator("#results").textContent();
     expect(resultsText).not.toContain("No options available");
     expect(
-      resultsText.includes("parking garage") ||
-        resultsText.includes("affordable surface lot") ||
-        resultsText.includes("metered") ||
+      resultsIncludePaidStructuredParking(resultsText) ||
+        resultsText.toLowerCase().includes("metered") ||
         resultsText.includes("free street") ||
-        resultsText.includes("parking"),
+        resultsText.includes("Free street parking"),
     ).toBe(true);
   });
 
@@ -1056,7 +1166,7 @@ test.describe("Parking Enforcement Logic", () => {
       if (!state || state.time !== "19:00") {
         throw new Error(`State.time not set: ${state?.time}`);
       }
-    }).toPass({ timeout: 5000 });
+    }).toPass({ timeout: 2500 });
 
     // Card should be expanded (content visible, minimized view hidden)
     const whereWhenContent = page.locator("#whereWhenContent");
@@ -1176,7 +1286,7 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
     // Check that the recommendation shows "Unknown Strategy" / "No options available"
     const results = page.locator("#results");
@@ -1207,16 +1317,18 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
     const results = page.locator("#results");
     const resultsText = await results.textContent();
     // Garages use event-tier pricing; short walk + mid budget may rank metered ahead of ramps
     expect(
-      resultsText.includes("parking garage") ||
+      resultsText.includes("Garage parking") ||
+        resultsText.includes("parking garage") ||
+        resultsText.includes("Metered parking") ||
         resultsText.includes("metered street parking"),
     ).toBe(true);
-    await expect(results).not.toContainText("surface lot");
+    await expect(results).not.toContainText("Lot parking");
     await expect(results).not.toContainText("affordable surface lot");
   });
 
@@ -1244,15 +1356,18 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 7000 });
+    }).toPass({ timeout: 2500 });
 
-    // Check that the recommendation is for rideshare, not drive
+    // Primary recommendation should be rideshare, not a drive-parking card
     const results = page.locator("#results");
     const resultsText = await results.textContent();
-    expect(resultsText).toContain("rideshare");
+    expect(resultsText.toLowerCase()).toContain("rideshare");
     expect(resultsText).toContain("Uber");
-    expect(resultsText).not.toContain("parking");
-    expect(resultsText).not.toContain("Park at");
+    const primaryCard = results
+      .locator("> div")
+      .filter({ hasText: "Recommended Strategy" })
+      .first();
+    await expect(primaryCard.locator("h3")).toContainText(/Rideshare/i);
   });
 
   test("should show options when drive+transit combination doesn't work but other modes are available", async ({
@@ -1279,7 +1394,7 @@ test.describe("Parking Enforcement Logic", () => {
       ) {
         throw new Error(`State not initialized: ${JSON.stringify(state)}`);
       }
-    }).toPass({ timeout: 10000 });
+    }).toPass({ timeout: 2500 });
 
     // Wait for results to render
     const results = page.locator("#results");
@@ -1288,7 +1403,7 @@ test.describe("Parking Enforcement Logic", () => {
 
     // Check that options are shown (should fall back to rideshare since drive+transit doesn't work with walk=0)
     const resultsText = await results.textContent();
-    expect(resultsText).toContain("rideshare");
+    expect(resultsText.toLowerCase()).toContain("rideshare");
     expect(resultsText).toContain("Uber");
     expect(resultsText).not.toContain("No options available");
     expect(resultsText).not.toContain("Unknown Strategy");
@@ -1296,13 +1411,24 @@ test.describe("Parking Enforcement Logic", () => {
 });
 
 test.describe("Data routes", () => {
+  async function waitForAppDataLoaded(page) {
+    await page.waitForFunction(
+      () =>
+        typeof window.appData !== "undefined" &&
+        window.appData &&
+        window.appData.parking &&
+        Array.isArray(window.appData.parking.garages),
+    );
+  }
+
   test("should show parking data and dataset dropdown at #/data/parking", async ({
     page,
   }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
+    await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
-    await page.waitForTimeout(500);
+    await page.waitForSelector("#data-parking-dataset", { state: "visible" });
 
     await expect(page.locator("#dataView")).toBeVisible();
     await expect(page.locator("#dataViewParkingModes")).toBeVisible();
@@ -1320,8 +1446,9 @@ test.describe("Data routes", () => {
   }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
+    await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
-    await page.waitForTimeout(500);
+    await page.waitForSelector("#data-parking-dataset", { state: "visible" });
 
     await expect(page.locator("#dataViewParkingModes")).toBeVisible();
     const driveBtn = page.locator('.data-parking-mode-btn[data-mode="drive"]');
@@ -1348,8 +1475,9 @@ test.describe("Data routes", () => {
   }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
+    await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
-    await page.waitForTimeout(500);
+    await page.waitForSelector("#data-parking-dataset", { state: "visible" });
 
     const dropdown = page.locator("#data-parking-dataset");
     await expect(dropdown).toBeVisible();
@@ -1367,8 +1495,11 @@ test.describe("Data routes", () => {
   }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
+    await waitForAppDataLoaded(page);
     await page.goto("/#/data/strategies");
-    await page.waitForTimeout(500);
+    await page.waitForSelector("#dataViewStrategiesFilters", {
+      state: "visible",
+    });
 
     await expect(page.locator("#dataView")).toBeVisible();
     await expect(page.locator("#dataViewStrategiesFilters")).toBeVisible();

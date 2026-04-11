@@ -1,7 +1,7 @@
 {
   "drive+shuttle": {
     "default": {
-      "title": "Park farther, use DASH for last mile",
+      "title": "Park & DASH",
       "body": "Park in a less crowded area and take the free DASH shuttle to get closer to your destination.",
       "badge": "Time saver",
       "_metadata": {
@@ -24,7 +24,7 @@
   },
   "drive+micromobility": {
     "default": {
-      "title": "Park farther, use Lime for last mile",
+      "title": "Park & Lime",
       "body": "Park in a less crowded area and use a Lime scooter or bike for the final stretch.",
       "badge": "Flexible",
       "_metadata": {
@@ -47,7 +47,7 @@
   },
   "rideshare": {
     "default": {
-      "title": "Request a rideshare to your destination",
+      "title": "Rideshare",
       "body": "Request an Uber or Lyft and get dropped off at your destination.",
       "badge": "Door-to-door",
       "_metadata": {
@@ -69,7 +69,7 @@
   },
   "micromobility": {
     "default": {
-      "title": "Find and ride a Lime scooter or bike",
+      "title": "Lime ride",
       "body": "Open the Lime app and find the nearest available scooter or bike. Unlock it and ride directly to your destination.",
       "badge": "On-demand",
       "_metadata": {
@@ -91,7 +91,7 @@
   },
   "shuttle": {
     "default": {
-      "title": "Take the DASH shuttle",
+      "title": "DASH shuttle",
       "body": "Use the free DASH downtown shuttle to get closer to your destination, then walk the remaining distance.",
       "badge": "Free",
       "_metadata": {
