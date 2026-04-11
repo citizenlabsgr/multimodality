@@ -98,6 +98,11 @@ const FALLBACK_DATA = {
 /** Official rider app flows (download / open app on mobile). */
 const UBER_APP_PAGE_URL = "https://m.uber.com/go/download";
 const LYFT_APP_PAGE_URL = "https://lyft.com/app";
+/** Consumer site for the Transit app (The Rapid + real-time). */
+const TRANSIT_APP_PAGE_URL = "https://transitapp.com/";
+
+/** The Rapid standard adult cash fare (one way); round trip = 2× for budgeting. */
+const TRANSIT_STANDARD_ONE_WAY_FARE = 1.75;
 
 function attachRideshareAppLinksToBuiltInRecommendations(recs) {
   const step0 = recs?.rideshare?.default?.steps?.[0];
@@ -3366,7 +3371,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     body: "The Rapid charges a fare each way. Raise your willing-to-pay to see recommendations, or add another mode.",
     metadata: {
       requiredModes: ["transit", "shuttle"],
-      minCost: 2,
+      minCost: TRANSIT_STANDARD_ONE_WAY_FARE,
       priority: 80,
     },
   },
@@ -3378,7 +3383,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     metadata: {
       requiredModes: ["transit", "shuttle"],
       minWalkMiles: 0.1,
-      minCost: 2,
+      minCost: TRANSIT_STANDARD_ONE_WAY_FARE,
       priority: 80,
     },
   },
@@ -3389,7 +3394,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     body: "The Rapid charges a fare each way. Raise your willing-to-pay to see recommendations, or add another mode.",
     metadata: {
       requiredModes: ["transit"],
-      minCost: 2,
+      minCost: TRANSIT_STANDARD_ONE_WAY_FARE,
       priority: 70,
     },
   },
@@ -3401,7 +3406,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
     metadata: {
       requiredModes: ["transit"],
       minWalkMiles: 0.1,
-      minCost: 2,
+      minCost: TRANSIT_STANDARD_ONE_WAY_FARE,
       priority: 70,
     },
   },
@@ -4042,6 +4047,106 @@ function getNearestBikeRackDistanceMiles(state) {
   return hit ? hit.miles : null;
 }
 
+/** Closest bus stop to the venue from `data/bus/routes.json` (DASH + The Rapid lines). */
+function findNearestBusStopToDestination(state) {
+  const br = appData?.busRoutes;
+  if (!br || !state?.destination) return null;
+  const dest = appData.destinations?.find(
+    (d) => d.name === state.destination || d.slug === state.destination,
+  );
+  const vLat = dest?.latitude;
+  const vLng = dest?.longitude;
+  if (typeof vLat !== "number" || typeof vLng !== "number") return null;
+
+  let bestStop = null;
+  let bestD = Infinity;
+  for (const key of ["dash_routes", "rapid_routes"]) {
+    const routes = br[key];
+    if (!Array.isArray(routes)) continue;
+    for (const route of routes) {
+      const stops = route.stops;
+      if (!Array.isArray(stops)) continue;
+      for (const s of stops) {
+        if (typeof s.latitude !== "number" || typeof s.longitude !== "number") {
+          continue;
+        }
+        const d = haversineMiles(s.latitude, s.longitude, vLat, vLng);
+        if (d < bestD) {
+          bestD = d;
+          bestStop = s;
+        }
+      }
+    }
+  }
+  if (!bestStop || bestD === Infinity) return null;
+  return { stop: bestStop, miles: bestD };
+}
+
+/**
+ * The Rapid is selected, a stop in our data lies within the user's walk budget,
+ * and willing-to-pay covers a standard round-trip fare — recommend Transit app + venue destination.
+ */
+function buildTransitAppRecommendation(state) {
+  if (!state?.modes?.includes("transit")) return [];
+
+  const hit = findNearestBusStopToDestination(state);
+  const walkBudget = state.walkMiles ?? 0;
+  if (!hit || hit.miles > walkBudget + 1e-9) return [];
+
+  const dest = appData.destinations?.find(
+    (d) => d.name === state.destination || d.slug === state.destination,
+  );
+  const destName = dest?.name || state.destination || "the venue";
+
+  const stopToVenueMi = hit.miles;
+  const pinUrl = googleMapsPinUrl(hit.stop.latitude, hit.stop.longitude);
+
+  const meta = {
+    requiredModes: ["transit"],
+    minCost: TRANSIT_STANDARD_ONE_WAY_FARE,
+    minWalkMiles: stopToVenueMi,
+    priority: 72,
+  };
+
+  const walkPhrase =
+    stopToVenueMi < 0.095
+      ? "a very short walk from that stop to the door."
+      : `about ${stopToVenueMi.toFixed(2)} mi on foot from that stop to the venue.`;
+
+  const stopLabel =
+    hit.stop.name && String(hit.stop.name).trim()
+      ? String(hit.stop.name).trim()
+      : "the nearest stop";
+
+  return [
+    {
+      title: "Take the bus",
+      body: `Our stop data shows ${stopLabel} within your walk range. Budget at least $${(TRANSIT_STANDARD_ONE_WAY_FARE * 2).toFixed(2)} for a round trip on The Rapid.`,
+      badge: "Real-time",
+      modeKey: "transit",
+      variantKey: "transitApp",
+      metadata: meta,
+      _metadata: meta,
+      steps: [
+        {
+          title: "Download the Transit app",
+          description:
+            "Get Transit on your phone for The Rapid routes, live departures, and trip planning in Grand Rapids.",
+          link: TRANSIT_APP_PAGE_URL,
+          linkLabel: "Download the Transit app →",
+        },
+        {
+          title: `Set ${destName} as your destination`,
+          description: `In Transit, plan your trip to the venue (pick any starting address or current location). Get off at a stop that leaves ${walkPhrase}`,
+          ...(pinUrl
+            ? { link: pinUrl, linkLabel: "Nearest stop in Google Maps →" }
+            : {}),
+        },
+      ],
+    },
+  ];
+}
+
 /** Bike strategy: nearest rack from parking data (or Maps search fallback) with a map link. */
 function buildBikeRackRecommendation(state) {
   if (!state?.modes?.includes("bike") || !appData?.parking) return [];
@@ -4359,11 +4464,13 @@ function buildRecommendation() {
         )
       : staticRecsRaw;
   const bikeRackRecs = buildBikeRackRecommendation(state);
+  const transitAppRecs = buildTransitAppRecommendation(state);
   const syntheticNoOptions = buildSyntheticNoOptionsRecommendations();
   const parkingDriveRecs = buildParkingBasedDriveRecommendations(state);
   const allRecs = [
     ...staticRecs,
     ...bikeRackRecs,
+    ...transitAppRecs,
     ...limeHubRecs,
     ...syntheticNoOptions,
     ...parkingDriveRecs,

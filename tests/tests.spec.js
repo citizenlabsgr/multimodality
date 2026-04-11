@@ -312,7 +312,7 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=saturday&time=700&modes=transit&walk=1.5&pay=20",
+      "/#/visit/van-andel-arena?day=saturday&time=700&modes=transit&walk=0.01&pay=20",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -336,6 +336,38 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
     const results = page.locator("#results");
     await expect(results).toContainText("Ideal Strategy");
     await expect(results).not.toContainText("Nothing in our data matches");
+  });
+});
+
+test.describe("Transit-only recommendations", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+  });
+
+  test("recommends bus with Transit in steps when a stop is in walk range and budget covers round trip", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?day=saturday&time=700&modes=transit&walk=0.5&pay=10",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(500);
+
+    const results = page.locator("#results");
+    await expect(results.locator(".border-green-200").first()).toBeVisible();
+    await expect(results).toContainText("Recommended Strategy");
+    await expect(results).toContainText("Take the bus");
+
+    await page.locator('button:has-text("Show steps")').first().click();
+    await page.waitForTimeout(200);
+    await expect(results).toContainText("Download the Transit app");
+    await expect(results).toContainText("Van Andel Arena");
+    const transitAppLink = results
+      .locator('a[href*="transitapp.com"]')
+      .filter({ hasText: "Download the Transit app" })
+      .first();
+    await expect(transitAppLink).toBeVisible();
   });
 });
 
