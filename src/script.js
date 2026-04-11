@@ -492,6 +492,7 @@ function getModesPageMapPoints(mode) {
 
 /**
  * Stops + polylines for modes-page maps (shuttle = DASH, transit = The Rapid).
+ * Rapid/transit maps are stops-only (no route polylines); DASH shows lines + stops.
  * @returns {{ points: Array<{lat:number,lng:number,label:string,address:string}>, polylines: Array<{latLngs:number[][], color:string, weight?:number}> }}
  */
 function getModesPageTransitMapData(mode) {
@@ -522,24 +523,26 @@ function getModesPageTransitMapData(mode) {
   const polylines = [];
   const groupLabel = mode === "shuttle" ? "DASH" : "The Rapid";
   for (const r of routes) {
-    const col = colorForRoute(r.route_color, defaultLineColor);
     const lineLabel = [r.route_short_name, r.route_long_name]
       .filter((x) => typeof x === "string" && x.trim() !== "")
       .join(" · ");
     const rlabel = [groupLabel, lineLabel]
       .filter((x) => typeof x === "string" && x.trim() !== "")
       .join(" · ");
-    for (const sh of r.shapes || []) {
-      const coords = sh.coordinates || [];
-      const latLngs = [];
-      for (const c of coords) {
-        const la = c.latitude;
-        const lo = c.longitude;
-        if (typeof la === "number" && typeof lo === "number")
-          latLngs.push([la, lo]);
+    if (mode === "shuttle") {
+      const col = colorForRoute(r.route_color, defaultLineColor);
+      for (const sh of r.shapes || []) {
+        const coords = sh.coordinates || [];
+        const latLngs = [];
+        for (const c of coords) {
+          const la = c.latitude;
+          const lo = c.longitude;
+          if (typeof la === "number" && typeof lo === "number")
+            latLngs.push([la, lo]);
+        }
+        if (latLngs.length >= 2)
+          polylines.push({ latLngs, color: col, weight: 4 });
       }
-      if (latLngs.length >= 2)
-        polylines.push({ latLngs, color: col, weight: 4 });
     }
     for (const s of r.stops || []) {
       if (typeof s.latitude !== "number" || typeof s.longitude !== "number")
@@ -569,6 +572,13 @@ function renderModesPageMap(containerId, points, options) {
   const showEmptyViewport = opts.showEmptyViewport === true;
   const polylines = Array.isArray(opts.polylines) ? opts.polylines : [];
   const fitBoundsFromMarkersOnly = opts.fitBoundsFromMarkersOnly === true;
+  const fitPad = Array.isArray(opts.fitBoundsPadding)
+    ? opts.fitBoundsPadding
+    : [20, 20];
+  const fitMaxZ =
+    typeof opts.fitMaxZoom === "number" && !Number.isNaN(opts.fitMaxZoom)
+      ? opts.fitMaxZoom
+      : 15;
   const pointList = Array.isArray(points) ? points : [];
   const container = document.getElementById(containerId);
   if (!container || typeof L === "undefined") return;
@@ -597,6 +607,12 @@ function renderModesPageMap(containerId, points, options) {
   }).addTo(map);
   if (showEmptyViewport) {
     map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
+    map._modesLastSetView = {
+      center: MODES_PAGE_EMPTY_MAP_CENTER,
+      zoom: MODES_PAGE_EMPTY_MAP_ZOOM,
+    };
+    delete map._modesLastFitLatLngs;
+    delete map._modesLastFitOptions;
     requestAnimationFrame(() => map.invalidateSize());
     return;
   }
@@ -638,13 +654,18 @@ function renderModesPageMap(containerId, points, options) {
       }
     }
   }
+  const fitOpts = { padding: fitPad, maxZoom: fitMaxZ };
   if (boundsLatLngs.length === 1) {
     map.setView(boundsLatLngs[0], 15);
+    map._modesLastSetView = { center: boundsLatLngs[0], zoom: 15 };
+    delete map._modesLastFitLatLngs;
+    delete map._modesLastFitOptions;
   } else if (boundsLatLngs.length > 1) {
-    map.fitBounds(L.latLngBounds(boundsLatLngs), {
-      padding: [20, 20],
-      maxZoom: 15,
-    });
+    const latLngsCopy = boundsLatLngs.map((p) => [p[0], p[1]]);
+    map.fitBounds(L.latLngBounds(latLngsCopy), fitOpts);
+    map._modesLastFitLatLngs = latLngsCopy;
+    map._modesLastFitOptions = fitOpts;
+    delete map._modesLastSetView;
   } else if (polylines.length > 0) {
     const fb = [];
     for (const pl of polylines) {
@@ -653,14 +674,55 @@ function renderModesPageMap(containerId, points, options) {
           fb.push([pair[0], pair[1]]);
       }
     }
-    if (fb.length === 1) map.setView(fb[0], 15);
-    else if (fb.length > 1)
-      map.fitBounds(L.latLngBounds(fb), { padding: [20, 20], maxZoom: 15 });
-    else map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
+    if (fb.length === 1) {
+      map.setView(fb[0], 15);
+      map._modesLastSetView = { center: fb[0], zoom: 15 };
+      delete map._modesLastFitLatLngs;
+      delete map._modesLastFitOptions;
+    } else if (fb.length > 1) {
+      const fbCopy = fb.map((p) => [p[0], p[1]]);
+      map.fitBounds(L.latLngBounds(fbCopy), fitOpts);
+      map._modesLastFitLatLngs = fbCopy;
+      map._modesLastFitOptions = fitOpts;
+      delete map._modesLastSetView;
+    } else {
+      map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
+      map._modesLastSetView = {
+        center: MODES_PAGE_EMPTY_MAP_CENTER,
+        zoom: MODES_PAGE_EMPTY_MAP_ZOOM,
+      };
+      delete map._modesLastFitLatLngs;
+      delete map._modesLastFitOptions;
+    }
   } else {
     map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
+    map._modesLastSetView = {
+      center: MODES_PAGE_EMPTY_MAP_CENTER,
+      zoom: MODES_PAGE_EMPTY_MAP_ZOOM,
+    };
+    delete map._modesLastFitLatLngs;
+    delete map._modesLastFitOptions;
   }
   requestAnimationFrame(() => map.invalidateSize());
+}
+
+/** Re-apply view after layout (modal maps init while hidden had wrong size). */
+function refitModesModalLeafletMaps() {
+  for (const id of Object.keys(modesPageMaps)) {
+    if (!id.startsWith("modes-modal-map-")) continue;
+    const map = modesPageMaps[id];
+    if (!map?.invalidateSize) continue;
+    map.invalidateSize();
+    if (map._modesLastFitLatLngs && map._modesLastFitLatLngs.length >= 2) {
+      map.fitBounds(
+        L.latLngBounds(map._modesLastFitLatLngs),
+        map._modesLastFitOptions || { padding: [20, 20], maxZoom: 15 },
+      );
+    } else if (map._modesLastSetView) {
+      const v = map._modesLastSetView;
+      map.setView(v.center, v.zoom);
+    }
+  }
 }
 
 function hideModesView() {
@@ -672,11 +734,15 @@ function hideModesView() {
 /**
  * Renders mode explainers + maps into a container (#/modes or visit modal).
  * @param {HTMLElement} sectionsEl
- * @param {{ mapIdPrefix?: string, headingIdPrefix?: string }} [options]
+ * @param {{ mapIdPrefix?: string, headingIdPrefix?: string, mapsFitAllBounds?: boolean }} [options]
  */
 function renderModesPageInto(sectionsEl, options) {
   const mapIdPrefix = options?.mapIdPrefix ?? "modes-page-map-";
   const headingIdPrefix = options?.headingIdPrefix ?? "modes-section-";
+  const mapsFitAllBounds = options?.mapsFitAllBounds === true;
+  const sharedMapOpts = mapsFitAllBounds
+    ? { fitBoundsPadding: [28, 28], fitMaxZoom: 14 }
+    : {};
   if (!sectionsEl || !appData) return;
 
   const modes = modesPageOrderedList();
@@ -719,7 +785,8 @@ function renderModesPageInto(sectionsEl, options) {
       if (td.points.length > 0 || td.polylines.length > 0) {
         renderModesPageMap(mapId, td.points, {
           polylines: td.polylines,
-          fitBoundsFromMarkersOnly: true,
+          fitBoundsFromMarkersOnly: !mapsFitAllBounds,
+          ...sharedMapOpts,
         });
       } else {
         renderModesPageMap(mapId, [], { showEmptyViewport: true });
@@ -727,7 +794,7 @@ function renderModesPageInto(sectionsEl, options) {
       continue;
     }
     const pts = getModesPageMapPoints(mode);
-    renderModesPageMap(mapId, pts);
+    renderModesPageMap(mapId, pts, sharedMapOpts);
   }
 }
 
@@ -738,24 +805,19 @@ function openModesExplainModal() {
 
   disposeModesPageMapsMatching((id) => id.startsWith("modes-modal-map-"));
 
-  renderModesPageInto(sectionsEl, {
-    mapIdPrefix: "modes-modal-map-",
-    headingIdPrefix: "modes-modal-section-",
-  });
-
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("modes-explain-modal-open");
 
+  renderModesPageInto(sectionsEl, {
+    mapIdPrefix: "modes-modal-map-",
+    headingIdPrefix: "modes-modal-section-",
+    mapsFitAllBounds: true,
+  });
+
   requestAnimationFrame(() => {
-    for (const id of Object.keys(modesPageMaps)) {
-      if (
-        id.startsWith("modes-modal-map-") &&
-        modesPageMaps[id]?.invalidateSize
-      ) {
-        modesPageMaps[id].invalidateSize();
-      }
-    }
+    refitModesModalLeafletMaps();
+    requestAnimationFrame(() => refitModesModalLeafletMaps());
   });
 
   document.getElementById("modesExplainModalClose")?.focus();

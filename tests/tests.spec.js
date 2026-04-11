@@ -1377,20 +1377,27 @@ test.describe("Data routes", () => {
 });
 
 test.describe("Modes explain modal", () => {
-  test("opens full-page modal from visit page and closes with Escape", async ({
+  test("opens from Explain modes button, shows mode maps, closes with Escape", async ({
     page,
   }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
     await page.getByRole("button", { name: "Explain modes" }).click();
-    await page.waitForTimeout(600);
+    await page.waitForTimeout(800);
 
     await expect(page.locator("#modesExplainModal")).toBeVisible();
-    await expect(page.locator("#modes-modal-map-drive")).toBeVisible();
-    await expect(page.locator("#modes-modal-map-rideshare")).toBeVisible();
+    await expect(page.locator("#modesExplainModalSections")).toBeVisible();
     await expect(
       page.locator("#modesExplainModalSections h3").first(),
     ).toBeVisible();
+
+    await expect(page.locator("#modes-modal-map-drive")).toBeVisible();
+    await expect(page.locator("#modes-modal-map-rideshare")).toBeVisible();
+    await expect(page.locator("#modes-modal-map-shuttle")).toBeVisible();
+    await expect(page.locator("#modes-modal-map-transit")).toBeVisible();
+    await expect(
+      page.locator("#modesExplainModalSections .leaflet-container"),
+    ).toHaveCount(6);
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(150);
