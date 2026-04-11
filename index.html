@@ -245,10 +245,26 @@
                 <button
                   type="button"
                   id="openModesExplainModal"
-                  class="shrink-0 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors"
+                  class="inline-flex shrink-0 items-center gap-1 text-xs px-2 py-1 rounded border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 hover:border-slate-400 font-medium transition-colors"
                   title="What each travel mode means"
                 >
-                  <span class="inline-block mr-1">?</span>Explain modes
+                  <svg
+                    class="h-3.5 w-3.5 shrink-0"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10" fill="#1e293b" />
+                    <circle cx="12" cy="8" r="2" fill="#f8fafc" />
+                    <rect
+                      x="10.25"
+                      y="11.5"
+                      width="3.5"
+                      height="8.5"
+                      rx="1.25"
+                      fill="#f8fafc"
+                    />
+                  </svg>
+                  Explain modes
                 </button>
               </div>
               <div class="w-10 shrink-0" aria-hidden="true"></div>
@@ -402,7 +418,10 @@
             Where we have location data, a map shows how the app uses it around
             Grand Rapids.
           </p>
-          <div id="modesPageSections" class="space-y-8"></div>
+          <div
+            id="modesPageSections"
+            class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
+          ></div>
         </div>
       </div>
       <div id="dataView" class="hidden">
@@ -418,6 +437,10 @@
           <div
             id="dataViewDestinationsBar"
             class="hidden mt-2 mb-3 flex items-center gap-2"
+          ></div>
+          <div
+            id="dataViewRoutesModes"
+            class="hidden mt-2 mb-3 flex flex-wrap items-center gap-2"
           ></div>
           <div id="dataViewIndex" class="space-y-1"></div>
           <div
@@ -489,7 +512,10 @@
           class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4"
           id="modesExplainModalScroll"
         >
-          <div id="modesExplainModalSections" class="space-y-8"></div>
+          <div
+            id="modesExplainModalSections"
+            class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
+          ></div>
         </div>
       </div>
     </div>

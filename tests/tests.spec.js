@@ -1387,6 +1387,7 @@ test.describe("Modes explain modal", () => {
 
     await expect(page.locator("#modesExplainModal")).toBeVisible();
     await expect(page.locator("#modes-modal-map-drive")).toBeVisible();
+    await expect(page.locator("#modes-modal-map-rideshare")).toBeVisible();
     await expect(
       page.locator("#modesExplainModalSections h3").first(),
     ).toBeVisible();
@@ -1410,8 +1411,8 @@ test.describe("Modes route", () => {
     await expect(page.locator("#modes-page-map-drive")).toBeVisible();
     await expect(page.locator("#modes-page-map-shuttle")).toBeVisible();
     await expect(page.locator("#modes-page-map-transit")).toBeVisible();
-    await expect(page.locator("#modes-page-map-rideshare")).toHaveCount(0);
-    await expect(page.locator(".leaflet-container")).toHaveCount(5);
+    await expect(page.locator("#modes-page-map-rideshare")).toBeVisible();
+    await expect(page.locator("#modesView .leaflet-container")).toHaveCount(6);
 
     const headings = await page
       .locator("#modesPageSections h3")

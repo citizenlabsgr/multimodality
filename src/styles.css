@@ -77,9 +77,11 @@
 main.data-view-active {
   max-width: 72rem;
 }
-/* Modes explainer page: one Leaflet map per mode */
+/* Modes explainer page: one Leaflet map per mode (square tile in grid layout) */
 .modes-page-map {
-  height: 14rem;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
 }
 
 body.modes-explain-modal-open {

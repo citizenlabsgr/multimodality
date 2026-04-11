@@ -40,6 +40,11 @@ const MODES_PAGE_ORDER = [
 const MODES_PAGE_EMPTY_MAP_CENTER = [42.96333, -85.66806];
 const MODES_PAGE_EMPTY_MAP_ZOOM = 13;
 
+/** Downtown Grand Rapids — matches scripts/fetch_bus_routes.py for #/data/routes stops. */
+const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
+const DATA_ROUTES_CITY_CENTER_LON = -85.66806;
+const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
+
 function modesPageOrderedList() {
   const base = Array.isArray(validModes)
     ? validModes
@@ -87,6 +92,7 @@ const FALLBACK_DATA = {
   handCraftedRecommendations: {},
   linkTexts: {},
   parking: {},
+  busRoutes: null,
 };
 
 /** Official rider app flows (download / open app on mobile). */
@@ -195,6 +201,16 @@ async function loadData() {
       recommendations[d.slug] = builtInModeRecommendations;
     }
 
+    let busRoutes = null;
+    const busRes = await fetch("data/bus/routes.json");
+    if (busRes.ok) {
+      try {
+        busRoutes = await busRes.json();
+      } catch {
+        busRoutes = null;
+      }
+    }
+
     appData = {
       ...config,
       destinations,
@@ -202,6 +218,7 @@ async function loadData() {
       recommendations,
       linkTexts: config.linkTexts || {},
       parking,
+      busRoutes,
     };
   } catch (error) {
     console.error("Failed to load data:", error);
@@ -431,8 +448,34 @@ function getParkingCategoryKeysForPlannerMode(mode) {
   );
 }
 
+function destinationsToModesPagePoints() {
+  const destinations = Array.isArray(appData?.destinations)
+    ? appData.destinations
+    : [];
+  const out = [];
+  for (const d of destinations) {
+    const lat = d.latitude;
+    const lng = d.longitude;
+    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    const name =
+      typeof d.name === "string" && d.name.trim() !== ""
+        ? d.name.trim()
+        : "Venue";
+    out.push({
+      lat,
+      lng,
+      label: name,
+      address: "",
+    });
+  }
+  return out;
+}
+
 function getModesPageMapPoints(mode) {
   if (!appData) return [];
+  if (mode === "rideshare") {
+    return destinationsToModesPagePoints();
+  }
   if (mode === "drive" || mode === "bike" || mode === "micromobility") {
     const keys = getParkingCategoryKeysForPlannerMode(mode);
     const points = [];
@@ -447,12 +490,89 @@ function getModesPageMapPoints(mode) {
   return [];
 }
 
+/**
+ * Stops + polylines for modes-page maps (shuttle = DASH, transit = The Rapid).
+ * @returns {{ points: Array<{lat:number,lng:number,label:string,address:string}>, polylines: Array<{latLngs:number[][], color:string, weight?:number}> }}
+ */
+function getModesPageTransitMapData(mode) {
+  const empty = { points: [], polylines: [] };
+  if (mode !== "shuttle" && mode !== "transit") return empty;
+  const bus = appData?.busRoutes;
+  const dashList = Array.isArray(bus?.dash_routes) ? bus.dash_routes : [];
+  const rapidList = Array.isArray(bus?.rapid_routes) ? bus.rapid_routes : [];
+  const legacyList = Array.isArray(bus?.routes) ? bus.routes : [];
+  let routes;
+  let defaultLineColor;
+  if (mode === "shuttle") {
+    routes = dashList.length > 0 ? dashList : legacyList;
+    defaultLineColor = "#933145";
+  } else {
+    routes = rapidList;
+    defaultLineColor = "#2563eb";
+  }
+  const colorForRoute = (hex, fallbackHex) => {
+    if (typeof hex === "string" && hex.trim() !== "") {
+      const h = hex.trim();
+      if (h.startsWith("#")) return h;
+      if (/^[0-9A-Fa-f]{6}$/.test(h)) return `#${h}`;
+    }
+    return fallbackHex;
+  };
+  const points = [];
+  const polylines = [];
+  const groupLabel = mode === "shuttle" ? "DASH" : "The Rapid";
+  for (const r of routes) {
+    const col = colorForRoute(r.route_color, defaultLineColor);
+    const lineLabel = [r.route_short_name, r.route_long_name]
+      .filter((x) => typeof x === "string" && x.trim() !== "")
+      .join(" · ");
+    const rlabel = [groupLabel, lineLabel]
+      .filter((x) => typeof x === "string" && x.trim() !== "")
+      .join(" · ");
+    for (const sh of r.shapes || []) {
+      const coords = sh.coordinates || [];
+      const latLngs = [];
+      for (const c of coords) {
+        const la = c.latitude;
+        const lo = c.longitude;
+        if (typeof la === "number" && typeof lo === "number")
+          latLngs.push([la, lo]);
+      }
+      if (latLngs.length >= 2)
+        polylines.push({ latLngs, color: col, weight: 4 });
+    }
+    for (const s of r.stops || []) {
+      if (typeof s.latitude !== "number" || typeof s.longitude !== "number")
+        continue;
+      if (
+        haversineMiles(
+          DATA_ROUTES_CITY_CENTER_LAT,
+          DATA_ROUTES_CITY_CENTER_LON,
+          s.latitude,
+          s.longitude,
+        ) > DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER
+      )
+        continue;
+      points.push({
+        lat: s.latitude,
+        lng: s.longitude,
+        label: typeof s.name === "string" ? s.name : s.stop_id || "Stop",
+        address: rlabel,
+      });
+    }
+  }
+  return { points, polylines };
+}
+
 function renderModesPageMap(containerId, points, options) {
   const opts = options || {};
   const showEmptyViewport = opts.showEmptyViewport === true;
+  const polylines = Array.isArray(opts.polylines) ? opts.polylines : [];
+  const fitBoundsFromMarkersOnly = opts.fitBoundsFromMarkersOnly === true;
+  const pointList = Array.isArray(points) ? points : [];
   const container = document.getElementById(containerId);
   if (!container || typeof L === "undefined") return;
-  if (!showEmptyViewport && (!points || points.length === 0)) {
+  if (!showEmptyViewport && pointList.length === 0 && polylines.length === 0) {
     container.classList.add("hidden");
     return;
   }
@@ -465,7 +585,11 @@ function renderModesPageMap(containerId, points, options) {
     }
     delete modesPageMaps[containerId];
   }
-  const map = L.map(containerId, { scrollWheelZoom: false });
+  const map = L.map(containerId, {
+    scrollWheelZoom: false,
+    zoomControl: false,
+    dragging: false,
+  });
   modesPageMaps[containerId] = map;
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution:
@@ -476,8 +600,26 @@ function renderModesPageMap(containerId, points, options) {
     requestAnimationFrame(() => map.invalidateSize());
     return;
   }
+  const polyLayer = L.layerGroup().addTo(map);
+  for (const pl of polylines) {
+    const latLngs = pl.latLngs;
+    if (!Array.isArray(latLngs) || latLngs.length < 2) continue;
+    let color = pl.color;
+    if (
+      typeof color === "string" &&
+      color.length === 6 &&
+      /^[0-9A-Fa-f]+$/.test(color)
+    )
+      color = `#${color}`;
+    if (typeof color !== "string" || !color.startsWith("#")) color = "#933145";
+    L.polyline(latLngs, {
+      color,
+      weight: typeof pl.weight === "number" ? pl.weight : 4,
+      opacity: 0.88,
+    }).addTo(polyLayer);
+  }
   const layer = L.layerGroup().addTo(map);
-  for (const p of points) {
+  for (const p of pointList) {
     const m = L.marker([p.lat, p.lng]);
     let html = `<div style="font-size:12px"><strong>${escapeHtml(p.label)}</strong>`;
     if (p.address) html += `<br>${escapeHtml(p.address)}`;
@@ -485,13 +627,38 @@ function renderModesPageMap(containerId, points, options) {
     m.bindPopup(html);
     m.addTo(layer);
   }
-  if (points.length === 1) {
-    map.setView([points[0].lat, points[0].lng], 15);
-  } else {
-    map.fitBounds(L.latLngBounds(points.map((pt) => [pt.lat, pt.lng])), {
+  const boundsLatLngs = pointList.map((pt) => [pt.lat, pt.lng]);
+  const useMarkersOnlyForFit =
+    fitBoundsFromMarkersOnly === true && boundsLatLngs.length > 0;
+  if (!useMarkersOnlyForFit) {
+    for (const pl of polylines) {
+      for (const pair of pl.latLngs || []) {
+        if (Array.isArray(pair) && pair.length >= 2)
+          boundsLatLngs.push([pair[0], pair[1]]);
+      }
+    }
+  }
+  if (boundsLatLngs.length === 1) {
+    map.setView(boundsLatLngs[0], 15);
+  } else if (boundsLatLngs.length > 1) {
+    map.fitBounds(L.latLngBounds(boundsLatLngs), {
       padding: [20, 20],
       maxZoom: 15,
     });
+  } else if (polylines.length > 0) {
+    const fb = [];
+    for (const pl of polylines) {
+      for (const pair of pl.latLngs || []) {
+        if (Array.isArray(pair) && pair.length >= 2)
+          fb.push([pair[0], pair[1]]);
+      }
+    }
+    if (fb.length === 1) map.setView(fb[0], 15);
+    else if (fb.length > 1)
+      map.fitBounds(L.latLngBounds(fb), { padding: [20, 20], maxZoom: 15 });
+    else map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
+  } else {
+    map.setView(MODES_PAGE_EMPTY_MAP_CENTER, MODES_PAGE_EMPTY_MAP_ZOOM);
   }
   requestAnimationFrame(() => map.invalidateSize());
 }
@@ -521,18 +688,24 @@ function renderModesPageInto(sectionsEl, options) {
       "This option is available on the visit page when you select it in your travel modes.";
     const headingId = `${headingIdPrefix}${mode}-heading`;
     const mapId = `${mapIdPrefix}${mode}`;
-    const showMap = mode !== "rideshare";
+    const transitMap =
+      mode === "transit" || mode === "shuttle"
+        ? getModesPageTransitMapData(mode)
+        : null;
+    const hasTransitMapData =
+      transitMap &&
+      (transitMap.points.length > 0 || transitMap.polylines.length > 0);
     const emptyDataNote =
       mode === "transit" || mode === "shuttle"
-        ? `<p class="text-xs text-slate-500 mt-2">Stop and route data are not loaded yet; map shows downtown Grand Rapids.</p>`
+        ? hasTransitMapData
+          ? ""
+          : `<p class="text-xs text-slate-500 mt-2">Stop and route data are not loaded yet; map shows downtown Grand Rapids.</p>`
         : "";
-    const mapBlock = showMap
-      ? `<div id="${mapId}" class="modes-page-map rounded-lg border border-slate-200 overflow-hidden z-0" role="img" aria-label="Map for ${escapeHtml(title)}"></div>${emptyDataNote}`
-      : "";
+    const mapBlock = `<div id="${mapId}" class="modes-page-map rounded-lg border border-slate-200 overflow-hidden z-0" role="img" aria-label="Map for ${escapeHtml(title)}"></div>${emptyDataNote}`;
     parts.push(
-      `<section class="border-t border-slate-200 pt-6 first:border-t-0 first:pt-0" aria-labelledby="${headingId}">` +
-        `<h3 id="${headingId}" class="font-medium text-base text-slate-900 mb-2">${escapeHtml(title)}</h3>` +
-        `<p class="text-sm text-slate-600 mb-3">${escapeHtml(body)}</p>` +
+      `<section class="modes-page-section flex min-w-0 flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm" aria-labelledby="${headingId}">` +
+        `<h3 id="${headingId}" class="mb-2 font-medium text-base text-slate-900">${escapeHtml(title)}</h3>` +
+        `<p class="mb-3 text-sm text-slate-600">${escapeHtml(body)}</p>` +
         mapBlock +
         `</section>`,
     );
@@ -540,10 +713,17 @@ function renderModesPageInto(sectionsEl, options) {
   sectionsEl.innerHTML = parts.join("");
 
   for (const mode of modes) {
-    if (mode === "rideshare") continue;
     const mapId = `${mapIdPrefix}${mode}`;
     if (mode === "transit" || mode === "shuttle") {
-      renderModesPageMap(mapId, [], { showEmptyViewport: true });
+      const td = getModesPageTransitMapData(mode);
+      if (td.points.length > 0 || td.polylines.length > 0) {
+        renderModesPageMap(mapId, td.points, {
+          polylines: td.polylines,
+          fitBoundsFromMarkersOnly: true,
+        });
+      } else {
+        renderModesPageMap(mapId, [], { showEmptyViewport: true });
+      }
       continue;
     }
     const pts = getModesPageMapPoints(mode);
@@ -714,17 +894,37 @@ function formatParkingPrice(pricing) {
   return "Free";
 }
 
-function updateDataViewMap(points) {
+function updateDataViewMap(points, options) {
+  const opts = options || {};
+  const extraPolylines = Array.isArray(opts.extraPolylines)
+    ? opts.extraPolylines
+    : [];
+  const pointList = Array.isArray(points) ? points : [];
   const container = document.getElementById("dataViewMap");
   if (!container) return;
-  if (!points || points.length === 0) {
+  if (pointList.length === 0 && extraPolylines.length === 0) {
     container.classList.add("hidden");
     return;
   }
   container.classList.remove("hidden");
   if (typeof L === "undefined") return;
+  let centerLat;
+  let centerLng;
+  if (pointList.length > 0) {
+    centerLat = pointList[0].lat;
+    centerLng = pointList[0].lng;
+  } else {
+    const first = extraPolylines[0]?.latLngs?.[0];
+    if (Array.isArray(first) && first.length >= 2) {
+      centerLat = first[0];
+      centerLng = first[1];
+    } else {
+      centerLat = 42.96333;
+      centerLng = -85.66806;
+    }
+  }
   if (!dataMap) {
-    dataMap = L.map("dataViewMap").setView([points[0].lat, points[0].lng], 15);
+    dataMap = L.map("dataViewMap").setView([centerLat, centerLng], 15);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -734,13 +934,30 @@ function updateDataViewMap(points) {
   }
   dataMapPolylinesLayer.clearLayers();
   dataMapMarkersLayer.clearLayers();
+  extraPolylines.forEach((pl) => {
+    const latLngs = pl.latLngs;
+    if (!Array.isArray(latLngs) || latLngs.length < 2) return;
+    let color = pl.color;
+    if (
+      typeof color === "string" &&
+      color.length === 6 &&
+      /^[0-9A-Fa-f]+$/.test(color)
+    )
+      color = `#${color}`;
+    if (typeof color !== "string" || !color.startsWith("#")) color = "#933145";
+    L.polyline(latLngs, {
+      color,
+      weight: typeof pl.weight === "number" ? pl.weight : 5,
+      opacity: 0.88,
+    }).addTo(dataMapPolylinesLayer);
+  });
   const tableStyle =
     "border-collapse:collapse;font-size:12px;font-family:system-ui,sans-serif";
   const thStyle =
     "text-align:left;padding:4px 16px 4px 0;border-bottom:1px solid #e2e8f0;font-weight:600;color:#64748b;vertical-align:top";
   const tdStyle =
     "padding:4px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top";
-  points.forEach((p) => {
+  pointList.forEach((p) => {
     const isStrategyStep =
       p.strategyTitle != null ||
       p.stepNumber != null ||
@@ -1059,7 +1276,7 @@ function updateDataViewMap(points) {
   let current = [];
   const groupKey = (p) =>
     `${p.destinationName ?? ""}\0${p.strategyTitle ?? ""}`;
-  for (const p of points) {
+  for (const p of pointList) {
     if (p.strategyTitle != null) {
       if (current.length > 0 && groupKey(current[0]) !== groupKey(p)) {
         strategyGroups.push(current);
@@ -1082,10 +1299,21 @@ function updateDataViewMap(points) {
       );
     }
   });
-  if (points.length === 1) {
-    dataMap.setView([points[0].lat, points[0].lng], 16);
-  } else {
-    const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lng]));
+  const boundsLatLngs = pointList.map((p) => [p.lat, p.lng]);
+  const useMarkersOnlyForFit =
+    opts.fitBoundsFromMarkersOnly === true && boundsLatLngs.length > 0;
+  if (!useMarkersOnlyForFit) {
+    extraPolylines.forEach((pl) => {
+      (pl.latLngs || []).forEach((pair) => {
+        if (Array.isArray(pair) && pair.length >= 2)
+          boundsLatLngs.push([pair[0], pair[1]]);
+      });
+    });
+  }
+  if (boundsLatLngs.length === 1) {
+    dataMap.setView(boundsLatLngs[0], 16);
+  } else if (boundsLatLngs.length > 1) {
+    const bounds = L.latLngBounds(boundsLatLngs);
     dataMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 17 });
   }
   dataMap.invalidateSize();
@@ -1125,12 +1353,14 @@ function renderDataView() {
     isIndex ||
     path === "strategies" ||
     path.startsWith("strategies/") ||
-    path === "destinations";
+    path === "destinations" ||
+    path === "routes";
   dataViewIndex.classList.toggle("hidden", !isIndex);
   dataViewDetail.classList.toggle("hidden", hideDetail);
   document.getElementById("dataViewParkingModes")?.classList.add("hidden");
   document.getElementById("dataViewStrategiesFilters")?.classList.add("hidden");
   document.getElementById("dataViewDestinationsBar")?.classList.add("hidden");
+  document.getElementById("dataViewRoutesModes")?.classList.add("hidden");
   document.getElementById("dataViewMap")?.classList.add("hidden");
 
   if (path === "") {
@@ -1138,6 +1368,7 @@ function renderDataView() {
     const geoLinks = [
       { href: "#/data/destinations", label: "destinations" },
       { href: "#/data/parking", label: "parking" },
+      { href: "#/data/routes", label: "routes" },
     ];
     const strategiesLink = { href: "#/data/strategies", label: "strategies" };
     dataViewIndex.innerHTML =
@@ -1178,6 +1409,158 @@ function renderDataView() {
         slug: d.slug,
       }));
     updateDataViewMap(destinationPoints);
+    dataViewIndex.classList.add("hidden");
+    dataViewDetail.classList.add("hidden");
+    return;
+  }
+
+  if (path === "routes") {
+    const ROUTES_DATA_MODES = ["shuttle", "transit"];
+    const params = parseFragment();
+    const modesParam = params.modes ? String(params.modes).trim() : "";
+    const selectedModes =
+      modesParam === ""
+        ? []
+        : modesParam
+            .split(",")
+            .map((m) => m.trim())
+            .filter((m) => ROUTES_DATA_MODES.includes(m));
+
+    function buildDataRoutesHash(opts) {
+      const q = [];
+      if (opts.modes && opts.modes.length > 0)
+        q.push("modes=" + opts.modes.join(","));
+      return "#/data/routes" + (q.length > 0 ? "?" + q.join("&") : "");
+    }
+
+    const dataViewRoutesModes = document.getElementById("dataViewRoutesModes");
+    if (dataViewRoutesModes) {
+      dataViewRoutesModes.classList.remove("hidden");
+      const modeButtonsHtml = ROUTES_DATA_MODES.map(
+        (mode) =>
+          `<button type="button" class="data-routes-mode-btn rounded-lg border border-slate-300 py-2 px-3 text-sm font-medium transition-colors" data-mode="${escapeHtml(mode)}" title="${escapeHtml(MODE_DISPLAY_LABELS[mode] || mode)}">${MODE_DISPLAY_LABELS[mode] || mode}</button>`,
+      ).join("");
+      dataViewRoutesModes.innerHTML = `
+        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
+        <div class="flex flex-1 flex-wrap items-center justify-center gap-2">
+          <span class="text-sm font-medium text-slate-700">Route modes:</span>
+          ${modeButtonsHtml}
+        </div>`;
+      ROUTES_DATA_MODES.forEach((mode) => {
+        const btn = dataViewRoutesModes.querySelector(
+          `.data-routes-mode-btn[data-mode="${mode}"]`,
+        );
+        if (btn) {
+          const active = selectedModes.includes(mode);
+          btn.classList.toggle("bg-sky-100", active);
+          btn.classList.toggle("border-sky-500", active);
+          btn.classList.toggle("border-slate-300", !active);
+          if (!active) {
+            btn.classList.add(
+              "bg-white",
+              "text-slate-700",
+              "hover:bg-slate-100",
+            );
+          } else {
+            btn.classList.remove("hover:bg-slate-100");
+            btn.classList.add("text-slate-900", "hover:bg-sky-200");
+          }
+          btn.addEventListener("click", () => {
+            const current = parseFragment();
+            const currentModes =
+              current.modes || ""
+                ? String(current.modes)
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter((m) => ROUTES_DATA_MODES.includes(m))
+                : [];
+            const idx = currentModes.indexOf(mode);
+            const nextModes =
+              idx >= 0
+                ? currentModes.filter((_, i) => i !== idx)
+                : [...currentModes, mode];
+            window.location.hash = buildDataRoutesHash({ modes: nextModes });
+          });
+        }
+      });
+    }
+
+    const bus = appData.busRoutes;
+    const dashList = Array.isArray(bus?.dash_routes) ? bus.dash_routes : [];
+    const rapidList = Array.isArray(bus?.rapid_routes) ? bus.rapid_routes : [];
+    const legacyList = Array.isArray(bus?.routes) ? bus.routes : [];
+    const showDash =
+      selectedModes.length === 0 || selectedModes.includes("shuttle");
+    const showRapid =
+      selectedModes.length === 0 || selectedModes.includes("transit");
+    const extraPolylines = [];
+    const routePoints = [];
+    const colorForRoute = (hex, fallbackHex) => {
+      if (typeof hex === "string" && hex.trim() !== "") {
+        const h = hex.trim();
+        if (h.startsWith("#")) return h;
+        if (/^[0-9A-Fa-f]{6}$/.test(h)) return `#${h}`;
+      }
+      return fallbackHex;
+    };
+    function addRoutesToMap(routes, groupLabel, defaultLineColor) {
+      for (const r of routes) {
+        const col = colorForRoute(r.route_color, defaultLineColor);
+        const lineLabel = [r.route_short_name, r.route_long_name]
+          .filter((x) => typeof x === "string" && x.trim() !== "")
+          .join(" · ");
+        const rlabel = [groupLabel, lineLabel]
+          .filter((x) => typeof x === "string" && x.trim() !== "")
+          .join(" · ");
+        for (const sh of r.shapes || []) {
+          const coords = sh.coordinates || [];
+          const latLngs = [];
+          for (const c of coords) {
+            const la = c.latitude;
+            const lo = c.longitude;
+            if (typeof la === "number" && typeof lo === "number")
+              latLngs.push([la, lo]);
+          }
+          if (latLngs.length >= 2)
+            extraPolylines.push({ latLngs, color: col, weight: 4 });
+        }
+        for (const s of r.stops || []) {
+          if (
+            typeof s.latitude === "number" &&
+            typeof s.longitude === "number"
+          ) {
+            if (
+              haversineMiles(
+                DATA_ROUTES_CITY_CENTER_LAT,
+                DATA_ROUTES_CITY_CENTER_LON,
+                s.latitude,
+                s.longitude,
+              ) > DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER
+            )
+              continue;
+            routePoints.push({
+              lat: s.latitude,
+              lng: s.longitude,
+              label: typeof s.name === "string" ? s.name : s.stop_id || "Stop",
+              address: rlabel,
+            });
+          }
+        }
+      }
+    }
+    if (showDash) addRoutesToMap(dashList, "DASH", "#933145");
+    if (showRapid) addRoutesToMap(rapidList, "The Rapid", "#2563eb");
+    if (
+      dashList.length === 0 &&
+      rapidList.length === 0 &&
+      legacyList.length > 0 &&
+      showDash
+    )
+      addRoutesToMap(legacyList, "DASH", "#933145");
+    updateDataViewMap(routePoints, {
+      extraPolylines,
+      fitBoundsFromMarkersOnly: true,
+    });
     dataViewIndex.classList.add("hidden");
     dataViewDetail.classList.add("hidden");
     return;
