@@ -140,7 +140,8 @@ def element_to_item(el: dict) -> dict | None:
     tags = el.get("tags") or {}
     name = tags.get("name") or tags.get("ref")
     if not name:
-        name = "Bicycle parking"
+        # OSM bicycle_parking = racks/stands/corrals, not ramps; keep wording accurate.
+        name = "Bike Rack"
 
     item: dict = {
         "name": str(name).strip(),

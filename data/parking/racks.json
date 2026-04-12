@@ -28,21 +28,21 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.948641,
         "longitude": -85.681949
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.951986,
         "longitude": -85.681217
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.954486,
         "longitude": -85.670224
@@ -50,7 +50,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.954567,
         "longitude": -85.671104
@@ -58,7 +58,7 @@
       "availability": "Capacity: 18"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.954942,
         "longitude": -85.670203
@@ -66,7 +66,7 @@
       "availability": "Capacity: 20"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955087,
         "longitude": -85.662205
@@ -74,7 +74,7 @@
       "availability": "Capacity: 18"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955303,
         "longitude": -85.667776
@@ -82,7 +82,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955346,
         "longitude": -85.667515
@@ -90,14 +90,14 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955547,
         "longitude": -85.650171
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955589,
         "longitude": -85.652317
@@ -105,7 +105,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955598,
         "longitude": -85.652557
@@ -113,7 +113,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955602,
         "longitude": -85.653224
@@ -121,7 +121,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955609,
         "longitude": -85.6538
@@ -129,7 +129,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955626,
         "longitude": -85.64334
@@ -137,7 +137,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955692,
         "longitude": -85.665864
@@ -145,7 +145,7 @@
       "availability": "Capacity: 20"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955809,
         "longitude": -85.644336
@@ -153,7 +153,7 @@
       "availability": "Capacity: 28"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.955857,
         "longitude": -85.66633
@@ -161,7 +161,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.956651,
         "longitude": -85.662879
@@ -169,7 +169,7 @@
       "availability": "Capacity: 10"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.956707,
         "longitude": -85.669133
@@ -177,7 +177,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.956769,
         "longitude": -85.673582
@@ -185,7 +185,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.956846,
         "longitude": -85.662231
@@ -193,7 +193,7 @@
       "availability": "Capacity: 30"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.957111,
         "longitude": -85.669133
@@ -201,7 +201,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.957416,
         "longitude": -85.664004
@@ -209,7 +209,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.957615,
         "longitude": -85.663529
@@ -217,7 +217,7 @@
       "availability": "Capacity: 20"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.957697,
         "longitude": -85.670203
@@ -225,7 +225,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.957956,
         "longitude": -85.670211
@@ -233,7 +233,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958005,
         "longitude": -85.668978
@@ -241,7 +241,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958056,
         "longitude": -85.664219
@@ -249,7 +249,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958223,
         "longitude": -85.666185
@@ -257,7 +257,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958481,
         "longitude": -85.673507
@@ -265,7 +265,7 @@
       "availability": "Capacity: 32"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958746,
         "longitude": -85.663299
@@ -273,7 +273,7 @@
       "availability": "Capacity: 10; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958773,
         "longitude": -85.662001
@@ -281,7 +281,7 @@
       "availability": "Capacity: 7"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958821,
         "longitude": -85.667633
@@ -289,7 +289,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958891,
         "longitude": -85.666335
@@ -297,7 +297,7 @@
       "availability": "Capacity: 41"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.958912,
         "longitude": -85.669168
@@ -305,7 +305,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959087,
         "longitude": -85.673315
@@ -313,7 +313,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959311,
         "longitude": -85.66324
@@ -321,7 +321,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959393,
         "longitude": -85.669024
@@ -329,7 +329,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959394,
         "longitude": -85.666523
@@ -337,7 +337,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.95941,
         "longitude": -85.673333
@@ -345,7 +345,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959465,
         "longitude": -85.666185
@@ -353,7 +353,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959557,
         "longitude": -85.663221
@@ -361,7 +361,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959572,
         "longitude": -85.663698
@@ -369,7 +369,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959608,
         "longitude": -85.664444
@@ -377,14 +377,14 @@
       "availability": "Capacity: 5"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.95962,
         "longitude": -85.646101
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959631,
         "longitude": -85.667502
@@ -392,7 +392,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959644,
         "longitude": -85.669839
@@ -400,7 +400,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959797,
         "longitude": -85.649583
@@ -408,7 +408,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959821,
         "longitude": -85.669339
@@ -416,7 +416,7 @@
       "availability": "Capacity: 12; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.959928,
         "longitude": -85.649566
@@ -424,7 +424,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960036,
         "longitude": -85.663661
@@ -432,7 +432,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960046,
         "longitude": -85.681244
@@ -440,7 +440,7 @@
       "availability": "Capacity: 33"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960279,
         "longitude": -85.666011
@@ -448,7 +448,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960297,
         "longitude": -85.668894
@@ -456,7 +456,7 @@
       "availability": "Capacity: 10"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960442,
         "longitude": -85.673228
@@ -464,7 +464,7 @@
       "availability": "Capacity: 7"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960504,
         "longitude": -85.669222
@@ -472,7 +472,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960527,
         "longitude": -85.666772
@@ -480,7 +480,7 @@
       "availability": "Capacity: 5"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960777,
         "longitude": -85.669233
@@ -488,7 +488,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.960852,
         "longitude": -85.669055
@@ -496,7 +496,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96096,
         "longitude": -85.673051
@@ -504,7 +504,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961058,
         "longitude": -85.672853
@@ -512,7 +512,7 @@
       "availability": "Capacity: 3"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961127,
         "longitude": -85.665914
@@ -520,7 +520,7 @@
       "availability": "Capacity: 30"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961141,
         "longitude": -85.673572
@@ -528,7 +528,7 @@
       "availability": "Capacity: 1"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961168,
         "longitude": -85.673379
@@ -536,7 +536,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961168,
         "longitude": -85.669232
@@ -544,14 +544,14 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96126,
         "longitude": -85.669084
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961516,
         "longitude": -85.669261
@@ -559,7 +559,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961745,
         "longitude": -85.668277
@@ -567,7 +567,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961836,
         "longitude": -85.673373
@@ -575,7 +575,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961874,
         "longitude": -85.669277
@@ -583,7 +583,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.961875,
         "longitude": -85.669098
@@ -591,7 +591,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962114,
         "longitude": -85.673261
@@ -599,7 +599,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962159,
         "longitude": -85.670386
@@ -607,7 +607,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962297,
         "longitude": -85.670425
@@ -615,7 +615,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962389,
         "longitude": -85.665965
@@ -623,7 +623,7 @@
       "availability": "Capacity: 12; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962436,
         "longitude": -85.664332
@@ -631,7 +631,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962533,
         "longitude": -85.669298
@@ -639,7 +639,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962722,
         "longitude": -85.645618
@@ -647,7 +647,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962727,
         "longitude": -85.646488
@@ -655,7 +655,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962741,
         "longitude": -85.664267
@@ -663,14 +663,14 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962778,
         "longitude": -85.668916
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962793,
         "longitude": -85.636761
@@ -678,7 +678,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962795,
         "longitude": -85.63724
@@ -686,7 +686,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962795,
         "longitude": -85.63718
@@ -694,7 +694,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962796,
         "longitude": -85.637068
@@ -702,7 +702,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962804,
         "longitude": -85.669357
@@ -710,7 +710,7 @@
       "availability": "Capacity: 5"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962848,
         "longitude": -85.644715
@@ -718,7 +718,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962851,
         "longitude": -85.664168
@@ -726,7 +726,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962866,
         "longitude": -85.667767
@@ -734,7 +734,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.962969,
         "longitude": -85.640372
@@ -742,7 +742,7 @@
       "availability": "Capacity: 18"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963014,
         "longitude": -85.664291
@@ -750,7 +750,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963021,
         "longitude": -85.670898
@@ -758,7 +758,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96303,
         "longitude": -85.667986
@@ -766,7 +766,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963041,
         "longitude": -85.666126
@@ -774,7 +774,7 @@
       "availability": "Capacity: 5"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96306,
         "longitude": -85.669243
@@ -782,7 +782,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963088,
         "longitude": -85.665325
@@ -790,7 +790,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963242,
         "longitude": -85.658918
@@ -798,7 +798,7 @@
       "availability": "Capacity: 7"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963319,
         "longitude": -85.664882
@@ -806,7 +806,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963359,
         "longitude": -85.671877
@@ -814,7 +814,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96338,
         "longitude": -85.666793
@@ -822,7 +822,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963386,
         "longitude": -85.667294
@@ -830,7 +830,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963392,
         "longitude": -85.673126
@@ -838,7 +838,7 @@
       "availability": "Capacity: 10"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963398,
         "longitude": -85.662559
@@ -846,7 +846,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963401,
         "longitude": -85.671602
@@ -854,7 +854,7 @@
       "availability": "Capacity: 6; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963463,
         "longitude": -85.635824
@@ -862,7 +862,7 @@
       "availability": "Capacity: 7; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963736,
         "longitude": -85.678074
@@ -870,7 +870,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963904,
         "longitude": -85.663513
@@ -878,7 +878,7 @@
       "availability": "Capacity: 10"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.963948,
         "longitude": -85.670214
@@ -886,7 +886,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964013,
         "longitude": -85.668288
@@ -894,7 +894,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964108,
         "longitude": -85.670424
@@ -902,7 +902,7 @@
       "availability": "Capacity: 8; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964112,
         "longitude": -85.673727
@@ -910,7 +910,7 @@
       "availability": "Capacity: 5"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964116,
         "longitude": -85.668747
@@ -918,7 +918,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96413,
         "longitude": -85.67786
@@ -926,7 +926,7 @@
       "availability": "Capacity: 24"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964191,
         "longitude": -85.667024
@@ -934,7 +934,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96425,
         "longitude": -85.670734
@@ -942,7 +942,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964466,
         "longitude": -85.672699
@@ -950,7 +950,7 @@
       "availability": "Capacity: 4; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964485,
         "longitude": -85.672247
@@ -958,7 +958,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964509,
         "longitude": -85.66635
@@ -966,7 +966,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964524,
         "longitude": -85.673931
@@ -974,7 +974,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96456,
         "longitude": -85.671034
@@ -982,7 +982,7 @@
       "availability": "Capacity: 7"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964569,
         "longitude": -85.676773
@@ -990,7 +990,7 @@
       "availability": "Capacity: 10"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964635,
         "longitude": -85.664699
@@ -998,7 +998,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964646,
         "longitude": -85.678783
@@ -1006,7 +1006,7 @@
       "availability": "Capacity: 80; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964678,
         "longitude": -85.665616
@@ -1014,7 +1014,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964707,
         "longitude": -85.669719
@@ -1022,7 +1022,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964719,
         "longitude": -85.679588
@@ -1030,7 +1030,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964764,
         "longitude": -85.668465
@@ -1038,7 +1038,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964827,
         "longitude": -85.674146
@@ -1046,14 +1046,14 @@
       "availability": "Capacity: 33; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964838,
         "longitude": -85.668976
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964929,
         "longitude": -85.666348
@@ -1061,7 +1061,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.964944,
         "longitude": -85.640512
@@ -1069,7 +1069,7 @@
       "availability": "Capacity: 14"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965015,
         "longitude": -85.669906
@@ -1077,7 +1077,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965133,
         "longitude": -85.672999
@@ -1085,7 +1085,7 @@
       "availability": "Capacity: 7; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965203,
         "longitude": -85.670117
@@ -1093,7 +1093,7 @@
       "availability": "Capacity: 18"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965226,
         "longitude": -85.666337
@@ -1101,7 +1101,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965353,
         "longitude": -85.672815
@@ -1109,7 +1109,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96545,
         "longitude": -85.673791
@@ -1117,7 +1117,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965479,
         "longitude": -85.664071
@@ -1125,7 +1125,7 @@
       "availability": "Capacity: 27"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965532,
         "longitude": -85.671104
@@ -1133,7 +1133,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965539,
         "longitude": -85.668429
@@ -1141,7 +1141,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965565,
         "longitude": -85.668296
@@ -1149,7 +1149,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965617,
         "longitude": -85.666461
@@ -1157,7 +1157,7 @@
       "availability": "Capacity: 28"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965624,
         "longitude": -85.668159
@@ -1165,7 +1165,7 @@
       "availability": "Capacity: 24"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965773,
         "longitude": -85.66648
@@ -1173,7 +1173,7 @@
       "availability": "Capacity: 12"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965857,
         "longitude": -85.676919
@@ -1181,7 +1181,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965898,
         "longitude": -85.666483
@@ -1189,7 +1189,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.965921,
         "longitude": -85.670111
@@ -1197,7 +1197,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966068,
         "longitude": -85.669075
@@ -1205,7 +1205,7 @@
       "availability": "Capacity: 35; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966148,
         "longitude": -85.679805
@@ -1213,7 +1213,7 @@
       "availability": "Capacity: 3"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966297,
         "longitude": -85.672253
@@ -1221,7 +1221,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966318,
         "longitude": -85.677466
@@ -1229,7 +1229,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96637,
         "longitude": -85.666228
@@ -1237,7 +1237,7 @@
       "availability": "Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966417,
         "longitude": -85.668652
@@ -1245,7 +1245,7 @@
       "availability": "Capacity: 24"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966578,
         "longitude": -85.6723
@@ -1253,7 +1253,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966612,
         "longitude": -85.670067
@@ -1261,7 +1261,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.966626,
         "longitude": -85.664803
@@ -1269,7 +1269,7 @@
       "availability": "Capacity: 8; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967002,
         "longitude": -85.664795
@@ -1277,7 +1277,7 @@
       "availability": "Capacity: 9"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967088,
         "longitude": -85.673196
@@ -1285,7 +1285,7 @@
       "availability": "Capacity: 4; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967107,
         "longitude": -85.66789
@@ -1293,7 +1293,7 @@
       "availability": "Capacity: 12; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967196,
         "longitude": -85.662921
@@ -1301,7 +1301,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967229,
         "longitude": -85.665139
@@ -1309,7 +1309,7 @@
       "availability": "Capacity: 9"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967351,
         "longitude": -85.669463
@@ -1317,7 +1317,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967411,
         "longitude": -85.666931
@@ -1325,7 +1325,7 @@
       "availability": "Capacity: 8; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967433,
         "longitude": -85.673164
@@ -1333,7 +1333,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967445,
         "longitude": -85.673947
@@ -1341,7 +1341,7 @@
       "availability": "Capacity: 6; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967456,
         "longitude": -85.665982
@@ -1349,7 +1349,7 @@
       "availability": "Capacity: 25"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967673,
         "longitude": -85.672359
@@ -1357,7 +1357,7 @@
       "availability": "Capacity: 15"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967731,
         "longitude": -85.677033
@@ -1365,14 +1365,14 @@
       "availability": "Capacity: 15"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.967755,
         "longitude": -85.667757
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968117,
         "longitude": -85.672048
@@ -1380,7 +1380,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968152,
         "longitude": -85.666346
@@ -1388,7 +1388,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968274,
         "longitude": -85.665085
@@ -1396,7 +1396,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968447,
         "longitude": -85.674269
@@ -1404,7 +1404,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968457,
         "longitude": -85.672356
@@ -1412,7 +1412,7 @@
       "availability": "Capacity: 21"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968682,
         "longitude": -85.665176
@@ -1420,7 +1420,7 @@
       "availability": "Capacity: 16"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968741,
         "longitude": -85.665364
@@ -1428,7 +1428,7 @@
       "availability": "Capacity: 27"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968773,
         "longitude": -85.670304
@@ -1436,7 +1436,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.968794,
         "longitude": -85.672234
@@ -1444,7 +1444,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.96889,
         "longitude": -85.669425
@@ -1452,7 +1452,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969102,
         "longitude": -85.671894
@@ -1460,7 +1460,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969383,
         "longitude": -85.674117
@@ -1468,7 +1468,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969532,
         "longitude": -85.666683
@@ -1476,7 +1476,7 @@
       "availability": "Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969793,
         "longitude": -85.638241
@@ -1484,7 +1484,7 @@
       "availability": "Capacity: 7"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969883,
         "longitude": -85.669269
@@ -1492,7 +1492,7 @@
       "availability": "Capacity: 1"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969898,
         "longitude": -85.670428
@@ -1500,7 +1500,7 @@
       "availability": "Capacity: 4; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.969898,
         "longitude": -85.663224
@@ -1508,7 +1508,7 @@
       "availability": "Capacity: 8; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970024,
         "longitude": -85.660689
@@ -1516,7 +1516,7 @@
       "availability": "Capacity: 4"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970122,
         "longitude": -85.673792
@@ -1524,7 +1524,7 @@
       "availability": "Capacity: 6; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970323,
         "longitude": -85.665101
@@ -1532,7 +1532,7 @@
       "availability": "Capacity: 9"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970342,
         "longitude": -85.671989
@@ -1540,7 +1540,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970413,
         "longitude": -85.667016
@@ -1548,7 +1548,7 @@
       "availability": "Capacity: 6; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970422,
         "longitude": -85.662108
@@ -1556,7 +1556,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970595,
         "longitude": -85.666292
@@ -1564,7 +1564,7 @@
       "availability": "Capacity: 10"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970681,
         "longitude": -85.673089
@@ -1572,7 +1572,7 @@
       "availability": "Capacity: 8; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970768,
         "longitude": -85.667995
@@ -1580,7 +1580,7 @@
       "availability": "Capacity: 17; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970788,
         "longitude": -85.666195
@@ -1588,7 +1588,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970794,
         "longitude": -85.661538
@@ -1596,7 +1596,7 @@
       "availability": "Capacity: 8"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970801,
         "longitude": -85.66767
@@ -1604,7 +1604,7 @@
       "availability": "Capacity: 20; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970901,
         "longitude": -85.664735
@@ -1612,7 +1612,7 @@
       "availability": "Capacity: 12; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970947,
         "longitude": -85.665617
@@ -1620,7 +1620,7 @@
       "availability": "Capacity: 6; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.970979,
         "longitude": -85.664271
@@ -1628,7 +1628,7 @@
       "availability": "Capacity: 18; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.971008,
         "longitude": -85.68288
@@ -1636,7 +1636,7 @@
       "availability": "Capacity: 4; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.97419,
         "longitude": -85.67561
@@ -1644,7 +1644,7 @@
       "availability": "Capacity: 2"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.974567,
         "longitude": -85.672332
@@ -1652,7 +1652,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.974822,
         "longitude": -85.673346
@@ -1660,7 +1660,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.974858,
         "longitude": -85.672894
@@ -1668,7 +1668,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.974873,
         "longitude": -85.672332
@@ -1676,7 +1676,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.975014,
         "longitude": -85.672343
@@ -1684,7 +1684,7 @@
       "availability": "Capacity: 13"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.975124,
         "longitude": -85.675707
@@ -1692,7 +1692,7 @@
       "availability": "Capacity: 9; Covered"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.975811,
         "longitude": -85.676488
@@ -1700,7 +1700,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.977373,
         "longitude": -85.675803
@@ -1708,7 +1708,7 @@
       "availability": "Capacity: 7"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.977674,
         "longitude": -85.673012
@@ -1716,14 +1716,14 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.978149,
         "longitude": -85.672338
       }
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.978857,
         "longitude": -85.672732
@@ -1731,7 +1731,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.9794,
         "longitude": -85.672641
@@ -1739,7 +1739,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.979544,
         "longitude": -85.662183
@@ -1747,7 +1747,7 @@
       "availability": "Capacity: 3"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.979953,
         "longitude": -85.672493
@@ -1755,7 +1755,7 @@
       "availability": "Capacity: 6"
     },
     {
-      "name": "Bicycle parking",
+      "name": "Bike Rack",
       "location": {
         "latitude": 42.980879,
         "longitude": -85.672297
