@@ -1,4 +1,4 @@
-// Load data from data/ folder (config, strategies per destination, built-in mode strategies, parking)
+// Load data from data/ folder (config, strategies, data/builtins.json mode narratives, parking).
 let appData = null;
 
 // Same icons/labels as the visit page mode buttons (index.html)
@@ -191,15 +191,16 @@ async function loadData() {
       if (result) handCraftedRecommendations[result.slug] = result.data;
     }
 
-    // Shared mode-combination narratives (formerly data/recommendations/<slug>.json per destination).
     let builtInModeRecommendations = {};
-    const builtInRes = await fetch("data/built-in-recommendations.json");
+    const builtInRes = await fetch("data/builtins.json");
     if (builtInRes.ok) {
-      builtInModeRecommendations = await builtInRes.json();
-      attachRideshareAppLinksToBuiltInRecommendations(
-        builtInModeRecommendations,
-      );
+      try {
+        builtInModeRecommendations = structuredClone(await builtInRes.json());
+      } catch {
+        builtInModeRecommendations = {};
+      }
     }
+    attachRideshareAppLinksToBuiltInRecommendations(builtInModeRecommendations);
 
     const recommendations = {};
     for (const d of destinations) {
@@ -228,6 +229,18 @@ async function loadData() {
   } catch (error) {
     console.error("Failed to load data:", error);
     appData = { ...FALLBACK_DATA };
+  }
+  if (typeof window !== "undefined") {
+    window.ParkDashLot = {
+      pickParkDashExampleLot,
+      lotListingIncludesDash,
+      collectDashStopsFromDashRoutes,
+      getProcessedDriveShuttleRecommendation,
+    };
+    window.RapidTransit = {
+      findBestRapidRouteStopForDestination,
+      formatRapidRouteLabel,
+    };
   }
 }
 
@@ -3228,6 +3241,27 @@ function processRecommendationData(recData, values) {
         );
         delete processedStep.linkTemplate;
       }
+      if (processedStep.linkLabel) {
+        processedStep.linkLabel = replacePlaceholders(
+          String(processedStep.linkLabel),
+          values,
+        );
+      }
+      if (Array.isArray(processedStep.links)) {
+        processedStep.links = processedStep.links.map((entry) => {
+          if (!entry || typeof entry !== "object") return entry;
+          const hrefRaw = entry.href ?? entry.url;
+          const href =
+            hrefRaw != null && String(hrefRaw).length > 0
+              ? replacePlaceholders(String(hrefRaw), values)
+              : "";
+          const label =
+            entry.label != null && String(entry.label).length > 0
+              ? replacePlaceholders(String(entry.label), values)
+              : "Open →";
+          return { href, label };
+        });
+      }
       return processedStep;
     });
   }
@@ -3300,6 +3334,201 @@ function estimateParkingCostRange(pricing, category) {
   }
   if (nums.length === 0) return { ...fb };
   return { min: Math.min(...nums), max: Math.max(...nums) };
+}
+
+/** Flatten DASH route stops from `data/bus/routes.json` (`dash_routes`). */
+function collectDashStopsFromDashRoutes(dashRoutes) {
+  const out = [];
+  if (!Array.isArray(dashRoutes)) return out;
+  for (const route of dashRoutes) {
+    const stops = route?.stops;
+    if (!Array.isArray(stops)) continue;
+    for (const s of stops) {
+      if (typeof s.latitude !== "number" || typeof s.longitude !== "number") {
+        continue;
+      }
+      const name = typeof s.name === "string" ? s.name.trim() : "";
+      out.push({
+        latitude: s.latitude,
+        longitude: s.longitude,
+        name,
+        stopId: s.stop_id,
+      });
+    }
+  }
+  return out;
+}
+
+/** True when city parking scrape lists a non-empty DASH line for the lot. */
+function lotListingIncludesDash(lot) {
+  const av = lot?.availability;
+  if (typeof av !== "string") return false;
+  const m = av.match(/DASH:\s*(.*)$/i);
+  if (!m) return false;
+  return m[1].trim().length > 0;
+}
+
+function nearestDashStopFromPool(lat, lng, pool) {
+  let best = null;
+  let bestD = Infinity;
+  for (const s of pool) {
+    const d = haversineMiles(lat, lng, s.latitude, s.longitude);
+    if (d < bestD) {
+      bestD = d;
+      best = { ...s, milesFromPoint: d };
+    }
+  }
+  return best;
+}
+
+/**
+ * Picks a scraped surface lot that lists DASH service: lowest minimum posted
+ * price tier (see estimateParkingCostRange), tie-broken by shortest walk to
+ * any DASH stop in GTFS-derived dash_routes.
+ */
+function pickParkDashExampleLot(lots, dashRoutes) {
+  const pool = collectDashStopsFromDashRoutes(dashRoutes);
+  if (!pool.length || !Array.isArray(lots)) return null;
+  const cands = [];
+  for (const lot of lots) {
+    if (!lotListingIncludesDash(lot)) continue;
+    const lat = lot?.location?.latitude;
+    const lng = lot?.location?.longitude;
+    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    const range = estimateParkingCostRange(lot.pricing, "lots");
+    const nearest = nearestDashStopFromPool(lat, lng, pool);
+    if (!nearest) continue;
+    cands.push({
+      lot,
+      costMin: range.min,
+      costMax: range.max,
+      nearestStop: nearest,
+      walkMilesToDash: nearest.milesFromPoint,
+    });
+  }
+  if (cands.length === 0) return null;
+  cands.sort((a, b) => {
+    if (a.costMin !== b.costMin) return a.costMin - b.costMin;
+    return a.walkMilesToDash - b.walkMilesToDash;
+  });
+  return cands[0];
+}
+
+function buildParkDashPlaceholderMap(state) {
+  const generic = {
+    parkDashLotName: "a surface lot that lists DASH service",
+    parkDashLotAddress: "Grand Rapids, MI",
+    parkDashLotPricingNote:
+      "Compare pricing on posted signs; our scrape may omit some tiers.",
+    parkDashWalkToStopMi: "0.15",
+    parkDashBoardStopName: "the nearest signed DASH stop",
+    parkDashLotMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("DASH parking downtown Grand Rapids MI")}`,
+    parkDashLotLinkLabel: "DASH parking area in Google Maps",
+    parkDashVenueStopName: "the DASH stop closest to the venue",
+    parkDashVenueStopWalkMi: "0.15",
+    parkDashVenueStopMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("DASH shuttle stop Grand Rapids MI")}`,
+    parkDashVenueStopLinkLabel: "DASH stops in Google Maps",
+  };
+
+  const dashRoutes = appData?.busRoutes?.dash_routes;
+  const lots = appData?.parking?.lots;
+  const pool =
+    Array.isArray(dashRoutes) && dashRoutes.length > 0
+      ? collectDashStopsFromDashRoutes(dashRoutes)
+      : [];
+
+  const dest = appData?.destinations?.find(
+    (d) => d.name === state?.destination || d.slug === state?.destination,
+  );
+  const vLat = dest?.latitude;
+  const vLng = dest?.longitude;
+
+  let venueStop = null;
+  if (pool.length > 0 && typeof vLat === "number" && typeof vLng === "number") {
+    venueStop = nearestDashStopFromPool(vLat, vLng, pool);
+  }
+
+  let venueStopName = generic.parkDashVenueStopName;
+  let venueWalkMi = generic.parkDashVenueStopWalkMi;
+  let venueMapsUrl = generic.parkDashVenueStopMapsUrl;
+  let venueLinkLabel = generic.parkDashVenueStopLinkLabel;
+  if (venueStop && typeof vLat === "number" && typeof vLng === "number") {
+    if (venueStop.name) venueStopName = venueStop.name;
+    const w = haversineMiles(
+      venueStop.latitude,
+      venueStop.longitude,
+      vLat,
+      vLng,
+    );
+    venueWalkMi = w.toFixed(2);
+    const pin = googleMapsPinUrl(venueStop.latitude, venueStop.longitude);
+    if (pin) {
+      venueMapsUrl = pin;
+      venueLinkLabel = `${venueStopName} in Google Maps`;
+    }
+  }
+
+  if (!Array.isArray(lots) || !dashRoutes || pool.length === 0) {
+    return {
+      ...generic,
+      parkDashVenueStopName: venueStopName,
+      parkDashVenueStopWalkMi: venueWalkMi,
+      parkDashVenueStopMapsUrl: venueMapsUrl,
+      parkDashVenueStopLinkLabel: venueLinkLabel,
+    };
+  }
+
+  const pick = pickParkDashExampleLot(lots, dashRoutes);
+  if (!pick) {
+    return {
+      ...generic,
+      parkDashVenueStopName: venueStopName,
+      parkDashVenueStopWalkMi: venueWalkMi,
+      parkDashVenueStopMapsUrl: venueMapsUrl,
+      parkDashVenueStopLinkLabel: venueLinkLabel,
+    };
+  }
+
+  const lot = pick.lot;
+  const addr = typeof lot.address === "string" ? lot.address.trim() : "";
+  const lotLat = lot.location.latitude;
+  const lotLng = lot.location.longitude;
+  const lotMaps =
+    googleMapsPinUrl(lotLat, lotLng) ||
+    `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+      (lot.name ? `${lot.name} ` : "") + (addr || "Grand Rapids MI"),
+    )}`;
+
+  const ns = pick.nearestStop;
+  const boardName =
+    ns?.name && ns.name.length > 0 ? ns.name : generic.parkDashBoardStopName;
+
+  let pricingNote = generic.parkDashLotPricingNote;
+  if (lot.pricing && typeof lot.pricing === "object") {
+    const parts = [];
+    for (const [k, v] of Object.entries(lot.pricing)) {
+      if (typeof v === "string" && /\$/.test(v)) {
+        parts.push(`${k}: ${v}`);
+      }
+    }
+    if (parts.length > 0) {
+      pricingNote = `Posted tiers in our scrape include ${parts.slice(0, 4).join("; ")}.`;
+    }
+  }
+
+  return {
+    parkDashLotName: lot.name || generic.parkDashLotName,
+    parkDashLotAddress: addr || generic.parkDashLotAddress,
+    parkDashLotPricingNote: pricingNote,
+    parkDashWalkToStopMi: pick.walkMilesToDash.toFixed(2),
+    parkDashBoardStopName: boardName,
+    parkDashLotMapsUrl: lotMaps,
+    parkDashLotLinkLabel: `${lot.name || "Lot"} in Google Maps`,
+    parkDashVenueStopName: venueStopName,
+    parkDashVenueStopWalkMi: venueWalkMi,
+    parkDashVenueStopMapsUrl: venueMapsUrl,
+    parkDashVenueStopLinkLabel: venueLinkLabel,
+  };
 }
 
 // "No options" cards (formerly in data/recommendations per destination). Same rules for all venues.
@@ -3927,6 +4156,17 @@ function calculateScore(rec, state) {
     score += 30;
   }
 
+  // Park-and-Ride style: user selected both drive and The Rapid — surface the
+  // single Rapid line + stop recommendation alongside parking (see buildTransitAppRecommendation).
+  if (
+    rec.modeKey === "transit" &&
+    rec.variantKey === "transitApp" &&
+    state.modes.includes("drive") &&
+    state.modes.includes("transit")
+  ) {
+    score += 220;
+  }
+
   // Penalize discouraged recommendations
   if (rec.isDiscouraged) {
     score -= 20;
@@ -4047,8 +4287,31 @@ function getNearestBikeRackDistanceMiles(state) {
   return hit ? hit.miles : null;
 }
 
-/** Closest bus stop to the venue from `data/bus/routes.json` (DASH + The Rapid lines). */
-function findNearestBusStopToDestination(state) {
+function formatRapidRouteLabel(route) {
+  if (!route || typeof route !== "object") return "The Rapid";
+  const short =
+    route.route_short_name != null ? String(route.route_short_name).trim() : "";
+  const long =
+    route.route_long_name != null ? String(route.route_long_name).trim() : "";
+  if (short && long) return `Route ${short} (${long})`;
+  if (long) return long;
+  if (short) return `Route ${short}`;
+  return "The Rapid";
+}
+
+function rapidRouteTieBreakKey(route) {
+  if (!route || typeof route !== "object") return "";
+  const id = route.route_id != null ? String(route.route_id) : "";
+  const sn =
+    route.route_short_name != null ? String(route.route_short_name) : "";
+  return `${sn}\t${id}`;
+}
+
+/**
+ * Best Rapid (non-DASH) line for the venue: the route whose closest stop is
+ * nearest to the destination. Uses `rapid_routes` only from `data/bus/routes.json`.
+ */
+function findBestRapidRouteStopForDestination(state) {
   const br = appData?.busRoutes;
   if (!br || !state?.destination) return null;
   const dest = appData.destinations?.find(
@@ -4058,38 +4321,44 @@ function findNearestBusStopToDestination(state) {
   const vLng = dest?.longitude;
   if (typeof vLat !== "number" || typeof vLng !== "number") return null;
 
-  let bestStop = null;
+  const routes = br.rapid_routes;
+  if (!Array.isArray(routes) || routes.length === 0) return null;
+
+  let best = null;
   let bestD = Infinity;
-  for (const key of ["dash_routes", "rapid_routes"]) {
-    const routes = br[key];
-    if (!Array.isArray(routes)) continue;
-    for (const route of routes) {
-      const stops = route.stops;
-      if (!Array.isArray(stops)) continue;
-      for (const s of stops) {
-        if (typeof s.latitude !== "number" || typeof s.longitude !== "number") {
-          continue;
-        }
-        const d = haversineMiles(s.latitude, s.longitude, vLat, vLng);
-        if (d < bestD) {
-          bestD = d;
-          bestStop = s;
-        }
+  let bestKey = "";
+
+  for (const route of routes) {
+    const stops = route.stops;
+    if (!Array.isArray(stops)) continue;
+    for (const s of stops) {
+      if (typeof s.latitude !== "number" || typeof s.longitude !== "number") {
+        continue;
+      }
+      const d = haversineMiles(s.latitude, s.longitude, vLat, vLng);
+      const rk = rapidRouteTieBreakKey(route);
+      if (
+        d < bestD - 1e-9 ||
+        (Math.abs(d - bestD) <= 1e-9 && rk.localeCompare(bestKey) < 0)
+      ) {
+        bestD = d;
+        best = { stop: s, miles: d, route };
+        bestKey = rk;
       }
     }
   }
-  if (!bestStop || bestD === Infinity) return null;
-  return { stop: bestStop, miles: bestD };
+  if (!best || bestD === Infinity) return null;
+  return best;
 }
 
 /**
- * The Rapid is selected, a stop in our data lies within the user's walk budget,
- * and willing-to-pay covers a standard round-trip fare — recommend Transit app + venue destination.
+ * The Rapid is selected, a Rapid-route stop in GTFS data lies within the user's walk budget,
+ * and willing-to-pay covers a standard round-trip fare — recommend that line + Transit app.
  */
 function buildTransitAppRecommendation(state) {
   if (!state?.modes?.includes("transit")) return [];
 
-  const hit = findNearestBusStopToDestination(state);
+  const hit = findBestRapidRouteStopForDestination(state);
   const walkBudget = state.walkMiles ?? 0;
   if (!hit || hit.miles > walkBudget + 1e-9) return [];
 
@@ -4100,6 +4369,7 @@ function buildTransitAppRecommendation(state) {
 
   const stopToVenueMi = hit.miles;
   const pinUrl = googleMapsPinUrl(hit.stop.latitude, hit.stop.longitude);
+  const routeLabel = formatRapidRouteLabel(hit.route);
 
   const meta = {
     requiredModes: ["transit"],
@@ -4120,8 +4390,8 @@ function buildTransitAppRecommendation(state) {
 
   return [
     {
-      title: "Take the bus",
-      body: `Our stop data shows ${stopLabel} within your walk range. Budget at least $${(TRANSIT_STANDARD_ONE_WAY_FARE * 2).toFixed(2)} for a round trip on The Rapid.`,
+      title: `The Rapid: ${routeLabel}`,
+      body: `Our GTFS data places ${stopLabel} on ${routeLabel} within your walk range (~${stopToVenueMi.toFixed(2)} mi from ${destName}). Budget at least $${(TRANSIT_STANDARD_ONE_WAY_FARE * 2).toFixed(2)} for a round trip.`,
       badge: "Real-time",
       modeKey: "transit",
       variantKey: "transitApp",
@@ -4136,10 +4406,10 @@ function buildTransitAppRecommendation(state) {
           linkLabel: "Download the Transit app →",
         },
         {
-          title: `Set ${destName} as your destination`,
-          description: `In Transit, plan your trip to the venue (pick any starting address or current location). Get off at a stop that leaves ${walkPhrase}`,
+          title: `Plan ${routeLabel} to ${destName}`,
+          description: `In Transit, choose ${routeLabel} and plan to exit at ${stopLabel} (closest stop on that line to the venue in our data). That leaves ${walkPhrase}`,
           ...(pinUrl
-            ? { link: pinUrl, linkLabel: "Nearest stop in Google Maps →" }
+            ? { link: pinUrl, linkLabel: `${stopLabel} in Google Maps →` }
             : {}),
         },
       ],
@@ -4436,13 +4706,37 @@ function buildMicromobilityLimeHubRecommendation(state) {
 
 function buildRecommendationPlaceholders() {
   const walkMiles = state?.walkMiles ?? 0;
+  const dest = appData?.destinations?.find(
+    (d) => d.name === state?.destination || d.slug === state?.destination,
+  );
+  const destinationDisplay =
+    dest?.name || state?.destination || "your destination";
   return {
     walkMiles: walkMiles.toFixed(1),
     destination: state?.destination ?? "",
+    destinationDisplay,
     destinationEncoded: encodeURIComponent(
-      (state?.destination || "") + ", Grand Rapids, MI",
+      `${destinationDisplay}, Grand Rapids, MI`,
     ),
+    ...buildParkDashPlaceholderMap(state),
   };
+}
+
+/** Built-in Park & DASH card after placeholder substitution (for tests / previews). */
+function getProcessedDriveShuttleRecommendation() {
+  if (!state?.destination || !appData?.recommendations) return null;
+  const slug = getDestinationSlug(state.destination);
+  const raw = appData.recommendations[slug]?.["drive+shuttle"]?.default;
+  if (!raw) return null;
+  return processRecommendationData(
+    {
+      ...raw,
+      modeKey: "drive+shuttle",
+      variantKey: "default",
+      metadata: raw._metadata,
+    },
+    buildRecommendationPlaceholders(),
+  );
 }
 
 function buildRecommendation() {

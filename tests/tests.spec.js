@@ -343,6 +343,11 @@ test.describe("Transit-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/");
     await page.waitForSelector("#preferencesSection");
+    await page.waitForFunction(
+      () =>
+        typeof window.RapidTransit?.findBestRapidRouteStopForDestination ===
+        "function",
+    );
   });
 
   test("recommends bus with Transit in steps when a stop is in walk range and budget covers round trip", async ({
@@ -357,7 +362,8 @@ test.describe("Transit-only recommendations", () => {
     const results = page.locator("#results");
     await expect(results.locator(".border-green-200").first()).toBeVisible();
     await expect(results).toContainText("Recommended Strategy");
-    await expect(results).toContainText("Take the bus");
+    await expect(results).toContainText("The Rapid:");
+    await expect(results).toContainText("Route ");
 
     await page.locator('button:has-text("Show steps")').first().click();
     await page.waitForTimeout(200);
@@ -368,6 +374,41 @@ test.describe("Transit-only recommendations", () => {
       .filter({ hasText: "Download the Transit app" })
       .first();
     await expect(transitAppLink).toBeVisible();
+  });
+
+  test("findBestRapidRouteStop picks one non-DASH line closest to the venue", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?modes=transit&day=saturday&time=600&walk=1&pay=20",
+    );
+    await page.waitForFunction(() => window.state?.destination);
+
+    const hit = await page.evaluate(() =>
+      window.RapidTransit.findBestRapidRouteStopForDestination(window.state),
+    );
+    expect(hit).not.toBeNull();
+    expect(hit.route).toBeTruthy();
+    expect(hit.miles).toBeLessThan(1.5);
+    const label = await page.evaluate(
+      (h) => window.RapidTransit.formatRapidRouteLabel(h.route),
+      hit,
+    );
+    expect(label).toMatch(/^Route /);
+  });
+
+  test("drive and transit together show a specific Rapid route when a stop fits walk budget", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=saturday&time=600&modes=drive,transit&pay=20",
+    );
+    await page.waitForSelector("#results");
+    await page.waitForTimeout(600);
+
+    const text = await page.locator("#results").textContent();
+    expect(text).toContain("The Rapid:");
+    expect(text).toMatch(/Route \d+/);
   });
 });
 
@@ -742,7 +783,7 @@ test.describe("Option fragment (strategy steps expanded)", () => {
 });
 
 test.describe("Option fragment with hand-crafted recommendations", () => {
-  // Acrisure Amphitheater has hand-crafted "Park in on-site lot"; need drive, pay >= 15, walk >= 0.05
+  // Acrisure on-site garage hand-crafted total cost $30; need drive, pay >= 30, walk >= 0.05
   const handCraftedParams = "modes=drive&day=monday&time=600&walk=0.5&pay=30";
 
   test.beforeEach(async ({ page }) => {
@@ -761,7 +802,9 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
 
     // First card is hand-crafted; should show "Hide steps" and steps visible
     await expect(page.locator("#results")).toContainText("Ideal Strategy");
-    await expect(page.locator("#results")).toContainText("Park in on-site lot");
+    await expect(page.locator("#results")).toContainText(
+      "Park in on-site garage",
+    );
     const firstHideSteps = page
       .locator('button:has-text("Hide steps")')
       .first();
@@ -806,7 +849,9 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     const hideStepsButtons = page.locator('button:has-text("Hide steps")');
     await expect(hideStepsButtons).toHaveCount(2);
     await expect(page.locator("#results")).toContainText("Ideal Strategy");
-    await expect(page.locator("#results")).toContainText("Park in on-site lot");
+    await expect(page.locator("#results")).toContainText(
+      "Park in on-site garage",
+    );
   });
 
   test("hand-crafted rideshare requires willing to pay at least 2× step cost (both ways)", async ({
@@ -1597,5 +1642,82 @@ test.describe("Modes route", () => {
     await page.waitForTimeout(200);
     await expect(page.locator("#appView")).toBeVisible();
     await expect(page.locator("#modesView")).toBeHidden();
+  });
+});
+
+test.describe("Park & DASH data-driven copy", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto("/");
+    await page.waitForSelector("#preferencesSection");
+    await page.waitForFunction(
+      () =>
+        Array.isArray(window.appData?.parking?.lots) &&
+        window.appData.parking.lots.length > 0 &&
+        Array.isArray(window.appData?.busRoutes?.dash_routes) &&
+        window.appData.busRoutes.dash_routes.length > 0 &&
+        typeof window.ParkDashLot?.pickParkDashExampleLot === "function",
+    );
+  });
+
+  test("lotListingIncludesDash requires a non-empty DASH line in scraped availability", async ({
+    page,
+  }) => {
+    expect(
+      await page.evaluate(() =>
+        window.ParkDashLot.lotListingIncludesDash({
+          availability: "80 spaces; DASH: Circulator",
+        }),
+      ),
+    ).toBe(true);
+    expect(
+      await page.evaluate(() =>
+        window.ParkDashLot.lotListingIncludesDash({ availability: "DASH: " }),
+      ),
+    ).toBe(false);
+    expect(
+      await page.evaluate(() =>
+        window.ParkDashLot.lotListingIncludesDash({
+          availability: "42 spaces; DASH: ",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  test("pickParkDashExampleLot chooses lowest posted tier among DASH lots, tie-broken by walk to a DASH stop", async ({
+    page,
+  }) => {
+    const pick = await page.evaluate(() => {
+      const { pickParkDashExampleLot } = window.ParkDashLot;
+      return pickParkDashExampleLot(
+        window.appData.parking.lots,
+        window.appData.busRoutes.dash_routes,
+      );
+    });
+    expect(pick).not.toBeNull();
+    expect(pick.lot.name).toBe("Area 8 Lot");
+    expect(pick.costMin).toBe(6);
+    expect(pick.walkMilesToDash).toBeLessThan(0.08);
+    expect(String(pick.nearestStop.name || "").length).toBeGreaterThan(0);
+  });
+
+  test("processed Park & DASH recommendation fills lot + stop copy from parking and DASH data", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/van-andel-arena?modes=drive,shuttle&day=friday&time=600&walk=1&pay=12",
+    );
+    await page.waitForSelector("#preferencesSection");
+    await page.waitForFunction(() => window.state?.destination);
+
+    const proc = await page.evaluate(() =>
+      window.ParkDashLot.getProcessedDriveShuttleRecommendation(),
+    );
+    expect(proc).not.toBeNull();
+    expect(proc.steps?.length).toBe(4);
+    expect(proc.steps[0].description).toContain("Area 8 Lot");
+    expect(proc.steps[0].description).toContain("325 Winter Ave NW");
+    expect(proc.steps[0].link || "").toMatch(/google\.com\/maps|maps\.google/i);
+    expect(proc.steps[3].link || "").toMatch(/google\.com\/maps|maps\.google/i);
+    expect(proc.steps[3].description.length).toBeGreaterThan(20);
   });
 });

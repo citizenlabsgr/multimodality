@@ -2,7 +2,7 @@
   "drive+shuttle": {
     "default": {
       "title": "Park & DASH",
-      "body": "Park in a less crowded area and take the free DASH shuttle to get closer to your destination.",
+      "body": "Park at a value lot on or near the DASH route, walk to a stop, ride the free shuttle, then walk from the nearest stop to your destination.",
       "badge": "Time saver",
       "_metadata": {
         "requiredModes": ["drive", "shuttle"],
@@ -12,12 +12,24 @@
       },
       "steps": [
         {
-          "title": "Park farther from destination",
-          "description": "Find parking away from the destination where spots are easier to find. Look for areas with less competition."
+          "title": "Park at a value lot near the DASH route",
+          "description": "Park at {parkDashLotName} ({parkDashLotAddress}). {parkDashLotPricingNote} Using our scraped lot list and DASH stop coordinates, it is about {parkDashWalkToStopMi} mi on foot from this lot to the nearest stop ({parkDashBoardStopName}). Confirm hours and rates on posted signs.",
+          "linkTemplate": "{parkDashLotMapsUrl}",
+          "linkLabel": "{parkDashLotLinkLabel}"
         },
         {
-          "title": "Take the DASH shuttle",
-          "description": "Walk to the nearest DASH stop and board the free downtown shuttle. Ride it to get closer to your destination."
+          "title": "Walk to the nearest DASH stop",
+          "description": "From your car, walk about {parkDashWalkToStopMi} mi to {parkDashBoardStopName} (the closest DASH stop to this lot in our GTFS-derived route data). Follow sidewalks and posted signage for The Rapid DASH."
+        },
+        {
+          "title": "Ride DASH toward the venue",
+          "description": "Board the free DASH shuttle and ride toward {destinationDisplay}. Stay on until you are as close to the venue as the route allows."
+        },
+        {
+          "title": "Get off DASH and walk to the venue",
+          "description": "Exit at {parkDashVenueStopName}, about {parkDashVenueStopWalkMi} mi on foot from the venue coordinates in our data—then walk to the entrance.",
+          "linkTemplate": "{parkDashVenueStopMapsUrl}",
+          "linkLabel": "{parkDashVenueStopLinkLabel}"
         }
       ]
     }
