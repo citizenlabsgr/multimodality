@@ -1082,6 +1082,24 @@ test.describe("Parking Enforcement Logic", () => {
     expect(resultsText.toLowerCase()).toContain("metered");
   });
 
+  test("Saturday evening Acrisure with drive+shuttle still shows a garage or lot within walk and budget", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=drive,shuttle&walk=0.5&pay=25",
+    );
+    const results = page.locator("#results");
+    await results.waitFor();
+    await page.waitForTimeout(500);
+
+    const resultsText = await results.textContent();
+    expect(resultsText).toContain("Park & DASH");
+    expect(
+      resultsText.includes("Garage parking") ||
+        resultsText.includes("Lot parking"),
+    ).toBe(true);
+  });
+
   test("Friday 6pm with pay $15 and drive+shuttle should recommend a parking garage", async ({
     page,
   }) => {

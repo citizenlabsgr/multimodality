@@ -4882,7 +4882,9 @@ function buildRecommendation() {
   // If no explicit alternate (or it was filtered out), check if second-best option should be shown as alternate
   if (!useExplicitAlternate) {
     let secondScored = null;
-    // Prefer metered street parking as alternate when primary is drive+DASH (fits low budgets / enforcement)
+    // When primary is Park & DASH, still surface a garage or surface lot from parking data when the user
+    // can afford structured parking (already filtered by matchesCost). Prefer that over metered, which
+    // otherwise wins as the first matching drive variant in the sorted list and hides walk-in ramps/lots.
     if (
       primaryScored.rec.modeKey === "drive+shuttle" &&
       modes.includes("drive")
@@ -4891,10 +4893,22 @@ function buildRecommendation() {
         (s) =>
           s !== primaryScored &&
           s.rec.modeKey === "drive" &&
-          s.rec.variantKey === "meteredParking" &&
+          s.rec.fromParkingData === true &&
+          (s.rec.variantKey === "parkingGarage" ||
+            s.rec.variantKey === "affordableLot") &&
           s.score > 0 &&
           !s.rec.isNoOptions,
       );
+      if (!secondScored && (state.costDollars ?? 0) < 12) {
+        secondScored = scored.find(
+          (s) =>
+            s !== primaryScored &&
+            s.rec.modeKey === "drive" &&
+            s.rec.variantKey === "meteredParking" &&
+            s.score > 0 &&
+            !s.rec.isNoOptions,
+        );
+      }
     }
     if (!secondScored) {
       secondScored = scored.find(
