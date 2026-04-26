@@ -40,6 +40,9 @@ const MODES_PAGE_ORDER = [
 const MODES_PAGE_EMPTY_MAP_CENTER = [42.96333, -85.66806];
 const MODES_PAGE_EMPTY_MAP_ZOOM = 13;
 
+/** Same 1.75 mi from MODES_PAGE_EMPTY_MAP_CENTER as fetch_bike_parking.py, fetch_car_parking_osm.py, fetch_car_parking_arcgis.py (surface lots), etc. */
+const DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER = 1.75;
+
 /** Downtown Grand Rapids — matches scripts/fetch_bus_routes.py for #/data/routes stops. */
 const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
 const DATA_ROUTES_CITY_CENTER_LON = -85.66806;
@@ -149,11 +152,13 @@ async function loadData() {
     });
 
     const parkingCategories = [
-      { file: "garages.json", key: "garages" },
-      { file: "lots.json", key: "lots" },
-      { file: "meters.json", key: "meters" },
-      { file: "racks.json", key: "racks" },
-      { file: "micromobility.json", key: "micromobility" },
+      { file: "public/garages.json", key: "garages" },
+      { file: "public/lots.json", key: "lots" },
+      { file: "private/garages.json", key: "osmGarages" },
+      { file: "private/lots.json", key: "osmLots" },
+      { file: "public/meters.json", key: "meters" },
+      { file: "public/racks.json", key: "racks" },
+      { file: "private/micromobility.json", key: "micromobility" },
     ];
     const parkingResolves = await Promise.all(
       parkingCategories.map(({ file }) =>
@@ -163,6 +168,8 @@ async function loadData() {
     const parking = {
       garages: [],
       lots: [],
+      osmGarages: [],
+      osmLots: [],
       meters: [],
       racks: [],
       micromobility: [],
@@ -179,6 +186,26 @@ async function loadData() {
         if (data.name) parking.categoryNames[key] = data.name;
       }
     });
+
+    for (const osmKey of ["osmGarages", "osmLots"]) {
+      const arr = parking[osmKey];
+      if (!Array.isArray(arr) || !arr.length) continue;
+      const [cLat, cLon] = MODES_PAGE_EMPTY_MAP_CENTER;
+      parking[osmKey] = arr.filter((item) => {
+        const loc = item?.location;
+        if (
+          !loc ||
+          typeof loc.latitude !== "number" ||
+          typeof loc.longitude !== "number"
+        ) {
+          return false;
+        }
+        return (
+          haversineMiles(loc.latitude, loc.longitude, cLat, cLon) <=
+          DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER + 1e-9
+        );
+      });
+    }
 
     const strategyPromises = destinations.map((d) =>
       fetch(`data/strategies/${d.slug}.json`).then((r) =>
@@ -415,6 +442,8 @@ function isModesRoute() {
 const MODES_PAGE_PARKING_KEYS = [
   "garages",
   "lots",
+  "osmGarages",
+  "osmLots",
   "meters",
   "racks",
   "micromobility",
@@ -965,13 +994,16 @@ function roundCoord5(n) {
   return Math.round(n * 1e5) / 1e5;
 }
 
-function formatParkingPrice(pricing) {
-  if (!pricing || typeof pricing !== "object") return "Free";
+function formatParkingPrice(pricing, categoryKey) {
+  const privateOsm = categoryKey === "osmGarages" || categoryKey === "osmLots";
+  if (!pricing || typeof pricing !== "object") {
+    return privateOsm ? "Unknown" : "Free";
+  }
   if (pricing.rate) return pricing.rate;
   if (pricing.evening) return pricing.evening;
   if (pricing.daytime) return pricing.daytime;
   if (pricing.events) return pricing.events;
-  return "Free";
+  return privateOsm ? "Unknown" : "Free";
 }
 
 function updateDataViewMap(points, options) {
@@ -1650,6 +1682,8 @@ function renderDataView() {
     const parkingKeys = [
       { file: "garages", key: "garages" },
       { file: "lots", key: "lots" },
+      { file: "osmGarages", key: "osmGarages" },
+      { file: "osmLots", key: "osmLots" },
       { file: "meters", key: "meters" },
       { file: "racks", key: "racks" },
       { file: "micromobility", key: "micromobility" },
@@ -1788,7 +1822,7 @@ function renderDataView() {
               lng,
               categoryName,
               locationName: item.name || "—",
-              price: formatParkingPrice(item.pricing),
+              price: formatParkingPrice(item.pricing, p.key),
               parkingItem: { ...item },
             });
           }
@@ -1891,6 +1925,8 @@ function renderDataView() {
     const parkingKeys = {
       garages: "garages",
       lots: "lots",
+      osmGarages: "osmGarages",
+      osmLots: "osmLots",
       meters: "meters",
       racks: "racks",
       micromobility: "micromobility",
@@ -1915,6 +1951,8 @@ function renderDataView() {
     const parkingKeys = {
       garages: "garages",
       lots: "lots",
+      osmGarages: "osmGarages",
+      osmLots: "osmLots",
       meters: "meters",
       racks: "racks",
       micromobility: "micromobility",
@@ -1936,7 +1974,7 @@ function renderDataView() {
           lng,
           categoryName,
           locationName: item.name || "—",
-          price: formatParkingPrice(item.pricing),
+          price: formatParkingPrice(item.pricing, categoryKey),
           parkingItem: { ...item },
         };
       });
