@@ -17,9 +17,9 @@
     "shuttle": "DASH"
   },
   "handCraftedModeLabels": {
-    "drive": "Drive to parking",
-    "rideshare": "Take rideshare",
-    "shuttle": "Take DASH shuttle"
+    "drive": "Drive to Parking",
+    "rideshare": "Take Rideshare",
+    "shuttle": "Take DASH Shuttle"
   },
   "costLabels": {
     "drive": "Willing to pay",
@@ -37,6 +37,11 @@
     "walkMiles": 1.5,
     "parkingMins": 10,
     "costDollars": 40
+  },
+  "parkingPrivateUnknown": {
+    "lotAssumedDollars": 20,
+    "garageAssumedDollars": 30,
+    "cardCopy": "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park."
   },
   "linkTexts": {
     "viewTransitRoute": "View transit route on Google Maps",

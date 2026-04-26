@@ -90,6 +90,12 @@ const FALLBACK_DATA = {
     parkingMins: 10,
     costDollars: 40,
   },
+  parkingPrivateUnknown: {
+    lotAssumedDollars: 20,
+    garageAssumedDollars: 30,
+    cardCopy:
+      "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park.",
+  },
   destinations: [],
   recommendations: {},
   handCraftedRecommendations: {},
@@ -2911,7 +2917,7 @@ function renderResults() {
               const isLastWalk =
                 index === stepsToShow.length - 1 && step.mode === "walk";
               const modeLabel = isLastWalk
-                ? "Walk to destination"
+                ? "Walk to Destination"
                 : appData?.handCraftedModeLabels?.[step.mode] ||
                   getModeLabel(step.mode) ||
                   step.mode;
@@ -3336,12 +3342,52 @@ function googleMapsPinUrl(latitude, longitude) {
   return `https://www.google.com/maps?q=${encodeURIComponent(q)}`;
 }
 
+/** From `data/config.json` `parkingPrivateUnknown` (drive planner for OSM without rates). */
+function getPrivateParkingUnknownAssumptions() {
+  const p = appData?.parkingPrivateUnknown;
+  const lot =
+    typeof p?.lotAssumedDollars === "number" &&
+    Number.isFinite(p.lotAssumedDollars)
+      ? Math.max(0, p.lotAssumedDollars)
+      : 20;
+  const garage =
+    typeof p?.garageAssumedDollars === "number" &&
+    Number.isFinite(p.garageAssumedDollars)
+      ? Math.max(0, p.garageAssumedDollars)
+      : 30;
+  const cardCopy =
+    typeof p?.cardCopy === "string" && p.cardCopy.trim()
+      ? p.cardCopy.trim()
+      : "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park.";
+  return { lot, garage, cardCopy };
+}
+
 function estimateParkingCostRange(pricing, category) {
   const fallbacks = {
     meters: { min: 1, max: 7 },
     lots: { min: 8, max: 11 },
     garages: { min: 8, max: 30 },
   };
+
+  const assumedPrivate = () => {
+    const { lot, garage } = getPrivateParkingUnknownAssumptions();
+    const n = category === "osmGarages" ? garage : lot;
+    return { min: n, max: n };
+  };
+
+  if (category === "osmLots" || category === "osmGarages") {
+    if (!pricing || typeof pricing !== "object") return assumedPrivate();
+    const text = Object.values(pricing).join(" ");
+    const nums = [];
+    const re = /\$(\d+(?:\.\d+)?)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      nums.push(Number.parseFloat(m[1]));
+    }
+    if (nums.length === 0) return assumedPrivate();
+    return { min: Math.min(...nums), max: Math.max(...nums) };
+  }
+
   const fb = fallbacks[category] || fallbacks.garages;
   if (!pricing || typeof pricing !== "object") return { ...fb };
 
@@ -3574,7 +3620,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "drive+shuttle",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're driving and using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["drive", "shuttle"],
@@ -3586,7 +3632,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "drive+transit",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're driving and taking transit but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["drive", "transit"],
@@ -3598,7 +3644,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "drive+micromobility",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're driving and using micromobility but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["drive", "micromobility"],
@@ -3610,7 +3656,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "drive",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're driving but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["drive"],
@@ -3622,7 +3668,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "drive",
     variantKey: "noCost",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "Parking meters are enforced Monday-Friday 8am-7pm. Since you're not willing to pay for parking, there are no options available during enforcement hours.",
     metadata: {
       requiredModes: ["drive"],
@@ -3634,7 +3680,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "transit+shuttle",
     variantKey: "noCost",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "The Rapid charges a fare each way. Raise your willing-to-pay to see recommendations, or add another mode.",
     metadata: {
       requiredModes: ["transit", "shuttle"],
@@ -3645,7 +3691,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "transit+shuttle",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're taking The Rapid and using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["transit", "shuttle"],
@@ -3657,7 +3703,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "transit",
     variantKey: "noCost",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "The Rapid charges a fare each way. Raise your willing-to-pay to see recommendations, or add another mode.",
     metadata: {
       requiredModes: ["transit"],
@@ -3668,7 +3714,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "transit",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're taking The Rapid but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["transit"],
@@ -3680,7 +3726,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "rideshare",
     variantKey: "noCost",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "Round-trip rideshare usually needs more budget than a single ride. Demand pricing can spike near events—raise willing-to-pay or add another mode.",
     metadata: {
       requiredModes: ["rideshare"],
@@ -3691,7 +3737,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "micromobility",
     variantKey: "noCost",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "Lime charges per ride in the app, and you should budget for both directions. Raise your willing-to-pay to see a map pin, or add another mode.",
     metadata: {
       requiredModes: ["micromobility"],
@@ -3702,7 +3748,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "shuttle",
     variantKey: "noWalk",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "You're using DASH but not willing to walk any distance. Consider adjusting your walk distance or add modes to see recommendations.",
     metadata: {
       requiredModes: ["shuttle"],
@@ -3714,7 +3760,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
   {
     modeKey: "bike",
     variantKey: "noRackInWalkRange",
-    title: "No options available",
+    title: "Adjust Your Filters",
     body: "No bike rack in our data sits within the walk you're willing to do from the venue. Try a longer walk allowance or another mode to see a map pin.",
     metadata: {
       requiredModes: ["bike"],
@@ -3726,7 +3772,7 @@ const SYNTHETIC_NO_OPTIONS_RECIPES = [
 
 /** Shown when every automated strategy is filtered out (no matching rows in the pool). */
 const GENERIC_NO_SUGGESTIONS_FALLBACK_REC = {
-  title: "No options available",
+  title: "Adjust Your Filters",
   body: "Nothing in our data matches these preferences. Try relaxing a setting or adding another mode.",
   isNoOptions: true,
   modeKey: "generic",
@@ -3772,9 +3818,33 @@ function buildParkingBasedDriveRecommendations(state) {
     { key: "garages", id: "garages" },
     { key: "lots", id: "lots" },
     { key: "meters", id: "meters" },
+    {
+      key: "osmLots",
+      id: "lots",
+      itemKeyPrefix: "osmLots",
+      costCategory: "osmLots",
+      title: "Park in a Private Lot",
+      privateOsm: true,
+    },
+    {
+      key: "osmGarages",
+      id: "garages",
+      itemKeyPrefix: "osmGarages",
+      costCategory: "osmGarages",
+      title: "Park in a Private Garage",
+      privateOsm: true,
+    },
   ];
 
-  for (const { key, id } of driveCategories) {
+  for (const cat of driveCategories) {
+    const key = cat.key;
+    const id = cat.id;
+    const itemKeyPrefix = cat.itemKeyPrefix ?? id;
+    const costCategory = cat.costCategory ?? id;
+    const privateOsm = Boolean(cat.privateOsm);
+    const titleOverride =
+      typeof cat.title === "string" && cat.title.trim() ? cat.title.trim() : "";
+
     const modes = appData.parking.modes?.[key];
     if (Array.isArray(modes) && !modes.includes("drive")) continue;
     const items = appData.parking[key];
@@ -3798,7 +3868,7 @@ function buildParkingBasedDriveRecommendations(state) {
       );
       if (distanceMi > walkBudget + 1e-9) continue;
 
-      const costRange = estimateParkingCostRange(item.pricing, id);
+      const costRange = estimateParkingCostRange(item.pricing, costCategory);
       let variantKey;
       let priority;
       let minWalkMiles = 0.1;
@@ -3822,12 +3892,14 @@ function buildParkingBasedDriveRecommendations(state) {
       const link = googleMapsPinUrl(loc.latitude, loc.longitude);
 
       let title;
-      if (id === "meters") {
-        title = "Metered parking";
+      if (titleOverride) {
+        title = titleOverride;
+      } else if (id === "meters") {
+        title = "Park at a Public Meter";
       } else if (id === "lots") {
-        title = "Lot parking";
+        title = "Park in a Public Lot";
       } else {
-        title = "Garage parking";
+        title = "Park in a Public Garage";
       }
 
       const walkLabel =
@@ -3836,10 +3908,14 @@ function buildParkingBasedDriveRecommendations(state) {
         costRange.min === costRange.max
           ? `about $${costRange.min}`
           : `$${costRange.min}–$${costRange.max}`;
-      const body =
-        "We pick a garage, surface lot, or metered block from our data near this venue, then you walk in. Open steps for the map pin, address, and on-site details.";
 
-      const parkingItemKey = `${id}-${i}-${slugifyParkingItemKey(itemLabel)}`;
+      const { cardCopy: privateCardCopy } =
+        getPrivateParkingUnknownAssumptions();
+      const body = privateOsm
+        ? "Nearby private parking from mapped listings. Open steps for the map pin, address, and details."
+        : "We pick a garage, surface lot, or metered block from our data near this venue, then you walk in. Open steps for the map pin, address, and on-site details.";
+
+      const parkingItemKey = `${itemKeyPrefix}-${i}-${slugifyParkingItemKey(itemLabel)}`;
 
       const meta = {
         requiredModes: ["drive"],
@@ -3849,17 +3925,24 @@ function buildParkingBasedDriveRecommendations(state) {
         priority,
       };
 
-      const parkingDetailLine = `${itemLabel} is ~${walkLabel} from ${destName}. Typical cost: ${costLabel}.${pricingNote ? " " + pricingNote : ""}`;
+      const parkingDetailLine = privateOsm
+        ? `${itemLabel} is ~${walkLabel} from ${destName}. Estimated typical cost: ${costLabel}. ${privateCardCopy}`
+        : `${itemLabel} is ~${walkLabel} from ${destName}. Typical cost: ${costLabel}.${pricingNote ? " " + pricingNote : ""}`;
+      const step0Description = privateOsm
+        ? item.address
+          ? `${parkingDetailLine} ${item.address}`
+          : parkingDetailLine
+        : item.address
+          ? `${parkingDetailLine} ${item.address}`
+          : `${parkingDetailLine} Confirm rates and hours before you park.`;
       const steps = [
         {
           title: `Park at ${itemLabel}`,
-          description: item.address
-            ? `${parkingDetailLine} ${item.address}`
-            : `${parkingDetailLine} Confirm rates and hours before you park.`,
+          description: step0Description,
           link,
         },
         {
-          title: "Walk to destination",
+          title: "Walk to Destination",
           description: `Walk from your parking spot to ${destName} (~${walkLabel}).`,
         },
       ];
@@ -3898,7 +3981,7 @@ function buildParkingBasedDriveRecommendations(state) {
       conditions: { parkingEnforced: false },
     };
     out.push({
-      title: "Free street parking",
+      title: "Find Free Public Street Parking",
       body: weekend
         ? "Spend 20 minutes in traffic circling the area to find street parking. Meters are not enforced on the weekend."
         : "Spend 20 minutes in traffic circling the area to find street parking. Meters are not enforced outside weekday enforcement hours.",
@@ -3906,14 +3989,14 @@ function buildParkingBasedDriveRecommendations(state) {
       isDiscouraged: true,
       steps: [
         {
-          title: "Spend 20 minutes in traffic looking for free street parking",
+          title: "Spend 20 Minutes in Traffic Looking for Free Street Parking",
           description:
             "Circle the blocks looking for free unmetered parking. Watch for odd-even winter restrictions. This often takes 20+ minutes.",
           link: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQ)}`,
           linkText: "View area on Google Maps",
         },
         {
-          title: "Park and walk",
+          title: "Park and Walk",
           description: `Once you find a spot, park and walk up to {walkMiles} miles to ${destName}.`,
         },
       ],
@@ -4428,7 +4511,7 @@ function buildTransitAppRecommendation(state) {
 
   return [
     {
-      title: `The Rapid: ${routeLabel}`,
+      title: `Take ${routeLabel}`,
       body: `Our GTFS data places ${stopLabel} on ${routeLabel} within your walk range (~${stopToVenueMi.toFixed(2)} mi from ${destName}). Budget at least $${(TRANSIT_STANDARD_ONE_WAY_FARE * 2).toFixed(2)} for a round trip.`,
       badge: "Real-time",
       modeKey: "transit",
@@ -4437,7 +4520,7 @@ function buildTransitAppRecommendation(state) {
       _metadata: meta,
       steps: [
         {
-          title: "Download the Transit app",
+          title: "Download the Transit App",
           description:
             "Get Transit on your phone for The Rapid routes, live departures, and trip planning in Grand Rapids.",
           link: TRANSIT_APP_PAGE_URL,
@@ -4516,7 +4599,7 @@ function buildBikeRackRecommendation(state) {
 
   return [
     {
-      title: "Bike to the venue",
+      title: "Bike to the Venue",
       body,
       badge: "Healthy",
       modeKey: "bike",
@@ -4528,7 +4611,7 @@ function buildBikeRackRecommendation(state) {
           title:
             typeof rackToVenueMi === "number"
               ? `Park at ${rackLabel}`
-              : "Find bike parking near the venue",
+              : "Find Bike Parking Near the Venue",
           description:
             typeof rackToVenueMi === "number"
               ? `Closest rack in our data is ${rackToVenueMi.toFixed(2)} mi from the venue. Open the map for directions to that pin.`
@@ -4536,7 +4619,7 @@ function buildBikeRackRecommendation(state) {
           link,
         },
         {
-          title: "Walk to the venue",
+          title: "Walk to the Venue",
           description: walkFromRackText,
         },
       ],
@@ -4590,7 +4673,7 @@ function buildMicromobilityLimeHubSteps(
   let step2Title;
   let step2Description;
   if (intent === "farthest") {
-    step2Title = "Go to parking at the farther end of your range";
+    step2Title = "Go to Parking at the Farther End of Your Range";
     if (poolWasFallback) {
       step2Description = hubLabel
         ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—no pin met the usual ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi walk cap; see the card note. Open the map for directions.`
@@ -4601,7 +4684,7 @@ function buildMicromobilityLimeHubSteps(
         : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the farthest in our data within ${radiusPhrase}. Open the map for directions.`;
     }
   } else {
-    step2Title = "Go to the closest parking pin";
+    step2Title = "Go to the Closest Parking Pin";
     step2Description = hubLabel
       ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the shortest walk among our Lime-related pins.`
       : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the closest in our data.`;
@@ -4609,7 +4692,7 @@ function buildMicromobilityLimeHubSteps(
 
   return [
     {
-      title: "Open the Lime app",
+      title: "Open the Lime App",
       description:
         "Find an available scooter or e-bike, see where you can start and end a ride, and unlock in the app. Pricing and ride rules are in the app.",
       link: LIME_APP_DOWNLOAD_URL,
@@ -4621,7 +4704,7 @@ function buildMicromobilityLimeHubSteps(
       link,
     },
     {
-      title: "Walk the rest of the way",
+      title: "Walk the Rest of the Way",
       description: walkRestText,
     },
   ];
@@ -4695,7 +4778,7 @@ function buildMicromobilityLimeHubRecommendation(state) {
   };
 
   const primary = {
-    title: "Use Lime and walk a short distance",
+    title: "Ride Lime, Then Walk",
     body: "Rent a Lime scooter or bike to speed up your travel time. Park it in a designated spot and walk a short distance.",
     badge: "On-demand",
     modeKey: "micromobility",
@@ -4719,7 +4802,7 @@ function buildMicromobilityLimeHubRecommendation(state) {
   );
   if (showClosestAlternate) {
     primary.alternate = {
-      title: "Use Lime and minimize walking",
+      title: "Ride Lime, Walk Less",
       body: "The closest pin in our data is your shortest walk, but it can be crowded. Open steps for the map pin and specifics.",
       badge: "Caution",
       modeKey: "micromobility",
@@ -4906,8 +4989,8 @@ function buildRecommendation() {
       primaryScored.rec.modeKey === "drive" &&
       primaryScored.rec.variantKey === "parkingGarage" &&
       walkMiles < 0.5 &&
-      primary.alternate.title &&
-      primary.alternate.title.toLowerCase().includes("surface lot")
+      primaryScored.rec.alternate &&
+      primaryScored.rec.alternate.variantKey === "affordableLot"
     ) {
       // Explicit alternate filtered out, will fall through to check second-best option
       useExplicitAlternate = false;
