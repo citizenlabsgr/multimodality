@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Regenerate data/parking/micromobility.json from Lime partner GBFS (Grand Rapids).
+Regenerate data/parking/private/micromobility.json from Lime partner GBFS (Grand Rapids).
 
 Official designated parking zones are not published as points in Lime’s GBFS for
 this market (only a single placeholder station). We approximate high-traffic
@@ -43,7 +43,7 @@ GBFS_FREE_BIKE = (
     "https://data.lime.bike/api/partners/v2/gbfs/grand_rapids/free_bike_status"
 )
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUT_PATH = REPO_ROOT / "data/parking/micromobility.json"
+OUT_PATH = REPO_ROOT / "data/parking/private/micromobility.json"
 RUNS_DIR = REPO_ROOT / "data/parking/.lime"
 TZ = ZoneInfo("America/Detroit")
 BUCKET_FILE_RE = re.compile(r"^w([0-6])_h([01][0-9]|2[0-3])\.json$")

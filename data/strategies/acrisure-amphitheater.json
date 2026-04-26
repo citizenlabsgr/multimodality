@@ -1,6 +1,6 @@
 [
   {
-    "title": "Park in on-site garage",
+    "title": "Park On-Site",
     "body": "Use the venue's small attached garage. Reserve in advance for concerts.",
     "steps": [
       {
@@ -21,7 +21,7 @@
     ]
   },
   {
-    "title": "Rideshare to the venue",
+    "title": "Book a Ride",
     "body": "Book an Uber or Lyft directly to the amphitheater. You might want to ask to get out of the car early if traffic is backed up.",
     "steps": [
       {

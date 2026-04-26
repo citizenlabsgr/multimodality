@@ -44,13 +44,15 @@ Each **destination** has:
 
 ## Hand-crafted recommendations
 
-Hand-crafted recommendations are destination-specific, static options (e.g. “Park in on-site lot”) that appear as **blue** strategy cards. Each destination has a file `data/strategies/<destination-slug>.json` containing an array of recommendations. They are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
+Hand-crafted recommendations are destination-specific, static options (e.g. “Park On-Site”) that appear as **blue** strategy cards. Each destination has a file `data/strategies/<destination-slug>.json` containing an array of recommendations. They are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
+
+**Copy style:** Use **short imperative commands** for the main strategy **card** **`title`** only (e.g. “Park in a Public Garage”, “Take DASH”, “Adjust Your Filters”)—name the action, not the category. For **public** scraped parking (`data/parking/public/` → `garages`, `lots`, `meters`), include **Public** in that card title so it contrasts with private OSM cards (“Park in a Private Lot”, “Park in a Private Garage”). **Step** headings (`steps[].title` in JSON, and titles inside `buildParkingBasedDriveRecommendations` / transit / bike / Lime step lists in `src/script.js`) can stay longer and more descriptive (title case is fine). Optional per-mode labels for hand-crafted step rows live in **`data/config.json`** under **`handCraftedModeLabels`**.
 
 ### Schema
 
 Each recommendation has:
 
-- **`title`** (string) – Card heading.
+- **`title`** (string) – Main card heading (short imperative).
 - **`body`** (string) – Short description shown on the card.
 - **`steps`** (array) – At least two steps. The **last step is always walking** to the destination.
 
@@ -76,7 +78,7 @@ Each **step** has:
 ```json
 [
   {
-    "title": "Park in on-site lot",
+    "title": "Park On-Site",
     "body": "Use the venue's 400-space attached lot at 201 Market Ave SW.",
     "steps": [
       {
@@ -108,7 +110,9 @@ Fitting hand-crafted recommendations are rendered **first** (blue cards), follow
 
 ## Parking data
 
-Parking data is split by category under `data/parking/<category>.json` (e.g. `garages.json`, `lots.json`, `meters.json`, `racks.json`, `micromobility.json`). The app merges these at load time and shows them on the **data** view (`#/data/parking`) with a map and mode filters. Each category applies to one or more transport **modes** (`drive`, `bike`, `micromobility`).
+**`data/config.json`** may include **`parkingPrivateUnknown`** (`lotAssumedDollars`, `garageAssumedDollars`, **`cardCopy`**) for assumed private-lot/garage dollars when OSM items lack `pricing`—used in drive strategy cards and budget checks.
+
+Parking JSON lives under **`data/parking/public/`** (Grand Rapids Visitor Parking ArcGIS map via `scripts/fetch_car_parking_arcgis.py` for garages and lots; meters; OSM bike racks via `scripts/fetch_bike_parking.py`) and **`data/parking/private/`** (`garages.json` and `lots.json` from OpenStreetMap via `scripts/fetch_car_parking_osm.py`; Lime micromobility via `scripts/fetch_lime_parking.py`). Lime snapshot buckets stay in `data/parking/.lime/`. The app merges these at load time and shows them on the **data** view (`#/data/parking`) with a map and mode filters. Each category applies to one or more transport **modes** (`drive`, `bike`, `micromobility`).
 
 ### Schema
 
@@ -130,15 +134,15 @@ Each **item** (parking location) has:
 | `pricing`      | object | no       | Price info; shown in map popups. See below.                     |
 | `availability` | string | no       | e.g. "Good availability".                                       |
 
-**`pricing`** (optional): an object. The app displays one value for the map popup, chosen in this order: `rate`, then `evening`, then `daytime`, then `events`. If none are present, the popup shows "Free". Examples: `{ "rate": "$8-$10 for 4 hours" }` or `{ "daytime": "Max $27", "evening": "$27-$30", "events": "$27-$30" }`.
+**`pricing`** (optional): an object. The app displays one value for the map popup, chosen in this order: `rate`, then `evening`, then `daytime`, then `events`. If none are present, the data-view map shows **"Unknown"** for private OSM garages/lots (`osmGarages`, `osmLots`) and **"Free"** for other categories. Examples: `{ "rate": "$8-$10 for 4 hours" }` or `{ "daytime": "Max $27", "evening": "$27-$30", "events": "$27-$30" }`.
 
 ### Example
 
-**File:** `data/parking/garages.json`
+**File:** `data/parking/public/garages.json`
 
 ```json
 {
-  "name": "Garages",
+  "name": "Public Parking Garages",
   "modes": ["drive"],
   "items": [
     {
@@ -162,4 +166,4 @@ Each **item** (parking location) has:
 ### Where it is used
 
 - **Data view** (`#/data/parking`): mode toggles filter categories by `modes`; the map shows all locations with popups (category name, location name, price).
-- Category files are loaded in parallel and merged into `appData.parking` with keys like `premiumRamps`, `cityGarages`, `bike`, `micromobility`. The `name` and `modes` from each file are stored as `parking.categoryNames` and `parking.modes` for the UI.
+- Category files are loaded in parallel and merged into `appData.parking` with keys such as `garages`, `lots`, `meters`, `racks`, `osmGarages`, `osmLots`, `micromobility`. The `name` and `modes` from each file are stored as `parking.categoryNames` and `parking.modes` for the UI.

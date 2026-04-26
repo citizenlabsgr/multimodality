@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Regenerate data/parking/racks.json from OpenStreetMap via the Overpass API.
+Regenerate data/parking/public/racks.json from OpenStreetMap via the Overpass API.
 
 Queries amenity=bicycle_parking within a bounding box around Grand Rapids, MI,
 then keeps only points within MAX_MILES_FROM_CENTER mi of downtown Grand Rapids.
@@ -28,7 +28,7 @@ MAX_MILES_FROM_CENTER = 1.75
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUT_RACKS = REPO_ROOT / "data/parking/racks.json"
+OUT_RACKS = REPO_ROOT / "data/parking/public/racks.json"
 
 USER_AGENT = "multimodality-fetch-bike-parking/1.0 (+https://github.com/citizenlabs/multimodality)"
 
