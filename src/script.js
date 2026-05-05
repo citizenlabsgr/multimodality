@@ -1563,6 +1563,10 @@ function renderDataView() {
         <div class="flex flex-1 flex-wrap items-center justify-center gap-2">
           <span class="text-sm font-medium text-slate-700">Route modes:</span>
           ${modeButtonsHtml}
+        </div>
+        <div class="flex items-center gap-2">
+          <label for="data-routes-dataset" class="text-sm font-medium text-slate-700">Dataset:</label>
+          <select id="data-routes-dataset" disabled class="data-routes-dataset-select cursor-default rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700" aria-label="Dataset (Public Bus Routes)"><option selected>Public Bus Routes</option></select>
         </div>`;
       ROUTES_DATA_MODES.forEach((mode) => {
         const btn = dataViewRoutesModes.querySelector(

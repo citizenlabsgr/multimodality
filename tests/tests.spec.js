@@ -1704,7 +1704,7 @@ test.describe("Park & DASH data-driven copy", () => {
       );
     });
     expect(pick).not.toBeNull();
-    expect(pick.lot.name).toBe("Area 8 Lot");
+    expect(pick.lot.name).toBe("Area 9 Lot");
     expect(pick.costMin).toBe(6);
     expect(pick.walkMilesToDash).toBeLessThan(0.08);
     expect(String(pick.nearestStop.name || "").length).toBeGreaterThan(0);
@@ -1724,8 +1724,8 @@ test.describe("Park & DASH data-driven copy", () => {
     );
     expect(proc).not.toBeNull();
     expect(proc.steps?.length).toBe(4);
-    expect(proc.steps[0].description).toContain("Area 8 Lot");
-    expect(proc.steps[0].description).toContain("325 Winter Ave NW");
+    expect(proc.steps[0].description).toContain("Area 9 Lot");
+    expect(proc.steps[0].description).toContain("250 Seward Ave NW");
     expect(proc.steps[0].link || "").toMatch(/google\.com\/maps|maps\.google/i);
     expect(proc.steps[3].link || "").toMatch(/google\.com\/maps|maps\.google/i);
     expect(proc.steps[3].description.length).toBeGreaterThan(20);

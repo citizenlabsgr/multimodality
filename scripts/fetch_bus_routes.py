@@ -284,16 +284,17 @@ def main() -> int:
     dash_rows = [r for r in downtown_rows if is_dash_route(r)]
     rapid_rows = [r for r in downtown_rows if not is_dash_route(r)]
 
+    shapes_out_map = dict(shapes_seen_per_route)
     dash_out = build_route_outputs(
         dash_rows,
-        dict(shapes_seen_per_route),
+        shapes_out_map,
         shape_points,
         stops_by_id,
         stop_ids_by_route,
     )
     rapid_out = build_route_outputs(
         rapid_rows,
-        dict(shapes_seen_per_route),
+        shapes_out_map,
         shape_points,
         stops_by_id,
         stop_ids_by_route,
