@@ -1,0 +1,25 @@
+/* #/parking — full-width map only */
+main.parking-map-active {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  width: 100%;
+  padding: 0.5rem;
+  min-height: 0;
+}
+
+#parkingView {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+#parkingAppMap {
+  flex: 1 1 auto;
+  min-height: min(70vh, 640px);
+  height: 70vh;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  overflow: hidden;
+}

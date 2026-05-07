@@ -7,9 +7,14 @@ import {
   DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER,
   FALLBACK_DATA,
 } from "../shared/data-loader.mjs";
+import {
+  hideParkingView,
+  isParkingRoute,
+  renderParkingView,
+} from "../parking/parking.mjs";
 
 /**
- * Visit planner (#/visit), modes explainer (#/modes), and data explorer (#/data).
+ * Visit planner (#/visit), modes explainer (#/modes), data explorer (#/data), parking map (#/parking).
  * Entry point: `src/main.mjs`.
  */
 
@@ -690,6 +695,7 @@ function renderModesView() {
   const backLink = document.getElementById("modesPageBackLink");
   if (!appView || !dataView || !modesView || !sectionsEl || !appData) return;
 
+  hideParkingView();
   disposeModesPageMaps();
 
   appView.classList.add("hidden");
@@ -1250,6 +1256,7 @@ function renderDataView() {
   if (path === null) return;
 
   hideModesView();
+  hideParkingView();
 
   appView.classList.add("hidden");
   dataView.classList.remove("hidden");
@@ -2014,6 +2021,12 @@ function toggleMode(mode) {
 
 // Handle browser back/forward navigation
 window.addEventListener("hashchange", () => {
+  if (isParkingRoute()) {
+    hideModesView();
+    renderParkingView();
+    return;
+  }
+  hideParkingView();
   if (isDataRoute()) {
     renderDataView();
     return;
@@ -4869,7 +4882,8 @@ async function init() {
     initialHash &&
     !initialHash.startsWith("/visit") &&
     !initialHash.startsWith("/data") &&
-    !initialHash.startsWith("/modes")
+    !initialHash.startsWith("/modes") &&
+    !initialHash.startsWith("/parking")
   ) {
     // If hash exists but doesn't start with /visit or /data, migrate it
     if (initialHash.includes("=")) {
@@ -5064,7 +5078,11 @@ async function init() {
     renderDataView();
   } else if (isModesRoute()) {
     renderModesView();
+  } else if (isParkingRoute()) {
+    hideModesView();
+    renderParkingView();
   } else {
+    hideParkingView();
     hideModesView();
     hideDataView();
   }

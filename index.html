@@ -18,10 +18,13 @@
     />
     <link rel="stylesheet" href="src/visit/planner.css" />
     <link rel="stylesheet" href="src/styles.css" />
+    <link rel="stylesheet" href="src/parking/parking.css" />
   </head>
 
   <body class="bg-slate-50 text-slate-900 flex flex-col min-h-screen">
-    <main class="max-w-md mx-auto px-2 py-2 flex-1 w-full">
+    <main
+      class="max-w-md mx-auto px-2 py-2 flex-1 w-full flex flex-col min-h-0"
+    >
       <div id="appView">
         <div>
           <!-- Step 1: Destination, Day and Time -->
@@ -460,6 +463,13 @@
             ></pre>
           </div>
         </div>
+      </div>
+      <div
+        id="parkingView"
+        class="hidden flex flex-1 flex-col min-h-0 min-w-0 w-full"
+        aria-label="Parking map"
+      >
+        <div id="parkingAppMap" class="min-h-0 flex-1 w-full"></div>
       </div>
     </main>
 
