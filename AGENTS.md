@@ -1,8 +1,16 @@
 # Agent guidance
 
+## Source layout
+
+- **`src/main.mjs`** — ES module entry; loads the current UI.
+- **`src/visit/planner.mjs`** — Visit planner (`#/visit`), modes explainer (`#/modes`), and data explorer (`#/data`): routing, maps, and recommendation logic.
+- **`src/shared/data-loader.mjs`** — Fetches and merges JSON under **`data/`** (config, destinations, parking, strategies per destination, `builtins.json`, `data/bus/routes.json`) into the live **`appData`** object. Reuse this module if you add another front-end that reads the same datasets.
+
+Static assets: **`index.html`** (shell + `#appView` markup), **`src/visit/planner.css`** (visit form controls), **`src/styles.css`** (data view, modes page, global).
+
 ## Destinations
 
-Destinations are listed in `data/destinations.json` and define the venues the user can choose (e.g. Van Andel Arena, Acrisure Amphitheater). The app loads this file at startup and uses it for the destination selector, strategy files per destination, and the data view map.
+Destinations are listed in `data/destinations.json` and define the venues the user can choose (e.g. Van Andel Arena, Acrisure Amphitheater). `loadData()` in `src/shared/data-loader.mjs` loads this file at startup; the planner uses it for the destination selector, strategy files per destination, and the data view map.
 
 ### Schema
 
@@ -46,7 +54,7 @@ Each **destination** has:
 
 Hand-crafted recommendations are destination-specific, static options (e.g. “Park On-Site”) that appear as **blue** strategy cards. Each destination has a file `data/strategies/<destination-slug>.json` containing an array of recommendations. They are shown **first** when they fit the user’s preferences (selected modes, budget, and walk distance).
 
-**Copy style:** Use **short imperative commands** for the main strategy **card** **`title`** only (e.g. “Park in a Public Garage”, “Take DASH”, “Adjust Your Filters”)—name the action, not the category. For **public** scraped parking (`data/parking/public/` → `garages`, `lots`, `meters`), include **Public** in that card title so it contrasts with private OSM cards (“Park in a Private Lot”, “Park in a Private Garage”). **Step** headings (`steps[].title` in JSON, and titles inside `buildParkingBasedDriveRecommendations` / transit / bike / Lime step lists in `src/script.js`) can stay longer and more descriptive (title case is fine). Optional per-mode labels for hand-crafted step rows live in **`data/config.json`** under **`handCraftedModeLabels`**.
+**Copy style:** Use **short imperative commands** for the main strategy **card** **`title`** only (e.g. “Park in a Public Garage”, “Take DASH”, “Adjust Your Filters”)—name the action, not the category. For **public** scraped parking (`data/parking/public/` → `garages`, `lots`, `meters`), include **Public** in that card title so it contrasts with private OSM cards (“Park in a Private Lot”, “Park in a Private Garage”). **Step** headings (`steps[].title` in JSON, and titles inside `buildParkingBasedDriveRecommendations` / transit / bike / Lime step lists in `src/visit/planner.mjs`) can stay longer and more descriptive (title case is fine). Optional per-mode labels for hand-crafted step rows live in **`data/config.json`** under **`handCraftedModeLabels`**.
 
 ### Schema
 
@@ -112,7 +120,7 @@ Fitting hand-crafted recommendations are rendered **first** (blue cards), follow
 
 **`data/config.json`** may include **`parkingPrivateUnknown`** (`lotAssumedDollars`, `garageAssumedDollars`, **`cardCopy`**) for assumed private-lot/garage dollars when OSM items lack `pricing`—used in drive strategy cards and budget checks.
 
-Parking JSON lives under **`data/parking/public/`** (Grand Rapids Visitor Parking ArcGIS map via `scripts/fetch_car_parking_arcgis.py` for garages and lots; meters; OSM bike racks via `scripts/fetch_bike_parking.py`) and **`data/parking/private/`** (`garages.json` and `lots.json` from OpenStreetMap via `scripts/fetch_car_parking_osm.py`; Lime micromobility via `scripts/fetch_lime_parking.py`). Lime snapshot buckets stay in `data/parking/.lime/`. The app merges these at load time and shows them on the **data** view (`#/data/parking`) with a map and mode filters. Each category applies to one or more transport **modes** (`drive`, `bike`, `micromobility`).
+Parking JSON lives under **`data/parking/public/`** (Grand Rapids Visitor Parking ArcGIS map via `scripts/fetch_car_parking_arcgis.py` for garages and lots; meters; OSM bike racks via `scripts/fetch_bike_parking.py`) and **`data/parking/private/`** (`garages.json` and `lots.json` from OpenStreetMap via `scripts/fetch_car_parking_osm.py`; Lime micromobility via `scripts/fetch_lime_parking.py`). Lime snapshot buckets stay in `data/parking/.lime/`. `loadData()` merges these into **`appData.parking`** and the planner shows them on the **data** view (`#/data/parking`) with a map and mode filters. Each category applies to one or more transport **modes** (`drive`, `bike`, `micromobility`).
 
 ### Schema
 
@@ -166,4 +174,4 @@ Each **item** (parking location) has:
 ### Where it is used
 
 - **Data view** (`#/data/parking`): mode toggles filter categories by `modes`; the map shows all locations with popups (category name, location name, price).
-- Category files are loaded in parallel and merged into `appData.parking` with keys such as `garages`, `lots`, `meters`, `racks`, `osmGarages`, `osmLots`, `micromobility`. The `name` and `modes` from each file are stored as `parking.categoryNames` and `parking.modes` for the UI.
+- **`loadData()`** loads category files in parallel and merges them into `appData.parking` with keys such as `garages`, `lots`, `meters`, `racks`, `osmGarages`, `osmLots`, `micromobility`. The `name` and `modes` from each file are stored as `parking.categoryNames` and `parking.modes` for the UI.

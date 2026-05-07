@@ -1,5 +1,17 @@
-// Load data from data/ folder (config, strategies, data/builtins.json mode narratives, parking).
-let appData = null;
+import {
+  appData,
+  loadData,
+  haversineMiles,
+  roundCoord5,
+  MODES_PAGE_EMPTY_MAP_CENTER,
+  DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER,
+  FALLBACK_DATA,
+} from "../shared/data-loader.mjs";
+
+/**
+ * Visit planner (#/visit), modes explainer (#/modes), and data explorer (#/data).
+ * Entry point: `src/main.mjs`.
+ */
 
 // Same icons/labels as the visit page mode buttons (index.html)
 const MODE_DISPLAY_LABELS = {
@@ -36,12 +48,7 @@ const MODES_PAGE_ORDER = [
   "bike",
 ];
 
-/** Downtown Grand Rapids — empty maps use this until route/stop data exists. */
-const MODES_PAGE_EMPTY_MAP_CENTER = [42.96333, -85.66806];
 const MODES_PAGE_EMPTY_MAP_ZOOM = 13;
-
-/** Same 1.75 mi from MODES_PAGE_EMPTY_MAP_CENTER as fetch_bike_parking.py, fetch_car_parking_osm.py, fetch_car_parking_arcgis.py (surface lots), etc. */
-const DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER = 1.75;
 
 /** Downtown Grand Rapids — matches scripts/fetch_bus_routes.py for #/data/routes stops. */
 const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
@@ -55,55 +62,6 @@ function modesPageOrderedList() {
   return MODES_PAGE_ORDER.filter((m) => base.includes(m));
 }
 
-const FALLBACK_DATA = {
-  validModes: [
-    "drive",
-    "rideshare",
-    "transit",
-    "micromobility",
-    "shuttle",
-    "bike",
-  ],
-  modeLabels: {
-    drive: "driving",
-    rideshare: "Uber/Lyft",
-    transit: "The Rapid",
-    bike: "biking",
-    micromobility: "Lime",
-    walk: "walking",
-    shuttle: "DASH",
-  },
-  costLabels: {
-    drive: "Willing to pay",
-    rideshare: "Willing to pay",
-    transit: "Willing to pay",
-    bike: "Willing to pay",
-    micromobility: "Willing to pay",
-    walk: "Willing to pay",
-    shuttle: "Willing to pay",
-  },
-  defaults: {
-    flexibilityEarlyMins: 15,
-    flexibilityLateMins: 0,
-    people: 1,
-    walkMiles: 1.5,
-    parkingMins: 10,
-    costDollars: 40,
-  },
-  parkingPrivateUnknown: {
-    lotAssumedDollars: 20,
-    garageAssumedDollars: 30,
-    cardCopy:
-      "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park.",
-  },
-  destinations: [],
-  recommendations: {},
-  handCraftedRecommendations: {},
-  linkTexts: {},
-  parking: {},
-  busRoutes: null,
-};
-
 /** Official rider app flows (download / open app on mobile). */
 const UBER_APP_PAGE_URL = "https://m.uber.com/go/download";
 const LYFT_APP_PAGE_URL = "https://lyft.com/app";
@@ -112,170 +70,6 @@ const TRANSIT_APP_PAGE_URL = "https://transitapp.com/";
 
 /** The Rapid standard adult cash fare (one way); round trip = 2× for budgeting. */
 const TRANSIT_STANDARD_ONE_WAY_FARE = 1.75;
-
-function attachRideshareAppLinksToBuiltInRecommendations(recs) {
-  const step0 = recs?.rideshare?.default?.steps?.[0];
-  if (!step0 || (Array.isArray(step0.links) && step0.links.length > 0)) return;
-  step0.links = [
-    { href: UBER_APP_PAGE_URL, label: "Uber app →" },
-    { href: LYFT_APP_PAGE_URL, label: "Lyft app →" },
-  ];
-}
-
-async function loadData() {
-  try {
-    const [configRes, destinationsRes] = await Promise.all([
-      fetch("data/config.json"),
-      fetch("data/destinations.json"),
-    ]);
-    if (!configRes.ok) throw new Error("Failed to load config");
-    const config = await configRes.json();
-    const destinationsData = destinationsRes.ok
-      ? await destinationsRes.json()
-      : { destinations: [] };
-    const rawDestinations = Array.isArray(destinationsData.destinations)
-      ? destinationsData.destinations
-      : [];
-    const destinations = rawDestinations.map((d) => {
-      const loc = d.location;
-      const lat =
-        typeof loc?.latitude === "number"
-          ? loc.latitude
-          : typeof d.latitude === "number"
-            ? d.latitude
-            : null;
-      const lng =
-        typeof loc?.longitude === "number"
-          ? loc.longitude
-          : typeof d.longitude === "number"
-            ? d.longitude
-            : null;
-      return {
-        ...d,
-        latitude: lat != null ? roundCoord5(lat) : null,
-        longitude: lng != null ? roundCoord5(lng) : null,
-      };
-    });
-
-    const parkingCategories = [
-      { file: "public/garages.json", key: "garages" },
-      { file: "public/lots.json", key: "lots" },
-      { file: "private/garages.json", key: "osmGarages" },
-      { file: "private/lots.json", key: "osmLots" },
-      { file: "public/meters.json", key: "meters" },
-      { file: "public/racks.json", key: "racks" },
-      { file: "private/micromobility.json", key: "micromobility" },
-    ];
-    const parkingResolves = await Promise.all(
-      parkingCategories.map(({ file }) =>
-        fetch(`data/parking/${file}`).then((r) => (r.ok ? r.json() : null)),
-      ),
-    );
-    const parking = {
-      garages: [],
-      lots: [],
-      osmGarages: [],
-      osmLots: [],
-      meters: [],
-      racks: [],
-      micromobility: [],
-      notes: {},
-      modes: {},
-      categoryNames: {},
-    };
-    parkingCategories.forEach(({ key }, i) => {
-      const data = parkingResolves[i];
-      if (data?.items) {
-        parking[key] = data.items;
-        if (data.note) parking.notes[key] = data.note;
-        if (data.modes) parking.modes[key] = data.modes;
-        if (data.name) parking.categoryNames[key] = data.name;
-      }
-    });
-
-    for (const osmKey of ["osmGarages", "osmLots"]) {
-      const arr = parking[osmKey];
-      if (!Array.isArray(arr) || !arr.length) continue;
-      const [cLat, cLon] = MODES_PAGE_EMPTY_MAP_CENTER;
-      parking[osmKey] = arr.filter((item) => {
-        const loc = item?.location;
-        if (
-          !loc ||
-          typeof loc.latitude !== "number" ||
-          typeof loc.longitude !== "number"
-        ) {
-          return false;
-        }
-        return (
-          haversineMiles(loc.latitude, loc.longitude, cLat, cLon) <=
-          DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER + 1e-9
-        );
-      });
-    }
-
-    const strategyPromises = destinations.map((d) =>
-      fetch(`data/strategies/${d.slug}.json`).then((r) =>
-        r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
-      ),
-    );
-    const strategyResults = await Promise.all(strategyPromises);
-    const handCraftedRecommendations = {};
-    for (const result of strategyResults) {
-      if (result) handCraftedRecommendations[result.slug] = result.data;
-    }
-
-    let builtInModeRecommendations = {};
-    const builtInRes = await fetch("data/builtins.json");
-    if (builtInRes.ok) {
-      try {
-        builtInModeRecommendations = structuredClone(await builtInRes.json());
-      } catch {
-        builtInModeRecommendations = {};
-      }
-    }
-    attachRideshareAppLinksToBuiltInRecommendations(builtInModeRecommendations);
-
-    const recommendations = {};
-    for (const d of destinations) {
-      recommendations[d.slug] = builtInModeRecommendations;
-    }
-
-    let busRoutes = null;
-    const busRes = await fetch("data/bus/routes.json");
-    if (busRes.ok) {
-      try {
-        busRoutes = await busRes.json();
-      } catch {
-        busRoutes = null;
-      }
-    }
-
-    appData = {
-      ...config,
-      destinations,
-      handCraftedRecommendations,
-      recommendations,
-      linkTexts: config.linkTexts || {},
-      parking,
-      busRoutes,
-    };
-  } catch (error) {
-    console.error("Failed to load data:", error);
-    appData = { ...FALLBACK_DATA };
-  }
-  if (typeof window !== "undefined") {
-    window.ParkDashLot = {
-      pickParkDashExampleLot,
-      lotListingIncludesDash,
-      collectDashStopsFromDashRoutes,
-      getProcessedDriveShuttleRecommendation,
-    };
-    window.RapidTransit = {
-      findBestRapidRouteStopForDestination,
-      formatRapidRouteLabel,
-    };
-  }
-}
 
 // Calculate default time: current time + 2 hours, rounded to nearest half hour
 // Minimum time is 5pm (17:00), maximum is 10pm (22:00)
@@ -993,11 +787,6 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
-}
-
-function roundCoord5(n) {
-  if (typeof n !== "number" || Number.isNaN(n)) return n;
-  return Math.round(n * 1e5) / 1e5;
 }
 
 function formatParkingPrice(pricing, categoryKey) {
@@ -3325,20 +3114,6 @@ function processRecommendationData(recData, values) {
   return processed;
 }
 
-function haversineMiles(lat1, lon1, lat2, lon2) {
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const R = 3959;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
-}
-
 function googleMapsPinUrl(latitude, longitude) {
   if (typeof latitude !== "number" || typeof longitude !== "number")
     return null;
@@ -5071,6 +4846,20 @@ function buildRecommendation() {
   return { primary, alternate, emptyRecommendationPool: false };
 }
 
+function registerPlannerDebugExports() {
+  if (typeof window === "undefined") return;
+  window.ParkDashLot = {
+    pickParkDashExampleLot,
+    lotListingIncludesDash,
+    collectDashStopsFromDashRoutes,
+    getProcessedDriveShuttleRecommendation,
+  };
+  window.RapidTransit = {
+    findBestRapidRouteStopForDestination,
+    formatRapidRouteLabel,
+  };
+}
+
 // Initialize application
 async function init() {
   // Migrate old hash format to new format with destination path (don't overwrite yet if no hash - read params first)
@@ -5093,6 +4882,7 @@ async function init() {
 
   // Load data first
   await loadData();
+  registerPlannerDebugExports();
 
   // Initialize state from loaded data
   state = {
