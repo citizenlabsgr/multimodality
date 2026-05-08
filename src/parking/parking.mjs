@@ -1213,36 +1213,6 @@ function buildParkingFilterBar() {
     }
     bar.appendChild(b);
   }
-  const dashChip = document.createElement("span");
-  dashChip.id = "parkingDashFilter";
-  dashChip.className =
-    "parking-dash-filter ml-auto inline-flex shrink-0 cursor-default items-center gap-1.5 select-none";
-  dashChip.setAttribute(
-    "aria-label",
-    "DASH shuttle routes and stops are included",
-  );
-  const plusSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  plusSvg.classList.add("parking-dash-filter-plus-icon");
-  plusSvg.setAttribute("width", "14");
-  plusSvg.setAttribute("height", "14");
-  plusSvg.setAttribute("viewBox", "0 0 24 24");
-  plusSvg.setAttribute("fill", "none");
-  plusSvg.setAttribute("stroke", "currentColor");
-  plusSvg.setAttribute("stroke-width", "2.5");
-  plusSvg.setAttribute("stroke-linecap", "round");
-  plusSvg.setAttribute("aria-hidden", "true");
-  const plusPath = document.createElementNS(
-    "http://www.w3.org/2000/svg",
-    "path",
-  );
-  plusPath.setAttribute("d", "M12 5v14M5 12h14");
-  plusSvg.appendChild(plusPath);
-  const dashWord = document.createElement("span");
-  dashWord.setAttribute("aria-hidden", "true");
-  dashWord.textContent = "DASH";
-  dashChip.appendChild(plusSvg);
-  dashChip.appendChild(dashWord);
-  bar.appendChild(dashChip);
 }
 
 /**

@@ -74,28 +74,6 @@ path.parking-dash-trip-segment-path {
   }
 }
 
-/**
- * Plus icon + “DASH” — same burgundy as DASH route polylines / stops (`parking.mjs` defaultLineColor).
- */
-#parkingFilterBar .parking-dash-filter {
-  padding: 0.375rem 0.75rem;
-  border-radius: 0.5rem;
-  border: 1px solid #933145;
-  cursor: none;
-  background-color: rgb(147 49 69 / 0.1);
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #933145;
-  box-shadow:
-    0 1px 2px rgb(15 23 42 / 0.06),
-    inset 0 1px 0 rgb(255 255 255 / 0.35);
-}
-
-#parkingFilterBar .parking-dash-filter .parking-dash-filter-plus-icon {
-  display: block;
-  flex-shrink: 0;
-}
-
 /* Desktop: keep category chips compact. */
 @media (min-width: 1024px) {
   #parkingFilterBar button.parking-category-filter-btn {

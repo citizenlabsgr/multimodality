@@ -48,9 +48,6 @@ test.describe("Parking map (#/parking)", () => {
     ).toBeAttached();
 
     await expect(page.locator("#parkingFilterBar button")).toHaveCount(4);
-    const dashChip = page.locator("#parkingDashFilter");
-    await expect(dashChip).toBeVisible();
-    await expect(dashChip).toContainText("DASH");
     await expect(
       page.locator('#parkingFilterBar [data-parking-category="public-garage"]'),
     ).toBeVisible();
