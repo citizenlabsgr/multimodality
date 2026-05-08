@@ -15,7 +15,7 @@ Static assets: **`index.html`** (shell + `#appView` markup), **`src/visit/planne
 ## Snapshot workflow
 
 - When any HTML file changes (especially **`index.html`**) or parking layout needs refreshed captures, run **`make snapshots`** from the repo root (runs **`tests/parking.spec.js`** tests tagged **`@snapshot`**). Equivalent: **`npx playwright test tests/parking.spec.js --grep "@snapshot"`**.
-- Parking layout snapshots are written to **`tests/snapshots/parking/`** as **`phone.png`**, **`tablet.png`**, and **`desktop.png`**.
+- Parking layout screenshots use Playwright **`expect(page).toHaveScreenshot()`** (see **`expect.toHaveScreenshot`** and **`snapshotPathTemplate`** in **`playwright.config.js`**). Baselines live in **`tests/snapshots/parking/`** as **`phone.png`**, **`tablet.png`**, and **`desktop.png`**. The test **compares** each run to the baseline using **`maxDiffPixelRatio`** (and related built-in options); it does **not** rewrite PNGs on every successful run. After intentional layout changes, refresh baselines with **`npx playwright test tests/parking.spec.js --grep "@snapshot" --update-snapshots`**.
 - When reviewing layout/spacing/responsiveness decisions, consult those snapshot images directly before finalizing.
 
 ## Destinations

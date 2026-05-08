@@ -1,6 +1,3 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { test, expect } from "@playwright/test";
 import { installConsoleErrorAssertions } from "./helpers/console-errors.js";
 
@@ -1010,15 +1007,8 @@ test.describe("Parking map (#/parking)", () => {
   });
 });
 
-/** Fixed layout captures for `#/parking`; always overwritten on successful run */
-const PARKING_LAYOUT_SNAPSHOT_DIR = join(
-  process.cwd(),
-  "tests",
-  "snapshots",
-  "parking",
-);
-
-async function writeParkingViewportPng(page, deviceName, width, height) {
+/** Fixed layout captures for `#/parking` via Playwright snapshot compare (`snapshotPathTemplate` in playwright.config.js). */
+async function assertParkingViewportScreenshot(page, name, width, height) {
   await page.setViewportSize({ width, height });
   await page.goto(
     "/#/parking?finish=acrisure-amphitheater&start=private-lot~42.972319~-85.682491",
@@ -1038,11 +1028,10 @@ async function writeParkingViewportPng(page, deviceName, width, height) {
   await page.evaluate(() => globalThis.__parkingMapForTest?.invalidateSize?.());
   await new Promise((r) => setTimeout(r, 400));
 
-  mkdirSync(PARKING_LAYOUT_SNAPSHOT_DIR, { recursive: true });
-  const outPath = join(PARKING_LAYOUT_SNAPSHOT_DIR, `${deviceName}.png`);
-  const buf = await page.screenshot({ fullPage: true, type: "png" });
-  writeFileSync(outPath, buf);
-  expect(buf.byteLength, `wrote ${outPath}`).toBeGreaterThan(5000);
+  await expect(page).toHaveScreenshot(`${name}.png`, {
+    fullPage: true,
+    animations: "disabled",
+  });
 }
 
 test.describe(
@@ -1052,15 +1041,15 @@ test.describe(
     test.describe.configure({ timeout: 30_000 });
 
     test("phone", { tag: "@snapshot" }, async ({ page }) => {
-      await writeParkingViewportPng(page, "phone", 390, 844);
+      await assertParkingViewportScreenshot(page, "phone", 390, 844);
     });
 
     test("tablet", { tag: "@snapshot" }, async ({ page }) => {
-      await writeParkingViewportPng(page, "tablet", 834, 1112);
+      await assertParkingViewportScreenshot(page, "tablet", 834, 1112);
     });
 
     test("desktop", { tag: "@snapshot" }, async ({ page }) => {
-      await writeParkingViewportPng(page, "desktop", 1440, 900);
+      await assertParkingViewportScreenshot(page, "desktop", 1440, 900);
     });
   },
 );

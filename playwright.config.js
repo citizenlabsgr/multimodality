@@ -1,9 +1,17 @@
 const { defineConfig, devices } = require("@playwright/test");
 
 module.exports = defineConfig({
+  testDir: "tests",
   fullyParallel: true,
   workers: "100%",
   retries: 2,
+  snapshotPathTemplate: "{testDir}/snapshots/parking/{arg}{ext}",
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.02,
+      threshold: 0.2,
+    },
+  },
   use: {
     baseURL: "http://localhost:8080",
   },
