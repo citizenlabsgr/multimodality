@@ -431,7 +431,7 @@ test.describe("Parking map (#/parking)", () => {
       );
     });
 
-    test("unknown-price spots are hidden at pay=0 and shown when paying", async ({
+    test("unknown-price spots are hidden while pay is capped and shown at any price", async ({
       page,
     }) => {
       await page.goto("/#/parking?pay=0&finish=van-andel-arena");
@@ -500,7 +500,7 @@ test.describe("Parking map (#/parking)", () => {
       });
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      const shownWhenPaying = await page.evaluate(
+      const hiddenAtLowCap = await page.evaluate(
         ({ unknownCoords }) => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
@@ -523,7 +523,202 @@ test.describe("Parking map (#/parking)", () => {
         },
         { unknownCoords },
       );
-      expect(shownWhenPaying).toBe(true);
+      expect(hiddenAtLowCap).toBe(false);
+
+      await page.evaluate(() => {
+        window.location.hash = "#/parking?pay=50&finish=van-andel-arena";
+      });
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await page.waitForFunction(
+        ({ unknownCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "public-lot" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { unknownCoords },
+        { timeout: 15000 },
+      );
+    });
+
+    test("ArcGIS hourlyRate with weekends/weekday-evening prose counts as free under pay cap", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?pay=15&finish=van-andel-arena");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const freeTierCoords = { lat: 42.960241, lng: -85.669289 };
+      await page.evaluate(
+        ({ freeTierCoords }) => {
+          const lots = window.appData?.parking?.lots;
+          if (!Array.isArray(lots)) return;
+          const exists = lots.some((x) => {
+            const lat = x?.location?.latitude;
+            const lng = x?.location?.longitude;
+            return (
+              typeof lat === "number" &&
+              typeof lng === "number" &&
+              lat.toFixed(6) === freeTierCoords.lat.toFixed(6) &&
+              lng.toFixed(6) === freeTierCoords.lng.toFixed(6)
+            );
+          });
+          if (exists) return;
+          lots.push({
+            name: "Evening free tier test lot",
+            location: {
+              latitude: freeTierCoords.lat,
+              longitude: freeTierCoords.lng,
+            },
+            pricing: {
+              hourlyRate: "Weekends and Weekdays after 7pm",
+            },
+          });
+        },
+        { freeTierCoords },
+      );
+      await page.evaluate(() => {
+        document
+          .getElementById("parkingMaxEveningSlider")
+          ?.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await page.waitForFunction(
+        ({ freeTierCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "public-lot" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === freeTierCoords.lat.toFixed(6) &&
+                ll.lng.toFixed(6) === freeTierCoords.lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { freeTierCoords },
+        { timeout: 15000 },
+      );
+    });
+
+    test("unknown-price private OSM lots are hidden while pay is capped", async ({
+      page,
+    }) => {
+      await page.goto(
+        "/#/parking?pay=10&finish=van-andel-arena&location=private-lot",
+      );
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const unknownCoords = { lat: 42.960141, lng: -85.669389 };
+      await page.evaluate(
+        ({ unknownCoords }) => {
+          const lots = window.appData?.parking?.osmLots;
+          if (!Array.isArray(lots)) return;
+          const exists = lots.some((x) => {
+            const lat = x?.location?.latitude;
+            const lng = x?.location?.longitude;
+            return (
+              typeof lat === "number" &&
+              typeof lng === "number" &&
+              lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+              lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+            );
+          });
+          if (exists) return;
+          lots.push({
+            name: "Unknown Private Lot Test",
+            location: {
+              latitude: unknownCoords.lat,
+              longitude: unknownCoords.lng,
+            },
+            pricing: {},
+          });
+        },
+        { unknownCoords },
+      );
+      await page.evaluate(() => {
+        document
+          .getElementById("parkingMaxEveningSlider")
+          ?.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const hiddenWhileCapped = await page.evaluate(
+        ({ unknownCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "private-lot" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { unknownCoords },
+      );
+      expect(hiddenWhileCapped).toBe(false);
+
+      await page.evaluate(() => {
+        window.location.hash =
+          "#/parking?pay=50&finish=van-andel-arena&location=private-lot";
+      });
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await page.waitForFunction(
+        ({ unknownCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "private-lot" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { unknownCoords },
+        { timeout: 15000 },
+      );
     });
 
     test("slider at max keeps pay omitted (default any price)", async ({

@@ -122,6 +122,11 @@ function resolvedParkingWalkCapMiles(walkSliderIndexOverride) {
     const ix = snapParkingWalkInternalIndex(walkSliderIndexOverride);
     return ix / 10;
   }
+  const walkSlider = document.getElementById("parkingMaxWalkSlider");
+  if (walkSlider) {
+    const ix = parkingWalkInternalFromDom(walkSlider.value);
+    return ix / 10;
+  }
   return getParkingWalkCapMilesFromHash();
 }
 
@@ -157,6 +162,7 @@ function ensureParkingWalkDelegation() {
   parkingWalkDelegated = true;
   slider.addEventListener("input", () => {
     syncParkingWalkOutputLive();
+    scheduleParkingMapOverlaySync();
   });
   slider.addEventListener("change", () => {
     const dom = snapParkingWalkDomSliderValue(slider.value);
@@ -173,6 +179,14 @@ function ensureParkingWalkDelegation() {
       ix,
     );
     if (parkingMap) syncParkingMapOverlays(parkingMap);
+  });
+}
+
+function scheduleParkingMapOverlaySync() {
+  if (parkingOverlaySyncRaf) cancelAnimationFrame(parkingOverlaySyncRaf);
+  parkingOverlaySyncRaf = requestAnimationFrame(() => {
+    parkingOverlaySyncRaf = 0;
+    if (parkingMap) syncParkingMapOverlays(parkingMap, { fit: false });
   });
 }
 
@@ -231,25 +245,90 @@ function parseDollarAmountsFromPriceText(text) {
   return nums;
 }
 
+/** Sentinels from {@link parkingSpotEveningPriceCeilingOrAbsent} (numeric ceilings ≥ 0). */
+const PARKING_EVENING_PRICE_ABSENT = null;
+/** Tier text exists (not wholly empty pricing) but no parseable dollars and not a free window — still visible when pay > free-only. */
+const PARKING_EVENING_PRICE_AMBIGUOUS_PROSE = -1;
+
+function pricingObjectHasAnyKnownTierField(pricing) {
+  if (!pricing || typeof pricing !== "object") return false;
+  for (const k of ["evening", "events", "hourlyRate", "rate", "daytime"]) {
+    if (typeof pricing[k] === "string" && pricing[k].trim()) return true;
+  }
+  return false;
+}
+
 /**
- * Worst-case posted dollars for evening-style pricing (used vs max-evening filter).
- * Prefers `evening`; for public ramps/lots only, falls back to `events` when evening is absent.
+ * ArcGIS / OSM prose that describes free parking during evenings or weekends (no `$` in source).
+ * Grand Rapids meters: free after 7pm weekdays and weekends — visitor map sometimes uses `hourlyRate` for that prose.
  */
-function parkingSpotEveningPriceCeilingDollars(pricing, categoryKey) {
-  if (!pricing || typeof pricing !== "object") return null;
-  let tier = "";
+function parkingPriceTextImpliesEveningFree(text) {
+  const s = typeof text === "string" ? text.trim().toLowerCase() : "";
+  if (!s) return false;
+  if (/\bfree\b/.test(s)) return true;
+  if (/no\s+(charge|fee)\b/.test(s)) return true;
+  if (/\bcomplimentary\b/.test(s)) return true;
+  if (/\b\$0\b/.test(text || "")) return true;
+  if (/\bweekends?\b/.test(s) && /\bweekdays?\b/.test(s) && /\bafter\b/.test(s))
+    return true;
+  if (/\bweekdays?\s+after\s+7\b/.test(s)) return true;
+  if (/\bafter\s+7\s*:?\s*(pm|00)\b/.test(s)) return true;
+  if (/\bafter\s+7\s*pm\b/.test(s)) return true;
+  return false;
+}
+
+function pickEveningTierStringForCap(pricing, categoryKey) {
+  const isPublic =
+    categoryKey === "public-garage" || categoryKey === "public-lot";
   if (typeof pricing.evening === "string" && pricing.evening.trim()) {
-    tier = pricing.evening.trim();
-  } else if (
-    (categoryKey === "public-garage" || categoryKey === "public-lot") &&
+    return pricing.evening.trim();
+  }
+  if (isPublic && typeof pricing.events === "string" && pricing.events.trim()) {
+    return pricing.events.trim();
+  }
+  if (
+    isPublic &&
+    typeof pricing.hourlyRate === "string" &&
+    pricing.hourlyRate.trim()
+  ) {
+    return pricing.hourlyRate.trim();
+  }
+  if (typeof pricing.rate === "string" && pricing.rate.trim()) {
+    return pricing.rate.trim();
+  }
+  if (typeof pricing.daytime === "string" && pricing.daytime.trim()) {
+    return pricing.daytime.trim();
+  }
+  if (
+    !isPublic &&
     typeof pricing.events === "string" &&
     pricing.events.trim()
   ) {
-    tier = pricing.events.trim();
+    return pricing.events.trim();
   }
+  return "";
+}
+
+/**
+ * Worst-case posted dollars for evening-style pricing (used vs max-evening filter).
+ * **`null`** means no pricing tier fields at all (true unknown). **`-1`** means prose without dollars
+ * (still shown unless pay is free-only). **`0`** means inferred free evenings/weekends.
+ */
+function parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey) {
+  if (!pricing || typeof pricing !== "object")
+    return PARKING_EVENING_PRICE_ABSENT;
+  if (!pricingObjectHasAnyKnownTierField(pricing))
+    return PARKING_EVENING_PRICE_ABSENT;
+
+  const tier = pickEveningTierStringForCap(pricing, categoryKey);
+  if (!tier) return PARKING_EVENING_PRICE_ABSENT;
+
   const nums = parseDollarAmountsFromPriceText(tier);
-  if (nums.length === 0) return null;
-  return Math.max(...nums);
+  if (nums.length > 0) return Math.max(...nums);
+
+  if (parkingPriceTextImpliesEveningFree(tier)) return 0;
+
+  return PARKING_EVENING_PRICE_AMBIGUOUS_PROSE;
 }
 
 function parkingSpotPassesEveningBudget(
@@ -265,8 +344,10 @@ function parkingSpotPassesEveningBudget(
   ) {
     return true;
   }
-  const ceil = parkingSpotEveningPriceCeilingDollars(pricing, categoryKey);
-  if (ceil == null) return budgetCapDollars > 0;
+  const ceil = parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey);
+  if (ceil === PARKING_EVENING_PRICE_ABSENT) return false;
+  if (ceil === PARKING_EVENING_PRICE_AMBIGUOUS_PROSE)
+    return budgetCapDollars > 0;
   return ceil <= budgetCapDollars;
 }
 
@@ -291,6 +372,12 @@ function getParkingEveningBudgetCapFromHash() {
 function resolvedParkingEveningBudgetCap(budgetCapOverride) {
   if (budgetCapOverride !== undefined && budgetCapOverride !== null) {
     const snapped = snapParkingEveningSliderSteps(budgetCapOverride);
+    if (snapped < PARKING_MAX_EVENING_SLIDER_CEILING) return snapped;
+    return null;
+  }
+  const paySlider = document.getElementById("parkingMaxEveningSlider");
+  if (paySlider) {
+    const snapped = snapParkingEveningSliderSteps(paySlider.value);
     if (snapped < PARKING_MAX_EVENING_SLIDER_CEILING) return snapped;
     return null;
   }
@@ -340,6 +427,7 @@ function ensureParkingEveningBudgetDelegation() {
   parkingEveningBudgetDelegated = true;
   slider.addEventListener("input", () => {
     syncParkingEveningBudgetOutputLive();
+    scheduleParkingMapOverlaySync();
   });
   slider.addEventListener("change", () => {
     const v = snapParkingEveningSliderSteps(slider.value);
@@ -447,6 +535,7 @@ let parkingDestinationSelectDelegated = false;
 let parkingResetDelegated = false;
 let parkingEveningBudgetDelegated = false;
 let parkingWalkDelegated = false;
+let parkingOverlaySyncRaf = 0;
 
 function escapeHtml(s) {
   if (s == null) return "";
@@ -503,8 +592,27 @@ function parkingCostTextLooksLikeRate(s) {
 }
 
 /**
+ * When ArcGIS has both **EVENT_CHRG** (`events`) and **Hour_Rate** (`hourlyRate`), show both in the popup.
+ * @returns {{ text: string, hourlyHint: boolean } | null}
+ */
+function parkingMapEventPlusHourlySupplement(eventsText, hourlyText) {
+  const ev = typeof eventsText === "string" ? eventsText.trim() : "";
+  const hr = typeof hourlyText === "string" ? hourlyText.trim() : "";
+  if (!ev || !hr) return null;
+  const evLo = ev.replace(/\s+/g, " ").toLowerCase();
+  const hrLo = hr.replace(/\s+/g, " ").toLowerCase();
+  if (evLo === hrLo) return null;
+  const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hr);
+  return {
+    text: hr,
+    hourlyHint: parkingCostTextLooksLikeRate(hr) && !alreadyHourly,
+  };
+}
+
+/**
  * Cost line for `#/parking` popups: prefers ArcGIS `hourlyRate` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
- * @returns {{ text: string, costHourlyHint: boolean }}
+ * When **`events`** and **`hourlyRate`** are both set (city map), primary line is the **event** charge plus **`hourlyRate`** as a supplement (weekend / hourly context).
+ * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
  */
 function getParkingMapCostDisplay(pricing, categoryKey) {
   const privateOsm =
@@ -512,8 +620,24 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
   if (!pricing || typeof pricing !== "object") {
     return { text: privateOsm ? "Unknown" : "Free", costHourlyHint: false };
   }
+  const eventsRaw =
+    typeof pricing.events === "string" ? pricing.events.trim() : "";
   const hrRaw =
     typeof pricing.hourlyRate === "string" ? pricing.hourlyRate.trim() : "";
+
+  if (eventsRaw && hrRaw) {
+    const extra = parkingMapEventPlusHourlySupplement(eventsRaw, hrRaw);
+    if (extra) {
+      return {
+        text: eventsRaw,
+        costHourlyHint: false,
+        costSupplement: extra.text,
+        costSupplementHint: extra.hourlyHint,
+      };
+    }
+    return { text: eventsRaw, costHourlyHint: false };
+  }
+
   if (hrRaw) {
     const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hrRaw);
     return {
@@ -1020,6 +1144,11 @@ function getAllParkingSpotMarkers(
         categoryName,
         price: cost.text,
         costHourlyHint: cost.costHourlyHint,
+        priceSupplement:
+          typeof cost.costSupplement === "string"
+            ? cost.costSupplement.trim()
+            : "",
+        priceSupplementHint: cost.costSupplementHint === true,
         totalSpaces: parseTotalSpacesFromAvailability(item.availability),
         spotId: encodeParkingSpotId(categoryId, lat, lng),
       });
@@ -1139,7 +1268,7 @@ function parkingStartBtnIconSvg(checked) {
 
 /**
  * Shared Leaflet popup HTML for a parking spot row (circle or green start pin).
- * @param {{ name: string, categoryName: string, price?: string, costHourlyHint?: boolean, totalSpaces?: number | null, address?: string }} row
+ * @param {{ name: string, categoryName: string, price?: string, costHourlyHint?: boolean, priceSupplement?: string, priceSupplementHint?: boolean, totalSpaces?: number | null, address?: string }} row
  */
 function parkingSpotPopupHtml(row) {
   const costText =
@@ -1147,6 +1276,15 @@ function parkingSpotPopupHtml(row) {
   const hourlySpan =
     row.costHourlyHint === true
       ? ` <span style="color:#64748b;font-weight:500;font-size:11px">(hourly)</span>`
+      : "";
+  const supRaw =
+    typeof row.priceSupplement === "string" ? row.priceSupplement.trim() : "";
+  const supplementSpan =
+    supRaw !== ""
+      ? ` <span style="color:#94a3b8" aria-hidden="true">·</span> ${escapeHtml(supRaw)}` +
+        (row.priceSupplementHint === true
+          ? ` <span style="color:#64748b;font-weight:500;font-size:11px">(hourly)</span>`
+          : "")
       : "";
   const sizeText =
     typeof row.totalSpaces === "number" && Number.isFinite(row.totalSpaces)
@@ -1158,7 +1296,7 @@ function parkingSpotPopupHtml(row) {
     `<span style="color:#64748b">${escapeHtml(row.categoryName)}</span>`;
   if (row.address) html += `<br>${escapeHtml(row.address)}`;
   html +=
-    `<br><span style="color:#475569">Cost:</span> ${escapeHtml(costText)}${hourlySpan}` +
+    `<br><span style="color:#475569">Cost:</span> ${escapeHtml(costText)}${hourlySpan}${supplementSpan}` +
     `<br><span style="color:#475569">Size:</span> ${escapeHtml(sizeText)}`;
   html +=
     `<div class="parking-spot-popup-actions" style="margin-top:10px;display:block;width:100%;clear:both">` +
@@ -1559,11 +1697,15 @@ function fitParkingMapToAllContent(map) {
   }
 }
 
-function syncParkingMapOverlays(map) {
+/**
+ * @param {{ fit?: boolean } | undefined} opts — **`fit: false`** refreshes pins/routes/markers without refitting zoom (for live slider `input`).
+ */
+function syncParkingMapOverlays(map, opts) {
+  const doFit = opts?.fit !== false;
   syncParkingDashRoutes(map);
   syncParkingSpots(map);
   syncParkingDestinationMarker(map);
-  fitParkingMapToAllContent(map);
+  if (doFit) fitParkingMapToAllContent(map);
   syncParkingSpotPickMarker(map);
 }
 
