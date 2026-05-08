@@ -197,7 +197,7 @@ function ensureParkingWalkDelegation() {
     window.location.hash = buildParkingHashFromState(
       keys,
       dest,
-      parkingStartSpotIdForAutoPick(undefined, ix),
+      getParkingCommittedStartSpotIdForHashWrite(undefined),
       undefined,
       ix,
     );
@@ -461,7 +461,7 @@ function ensureParkingEveningBudgetDelegation() {
     window.location.hash = buildParkingHashFromState(
       keys,
       dest,
-      parkingStartSpotIdForAutoPick(),
+      getParkingCommittedStartSpotIdForHashWrite(undefined),
       undefined,
       undefined,
     );
@@ -865,20 +865,38 @@ function normalizeParkingSpotIdFromHashRaw() {
   return normalizeParkingSpotId(String(raw).trim());
 }
 
-function isParkingSpotIdKnown(spotId) {
-  if (!spotId) return false;
-  const norm = normalizeParkingSpotId(spotId);
-  if (!norm) return false;
-  return getAllParkingSpotMarkers().some((m) => m.spotId === norm);
-}
-
-/** Normalized start-spot id from hash if valid for current filters/data, else `undefined`. */
-function getParkingSpotIdForHash() {
-  /** Slider index **0** (`walk=0`) — no distance filter and no selected parking start marker. */
+/**
+ * User-committed `start=` / `spot=` preserved when rewriting the hash — only when already in the URL
+ * and still a visible marker for `enabledKeysOverride` (or current categories when omitted).
+ * Auto-recommendation never writes here; use {@link getParkingEffectiveStartSpotId} for the green pin.
+ *
+ * @param {Set<string> | undefined} enabledKeysOverride — **new** `location=` set when toggling categories before the hash updates.
+ */
+function getParkingCommittedStartSpotIdForHashWrite(enabledKeysOverride) {
   if (getParkingMaxWalkSliderValueForHash() === 0) return undefined;
   const n = normalizeParkingSpotIdFromHashRaw();
   if (!n) return undefined;
-  return isParkingSpotIdKnown(n) ? n : undefined;
+  const keys =
+    enabledKeysOverride instanceof Set
+      ? [...enabledKeysOverride]
+      : getEnabledParkingKeys();
+  return getAllParkingSpotMarkers(keys).some((m) => m.spotId === n)
+    ? n
+    : undefined;
+}
+
+/** Normalized committed start from the hash if valid for current filters (`walk` ≠ 0). */
+function getParkingSpotIdForHash() {
+  return getParkingCommittedStartSpotIdForHashWrite(undefined);
+}
+
+/**
+ * Recommended or committed parking start for map overlays — URL wins when present; otherwise auto pick.
+ */
+function getParkingEffectiveStartSpotId() {
+  const committed = getParkingSpotIdForHash();
+  if (committed) return committed;
+  return parkingStartSpotIdForAutoPick();
 }
 
 /**
@@ -1014,7 +1032,7 @@ function toggleParkingCategoryFilter(key) {
   window.location.hash = buildParkingHashFromState(
     current,
     dest,
-    parkingStartSpotIdForAutoPick(current),
+    getParkingCommittedStartSpotIdForHashWrite(current),
     undefined,
     undefined,
   );
@@ -1085,7 +1103,7 @@ function ensureParkingDestinationSelectDelegation() {
     window.location.hash = buildParkingHashFromState(
       new Set(getEnabledParkingKeys()),
       sel.value,
-      parkingStartSpotIdForAutoPick(),
+      getParkingCommittedStartSpotIdForHashWrite(undefined),
       undefined,
       undefined,
     );
@@ -1493,6 +1511,8 @@ if (typeof globalThis !== "undefined") {
     filterParkingMarkersForRecommendation;
   globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest =
     filterParkingMarkersExcludeFreeWhenPaidExists;
+  globalThis.__getParkingEffectiveStartSpotIdForTest =
+    getParkingEffectiveStartSpotId;
 }
 
 /**
@@ -1935,7 +1955,7 @@ function attachParkingSpotStartButton(marker, row) {
           undefined,
         );
       }
-      if (parkingMap) syncParkingSpotPickMarker(parkingMap);
+      if (parkingMap) syncParkingMapOverlays(parkingMap, { fit: false });
     };
   });
 }
@@ -2103,7 +2123,7 @@ function syncParkingSpotPickMarker(map) {
     parkingSpotPickLayerGroup = null;
   }
 
-  const id = getParkingSpotIdForHash();
+  const id = getParkingEffectiveStartSpotId();
   if (!id) return;
 
   const p = parseParkingSpotIdToken(id);
@@ -2275,7 +2295,7 @@ function syncParkingStartFinishWalkLine(map) {
   }
 
   const destLl = getParkingDestinationLatLng();
-  const id = getParkingSpotIdForHash();
+  const id = getParkingEffectiveStartSpotId();
   if (!destLl || !id) {
     globalThis.__parkingWalkUsesDashOverlay = false;
     return;
@@ -2493,7 +2513,7 @@ function fitParkingMapToAllContent(map) {
   const spots = getAllParkingSpotMarkers();
   const spotLatLngs = spots.map((s) => [s.lat, s.lng]);
   const destLl = getParkingDestinationLatLng();
-  const startId = getParkingSpotIdForHash();
+  const startId = getParkingEffectiveStartSpotId();
   const startPt = startId ? parseParkingSpotIdToken(startId) : null;
 
   const contextMaxZoom = getParkingMapContextFitMaxZoom(map, L);

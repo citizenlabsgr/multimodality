@@ -1168,8 +1168,8 @@ test.describe("Parking map (#/parking)", () => {
     );
   });
 
-  test.describe("Auto-select start on slider change", () => {
-    test("evening slider sets start when finish is selected", async ({
+  test.describe("Auto recommendation without start= in URL", () => {
+    test("evening slider does not add start when finish is selected", async ({
       page,
     }) => {
       await page.goto("/#/parking?finish=van-andel-arena");
@@ -1181,10 +1181,12 @@ test.describe("Parking map (#/parking)", () => {
         el.value = "35";
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]start=/);
     });
 
-    test("walk slider sets start when finish is selected", async ({ page }) => {
+    test("walk slider does not add start when finish is selected", async ({
+      page,
+    }) => {
       await page.goto("/#/parking?finish=van-andel-arena");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1194,10 +1196,10 @@ test.describe("Parking map (#/parking)", () => {
         el.value = "9";
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]start=/);
     });
 
-    test("destination select sets start when choosing finish", async ({
+    test("destination select does not add start when choosing finish", async ({
       page,
     }) => {
       await page.goto("/#/parking");
@@ -1206,10 +1208,10 @@ test.describe("Parking map (#/parking)", () => {
       await expect(page).not.toHaveURL(/[?&]start=/);
       await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
       await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]start=/);
     });
 
-    test("category filter change recomputes start for new filters (not stale URL)", async ({
+    test("category filter omits start=; effective pick matches enabled categories", async ({
       page,
     }) => {
       await page.goto("/#/parking?finish=van-andel-arena");
@@ -1219,27 +1221,29 @@ test.describe("Parking map (#/parking)", () => {
         .locator('#parkingFilterBar [data-parking-category="private-lot"]')
         .click();
       await expect(page).toHaveURL(/[?&]location=/);
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]start=/);
 
-      const { startCategory, locationCats } = await page.evaluate(() => {
+      const { pickCategory, locationCats } = await page.evaluate(() => {
+        const eff = globalThis.__getParkingEffectiveStartSpotIdForTest?.();
         const h = window.location.hash;
         const qIdx = h.indexOf("?");
-        if (qIdx < 0) return { startCategory: "", locationCats: [] };
-        const q = new URLSearchParams(h.slice(qIdx + 1));
-        const start = q.get("start") || "";
-        const cat = start.split("~")[0] || "";
+        const q =
+          qIdx >= 0
+            ? new URLSearchParams(h.slice(qIdx + 1))
+            : new URLSearchParams();
         const loc = q.get("location") || "";
         const locationCats = loc
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean);
-        return { startCategory: cat, locationCats };
+        const cat = typeof eff === "string" ? eff.split("~")[0] : "";
+        return { pickCategory: cat, locationCats };
       });
-      expect(startCategory).toMatch(
+      expect(pickCategory).toMatch(
         /^(public-garage|public-lot|private-garage|private-lot)$/,
       );
       expect(locationCats).not.toContain("private-lot");
-      expect(locationCats).toContain(startCategory);
+      expect(locationCats).toContain(pickCategory);
     });
   });
 
