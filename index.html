@@ -597,7 +597,24 @@
             </div>
           </div>
         </div>
-        <div id="parkingAppMap" class="min-h-0 flex-1 w-full"></div>
+        <div id="parkingAppMap" class="min-h-0 w-full flex-1"></div>
+        <section
+          id="parkingRouteInstructions"
+          class="mt-2 flex min-h-0 shrink-0 flex-col rounded-lg border border-slate-200 bg-white px-3 py-2 sm:px-4"
+          aria-labelledby="parkingRouteInstructionsHeading"
+        >
+          <h3
+            id="parkingRouteInstructionsHeading"
+            class="text-xs font-semibold uppercase tracking-wide text-slate-500"
+          >
+            Route
+          </h3>
+          <div
+            id="parkingRouteInstructionsBody"
+            class="parking-route-instructions-body mt-1 min-h-0 text-sm text-slate-800"
+            aria-live="polite"
+          ></div>
+        </section>
       </div>
     </main>
 

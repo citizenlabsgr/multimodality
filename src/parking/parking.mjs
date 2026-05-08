@@ -2794,6 +2794,124 @@ function fitParkingMapToAllContent(map) {
   }
 }
 
+/** Text panel under the map — mirrors walk / DASH overlays from {@link syncParkingStartFinishWalkLine}. */
+function syncParkingRouteInstructionsPanel() {
+  const body = document.getElementById("parkingRouteInstructionsBody");
+  if (!body) return;
+
+  const destLl = getParkingDestinationLatLng();
+  const walkCap = resolvedParkingWalkCapMiles();
+  const destSlug = getParkingDestinationSlugFromSelect();
+  const destRec = appData?.destinations?.find((d) => d.slug === destSlug);
+  const destName =
+    typeof destRec?.name === "string" && destRec.name.trim() !== ""
+      ? destRec.name.trim()
+      : "the venue";
+
+  const routeNextHtml = (inner) =>
+    `<p class="parking-route-instructions-placeholder"><span class="parking-route-next-label">Next:</span> ${inner}</p>`;
+
+  if (!destLl) {
+    body.innerHTML = routeNextHtml(
+      `Choose <strong class="font-semibold text-slate-800">where you're going</strong> with the destination menu above.`,
+    );
+    return;
+  }
+
+  if (!Number.isFinite(walkCap) || walkCap <= 0) {
+    body.innerHTML = routeNextHtml(
+      `Move <strong class="font-semibold text-slate-800">And then walk</strong> above zero so we can show walking distance from parking to DASH.`,
+    );
+    return;
+  }
+
+  const rawStartId = normalizeParkingSpotIdFromHashRaw();
+  const committedId = getParkingSpotIdForHash();
+  if (rawStartId && !committedId) {
+    body.innerHTML = `<p class="parking-route-instructions-placeholder">Your chosen parking isn't on the map with the current <strong class="font-semibold text-slate-800">To park in</strong> filters. Turn a category back on or pick another spot.</p>`;
+    return;
+  }
+
+  if (!committedId) {
+    body.innerHTML = routeNextHtml(
+      `Tap a parking location, then <strong class="font-semibold text-slate-800">Plan to park here</strong> to set where you'll leave your car.`,
+    );
+    return;
+  }
+
+  const start = parseParkingSpotIdToken(committedId);
+  if (!start) {
+    body.innerHTML = routeNextHtml(
+      `Pick a parking spot and tap <strong class="font-semibold text-slate-800">Plan to park here</strong> again.`,
+    );
+    return;
+  }
+
+  const spot =
+    getAllParkingSpotMarkers().find((m) => m.spotId === committedId) ??
+    parkingSpotRowFallback(committedId, start);
+  const parkLabel =
+    spot.name && String(spot.name).trim() !== "" && spot.name !== "—"
+      ? String(spot.name).trim()
+      : "this location";
+  const addrRaw = typeof spot.address === "string" ? spot.address.trim() : "";
+  const parkDetail =
+    addrRaw !== ""
+      ? ` <span class="parking-route-step-detail">(${escapeHtml(addrRaw)})</span>`
+      : "";
+
+  const multimodal = tryParkingDashMultimodalPath(
+    start.lat,
+    start.lng,
+    destLl[0],
+    destLl[1],
+    walkCap,
+  );
+
+  const note = `<p class="parking-route-note">Walk legs match the dashed lines on the map — straight-line estimates, not turn-by-turn directions.</p>`;
+  const listOpen = `<ol class="parking-route-steps">`;
+  const listClose = `</ol>`;
+
+  if (multimodal) {
+    const sameTripStop =
+      haversineMiles(
+        multimodal.boardStop.lat,
+        multimodal.boardStop.lng,
+        multimodal.alightStop.lat,
+        multimodal.alightStop.lng,
+      ) < 2e-5;
+
+    const steps = [];
+    steps.push(
+      `<strong>Park</strong> at ${escapeHtml(parkLabel)}.${parkDetail}`,
+    );
+    if (sameTripStop) {
+      steps.push(
+        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)}, then <strong>board and exit</strong> DASH at that stop.`,
+      );
+    } else {
+      steps.push(
+        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)} and <strong>board DASH</strong>.`,
+      );
+      steps.push(
+        `<strong>Ride</strong> DASH to ${escapeHtml(multimodal.alightStop.label)} and <strong>exit</strong>.`,
+      );
+    }
+    steps.push(`<strong>Walk</strong> to ${escapeHtml(destName)}.`);
+
+    body.innerHTML =
+      listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose + note;
+    return;
+  }
+
+  const steps = [
+    `<strong>Park</strong> at ${escapeHtml(parkLabel)}.${parkDetail}`,
+    `<strong>Walk</strong> to ${escapeHtml(destName)} — for this spot, door-to-door on foot is shown instead of DASH (often faster).`,
+  ];
+  body.innerHTML =
+    listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose + note;
+}
+
 /**
  * @param {{ fit?: boolean } | undefined} opts — **`fit: false`** refreshes pins/routes/markers without refitting zoom (for live slider `input`).
  */
@@ -2804,6 +2922,7 @@ function syncParkingMapOverlays(map, opts) {
   syncParkingSpotPickMarker(map);
   syncParkingStartFinishWalkLine(map);
   syncParkingDestinationMarker(map);
+  syncParkingRouteInstructionsPanel();
   if (doFit) fitParkingMapToAllContent(map);
 }
 
