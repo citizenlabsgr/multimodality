@@ -7,9 +7,15 @@ import {
   DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER,
   FALLBACK_DATA,
 } from "../shared/data-loader.mjs";
+import {
+  hideParkingView,
+  isParkingRoute,
+  parseTotalSpacesFromAvailability,
+  renderParkingView,
+} from "../parking/parking.mjs";
 
 /**
- * Visit planner (#/visit), modes explainer (#/modes), and data explorer (#/data).
+ * Visit planner (#/visit), modes explainer (#/modes), data explorer (#/data), parking map (#/parking).
  * Entry point: `src/main.mjs`.
  */
 
@@ -690,6 +696,7 @@ function renderModesView() {
   const backLink = document.getElementById("modesPageBackLink");
   if (!appView || !dataView || !modesView || !sectionsEl || !appData) return;
 
+  hideParkingView();
   disposeModesPageMaps();
 
   appView.classList.add("hidden");
@@ -794,10 +801,10 @@ function formatParkingPrice(pricing, categoryKey) {
   if (!pricing || typeof pricing !== "object") {
     return privateOsm ? "Unknown" : "Free";
   }
-  if (pricing.rate) return pricing.rate;
-  if (pricing.evening) return pricing.evening;
-  if (pricing.daytime) return pricing.daytime;
   if (pricing.events) return pricing.events;
+  if (pricing.evening) return pricing.evening;
+  if (pricing.rate) return pricing.rate;
+  if (pricing.daytime) return pricing.daytime;
   return privateOsm ? "Unknown" : "Free";
 }
 
@@ -938,10 +945,20 @@ function updateDataViewMap(points, options) {
         rows.push(
           `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(parkingAddress)}</td></tr>`,
         );
-      if (p.price != null && p.price !== "")
-        rows.push(
-          `<tr><th style="${thStyle}">Price</th><td style="${tdStyle}">${escapeHtml(p.price)}</td></tr>`,
-        );
+      const costText = p.price != null && p.price !== "" ? p.price : "—";
+      rows.push(
+        `<tr><th style="${thStyle}">Cost</th><td style="${tdStyle}">${escapeHtml(costText)}</td></tr>`,
+      );
+      const totalSpaces = parseTotalSpacesFromAvailability(
+        p.parkingItem?.availability,
+      );
+      const sizeText =
+        typeof totalSpaces === "number" && Number.isFinite(totalSpaces)
+          ? `${totalSpaces} total spaces`
+          : "Not listed";
+      rows.push(
+        `<tr><th style="${thStyle}">Size</th><td style="${tdStyle}">${escapeHtml(sizeText)}</td></tr>`,
+      );
       rows.push(
         `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy New JSON</button></div></td></tr>`,
       );
@@ -1250,6 +1267,7 @@ function renderDataView() {
   if (path === null) return;
 
   hideModesView();
+  hideParkingView();
 
   appView.classList.add("hidden");
   dataView.classList.remove("hidden");
@@ -2014,6 +2032,12 @@ function toggleMode(mode) {
 
 // Handle browser back/forward navigation
 window.addEventListener("hashchange", () => {
+  if (isParkingRoute()) {
+    hideModesView();
+    renderParkingView();
+    return;
+  }
+  hideParkingView();
   if (isDataRoute()) {
     renderDataView();
     return;
@@ -4869,7 +4893,8 @@ async function init() {
     initialHash &&
     !initialHash.startsWith("/visit") &&
     !initialHash.startsWith("/data") &&
-    !initialHash.startsWith("/modes")
+    !initialHash.startsWith("/modes") &&
+    !initialHash.startsWith("/parking")
   ) {
     // If hash exists but doesn't start with /visit or /data, migrate it
     if (initialHash.includes("=")) {
@@ -5064,7 +5089,11 @@ async function init() {
     renderDataView();
   } else if (isModesRoute()) {
     renderModesView();
+  } else if (isParkingRoute()) {
+    hideModesView();
+    renderParkingView();
   } else {
+    hideParkingView();
     hideModesView();
     hideDataView();
   }

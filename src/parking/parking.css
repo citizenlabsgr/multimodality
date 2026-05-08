@@ -1,0 +1,66 @@
+/* #/parking — full-width map only */
+main.parking-map-active {
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  width: 100%;
+  padding: 0.5rem;
+  min-height: 0;
+}
+
+#parkingView {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+#parkingAppMap {
+  flex: 1 1 auto;
+  min-height: min(70vh, 640px);
+  height: 70vh;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid rgb(226 232 240);
+  overflow: hidden;
+}
+
+.leaflet-tooltip.parking-estimated-walk-tooltip {
+  max-width: 14rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  font-weight: 500;
+  color: rgb(51 65 85);
+  border-color: rgb(148 163 184);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.12);
+}
+
+/* Animated “dots” along estimated walk (SVG stroke-dashoffset); pattern length = 14px → loop */
+@keyframes parking-estimated-walk-dots {
+  to {
+    stroke-dashoffset: -14;
+  }
+}
+
+path.parking-estimated-walk-line-path {
+  stroke-dasharray: 2 12 !important;
+  stroke-linecap: round !important;
+  animation: parking-estimated-walk-dots 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  path.parking-estimated-walk-line-path {
+    animation: none;
+  }
+}
+
+/* Desktop: keep category chips compact. */
+@media (min-width: 1024px) {
+  #parkingFilterBar button.parking-category-filter-btn {
+    min-height: 2.125rem;
+    padding: 0.375rem 0.625rem;
+    font-size: 0.8125rem;
+    border-radius: 0.5rem;
+    box-shadow: none;
+  }
+}
