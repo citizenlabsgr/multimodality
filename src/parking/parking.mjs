@@ -174,7 +174,7 @@ function ensureParkingWalkDelegation() {
     window.location.hash = buildParkingHashFromState(
       keys,
       dest,
-      getParkingSpotIdForHash(),
+      chooseBestParkingStartSpotId(),
       undefined,
       ix,
     );
@@ -438,7 +438,7 @@ function ensureParkingEveningBudgetDelegation() {
     window.location.hash = buildParkingHashFromState(
       keys,
       dest,
-      getParkingSpotIdForHash(),
+      chooseBestParkingStartSpotId(),
       undefined,
       undefined,
     );
@@ -530,6 +530,7 @@ let parkingDashLayerGroup = null;
 let parkingSpotsLayerGroup = null;
 let parkingDestinationLayerGroup = null;
 let parkingSpotPickLayerGroup = null;
+let parkingStartFinishLineLayerGroup = null;
 let parkingFilterBarDelegated = false;
 let parkingDestinationSelectDelegated = false;
 let parkingResetDelegated = false;
@@ -899,7 +900,7 @@ function toggleParkingCategoryFilter(key) {
   window.location.hash = buildParkingHashFromState(
     current,
     dest,
-    getParkingSpotIdForHash(),
+    chooseBestParkingStartSpotId(current),
     undefined,
     undefined,
   );
@@ -970,7 +971,7 @@ function ensureParkingDestinationSelectDelegation() {
     window.location.hash = buildParkingHashFromState(
       new Set(getEnabledParkingKeys()),
       sel.value,
-      getParkingSpotIdForHash(),
+      chooseBestParkingStartSpotId(),
       undefined,
       undefined,
     );
@@ -1082,6 +1083,21 @@ function buildParkingFilterBar() {
     }
     bar.appendChild(b);
   }
+  // TODO: Enable #parkingAndDashCheckbox and wire DASH-aware parking filtering.
+  const dashLabel = document.createElement("label");
+  dashLabel.className =
+    "parking-dash-filter ml-auto flex shrink-0 cursor-not-allowed items-center gap-2 text-xs font-medium text-slate-500 select-none";
+  const dashCb = document.createElement("input");
+  dashCb.type = "checkbox";
+  dashCb.id = "parkingAndDashCheckbox";
+  dashCb.className =
+    "size-4 shrink-0 cursor-not-allowed rounded border-slate-300 accent-green-700 disabled:opacity-60";
+  dashCb.disabled = true;
+  dashCb.setAttribute("aria-disabled", "true");
+  dashLabel.setAttribute("for", "parkingAndDashCheckbox");
+  dashLabel.appendChild(dashCb);
+  dashLabel.appendChild(document.createTextNode("And DASH"));
+  bar.appendChild(dashLabel);
 }
 
 /**
@@ -1094,10 +1110,9 @@ function getAllParkingSpotMarkers(
   eveningSliderValue,
   walkSliderIndex,
 ) {
-  const keys =
-    Array.isArray(enabledKeys) && enabledKeys.length > 0
-      ? enabledKeys
-      : getEnabledParkingKeys();
+  const keys = Array.isArray(enabledKeys)
+    ? enabledKeys
+    : getEnabledParkingKeys();
   const budgetCap = resolvedParkingEveningBudgetCap(
     eveningSliderValue === undefined ? undefined : eveningSliderValue,
   );
@@ -1105,8 +1120,9 @@ function getAllParkingSpotMarkers(
     walkSliderIndex === undefined ? undefined : walkSliderIndex,
   );
   const destLl = getParkingDestinationLatLng();
-  // TODO: Re-enable `walk` filtering once we finalize the walk UX.
-  const applyWalkCap = false;
+  /** Slider index **0** ⇒ **unlimited** walk (`walkCapMiles === 0`); otherwise cap straight-line miles from **finish**. */
+  const applyWalkCap =
+    destLl != null && walkCapMiles > 0 && Number.isFinite(walkCapMiles);
 
   const out = [];
   const parking = appData?.parking;
@@ -1132,6 +1148,13 @@ function getAllParkingSpotMarkers(
         if (!Number.isFinite(walkMi) || walkMi > walkCapMiles) continue;
       }
       const cost = getParkingMapCostDisplay(item.pricing, categoryId);
+      const ceil = parkingSpotEveningPriceCeilingOrAbsent(
+        item.pricing,
+        categoryId,
+      );
+      let eveningSortDollars = Number.POSITIVE_INFINITY;
+      if (typeof ceil === "number") eveningSortDollars = ceil;
+
       out.push({
         lat,
         lng,
@@ -1149,12 +1172,51 @@ function getAllParkingSpotMarkers(
             ? cost.costSupplement.trim()
             : "",
         priceSupplementHint: cost.costSupplementHint === true,
+        eveningSortDollars,
         totalSpaces: parseTotalSpacesFromAvailability(item.availability),
         spotId: encodeParkingSpotId(categoryId, lat, lng),
       });
     }
   }
   return out;
+}
+
+/**
+ * With **finish** set: prefer the **longest** straight-line walk within the user's max-walk setting
+ * (uses tolerance toward cheaper / less crowded options); tie-break by lowest inferred evening dollars.
+ * Without **finish**: lowest evening dollars only.
+ *
+ * @param {Set<string>|string[]|undefined} enabledKeysOverride — when provided (e.g. category toggle **before** hash updates), use this instead of **`location=`** from the URL.
+ */
+function chooseBestParkingStartSpotId(enabledKeysOverride) {
+  const markers =
+    enabledKeysOverride instanceof Set
+      ? getAllParkingSpotMarkers([...enabledKeysOverride])
+      : Array.isArray(enabledKeysOverride)
+        ? getAllParkingSpotMarkers(enabledKeysOverride)
+        : getAllParkingSpotMarkers();
+  if (markers.length === 0) return undefined;
+  const destLl = getParkingDestinationLatLng();
+
+  const sorted = [...markers].sort((a, b) => {
+    if (destLl) {
+      const wa = haversineMiles(a.lat, a.lng, destLl[0], destLl[1]);
+      const wb = haversineMiles(b.lat, b.lng, destLl[0], destLl[1]);
+      if (Math.abs(wa - wb) > 1e-9) return wb - wa;
+    }
+    const ca =
+      typeof a.eveningSortDollars === "number"
+        ? a.eveningSortDollars
+        : Number.POSITIVE_INFINITY;
+    const cb =
+      typeof b.eveningSortDollars === "number"
+        ? b.eveningSortDollars
+        : Number.POSITIVE_INFINITY;
+    if (ca !== cb) return ca - cb;
+    return String(a.spotId).localeCompare(String(b.spotId));
+  });
+
+  return sorted[0].spotId;
 }
 
 /**
@@ -1546,6 +1608,65 @@ function syncParkingSpotPickMarker(map) {
   m.addTo(g);
 }
 
+/** Straight walk hint: dashed gray between green **start** and red **finish** (marker pane stays above). */
+function syncParkingStartFinishWalkLine(map) {
+  const L = globalThis.L;
+  if (!map || !L) return;
+
+  if (parkingStartFinishLineLayerGroup) {
+    try {
+      map.removeLayer(parkingStartFinishLineLayerGroup);
+    } catch {
+      /* ignore */
+    }
+    parkingStartFinishLineLayerGroup = null;
+  }
+
+  const destLl = getParkingDestinationLatLng();
+  const id = getParkingSpotIdForHash();
+  if (!destLl || !id) return;
+
+  const start = parseParkingSpotIdToken(id);
+  if (!start) return;
+
+  parkingStartFinishLineLayerGroup = L.layerGroup().addTo(map);
+  const g = parkingStartFinishLineLayerGroup;
+  const line = L.polyline(
+    [
+      [start.lat, start.lng],
+      [destLl[0], destLl[1]],
+    ],
+    {
+      color: "#64748b",
+      weight: 3,
+      opacity: 0.92,
+      dashArray: "2 12",
+      lineCap: "round",
+      lineJoin: "round",
+      interactive: true,
+    },
+  );
+  line.bindTooltip(
+    "Estimated walk — straight line only (not turn-by-turn routing).",
+    {
+      sticky: true,
+      direction: "center",
+      opacity: 0.95,
+      className: "parking-estimated-walk-tooltip",
+    },
+  );
+  line.addTo(g);
+
+  const stampWalkLineDotAnimationClass = () => {
+    const el = line.getElement?.() ?? line._path;
+    if (el?.classList) el.classList.add("parking-estimated-walk-line-path");
+  };
+  stampWalkLineDotAnimationClass();
+  requestAnimationFrame(() => {
+    requestAnimationFrame(stampWalkLineDotAnimationClass);
+  });
+}
+
 /** Red finish pin for the selected destination (green pick / red venue). */
 function parkingDestinationMarkerIcon(L) {
   const svg =
@@ -1707,6 +1828,7 @@ function syncParkingMapOverlays(map, opts) {
   syncParkingDestinationMarker(map);
   if (doFit) fitParkingMapToAllContent(map);
   syncParkingSpotPickMarker(map);
+  syncParkingStartFinishWalkLine(map);
 }
 
 export function hideParkingView() {

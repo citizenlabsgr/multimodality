@@ -57,9 +57,11 @@ test.describe("Parking map (#/parking)", () => {
 
     await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
     await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
-    await expect(
-      page.locator("#parkingAppMap .leaflet-marker-pane .leaflet-marker-icon"),
-    ).toBeVisible({ timeout: 5000 });
+    const markerIcons = page.locator(
+      "#parkingAppMap .leaflet-marker-pane .leaflet-marker-icon",
+    );
+    await expect(markerIcons.first()).toBeVisible({ timeout: 5000 });
+    await expect(markerIcons).toHaveCount(2);
 
     const before = await page
       .locator("#parkingAppMap .leaflet-overlay-pane path")
@@ -869,6 +871,81 @@ test.describe("Parking map (#/parking)", () => {
       before,
       { timeout: 8000 },
     );
+  });
+
+  test.describe("Auto-select start on slider change", () => {
+    test("evening slider sets start when finish is selected", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?finish=van-andel-arena");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await expect(page).not.toHaveURL(/[?&]start=/);
+      await page.evaluate(() => {
+        const el = document.getElementById("parkingMaxEveningSlider");
+        el.value = "35";
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await expect(page).toHaveURL(/[?&]start=/);
+    });
+
+    test("walk slider sets start when finish is selected", async ({ page }) => {
+      await page.goto("/#/parking?finish=van-andel-arena");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await expect(page).not.toHaveURL(/[?&]start=/);
+      await page.evaluate(() => {
+        const el = document.getElementById("parkingMaxWalkSlider");
+        el.value = "9";
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await expect(page).toHaveURL(/[?&]start=/);
+    });
+
+    test("destination select sets start when choosing finish", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await expect(page).not.toHaveURL(/[?&]start=/);
+      await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
+      await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+      await expect(page).toHaveURL(/[?&]start=/);
+    });
+
+    test("category filter change recomputes start for new filters (not stale URL)", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?finish=van-andel-arena");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await page
+        .locator('#parkingFilterBar [data-parking-category="private-lot"]')
+        .click();
+      await expect(page).toHaveURL(/[?&]location=/);
+      await expect(page).toHaveURL(/[?&]start=/);
+
+      const { startCategory, locationCats } = await page.evaluate(() => {
+        const h = window.location.hash;
+        const qIdx = h.indexOf("?");
+        if (qIdx < 0) return { startCategory: "", locationCats: [] };
+        const q = new URLSearchParams(h.slice(qIdx + 1));
+        const start = q.get("start") || "";
+        const cat = start.split("~")[0] || "";
+        const loc = q.get("location") || "";
+        const locationCats = loc
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        return { startCategory: cat, locationCats };
+      });
+      expect(startCategory).toMatch(
+        /^(public-garage|public-lot|private-garage|private-lot)$/,
+      );
+      expect(locationCats).not.toContain("private-lot");
+      expect(locationCats).toContain(startCategory);
+    });
   });
 
   test("parking circles paint in overlap order (purple above orange)", async ({
