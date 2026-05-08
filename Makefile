@@ -14,6 +14,9 @@ format:
 test: install
 	npx playwright test
 
+snapshots: install
+	npx playwright test tests/parking.spec.js --grep "@snapshot"
+
 .PHONY: dev
 dev: install
 	npx --yes nodemon --ext js,mjs,json,html,css --watch . --exec "clear; make all; echo"

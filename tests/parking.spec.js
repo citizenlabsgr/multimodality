@@ -1,3 +1,6 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { test, expect } from "@playwright/test";
 import { installConsoleErrorAssertions } from "./helpers/console-errors.js";
 
@@ -257,7 +260,9 @@ test.describe("Parking map (#/parking)", () => {
     test("start param hydrates and shows green pick marker", async ({
       page,
     }) => {
-      await page.goto(`/#/parking?start=${encodeURIComponent(cherrySpot)}`);
+      await page.goto(
+        `/#/parking?pay=50&start=${encodeURIComponent(cherrySpot)}`,
+      );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page).toHaveURL(/[?&]start=/);
@@ -274,7 +279,7 @@ test.describe("Parking map (#/parking)", () => {
 
     test("reset clears start from the URL", async ({ page }) => {
       await page.goto(
-        `/#/parking?finish=van-andel-arena&start=${encodeURIComponent(cherrySpot)}`,
+        `/#/parking?pay=50&finish=van-andel-arena&start=${encodeURIComponent(cherrySpot)}`,
       );
       await waitForParkingData(page);
       await expect(page).toHaveURL(/[?&]start=/);
@@ -286,7 +291,7 @@ test.describe("Parking map (#/parking)", () => {
     test("parking popup Plan to park here sets start in the URL", async ({
       page,
     }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/parking?pay=50");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await openFirstParkingCirclePopup(page);
@@ -322,7 +327,9 @@ test.describe("Parking map (#/parking)", () => {
     test("parking popup shows selected button when start is in the URL", async ({
       page,
     }) => {
-      await page.goto(`/#/parking?start=${encodeURIComponent(cherrySpot)}`);
+      await page.goto(
+        `/#/parking?pay=50&start=${encodeURIComponent(cherrySpot)}`,
+      );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page).toHaveURL(/[?&]start=/);
@@ -354,7 +361,7 @@ test.describe("Parking map (#/parking)", () => {
       page,
     }) => {
       await page.goto(
-        `/#/parking?destination=van-andel-arena&spot=${encodeURIComponent(cherrySpot)}`,
+        `/#/parking?pay=50&destination=van-andel-arena&spot=${encodeURIComponent(cherrySpot)}`,
       );
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
@@ -373,6 +380,206 @@ test.describe("Parking map (#/parking)", () => {
     });
   });
 
+  test.describe("Evening price cap (pay)", () => {
+    /** Cherry Commerce Ramp — evening $51 in `data/parking/public/garages.json`. */
+    const cherryCoords = "public-garage~42.960041~-85.669489";
+
+    test("hydrates slider and label from pay in the URL", async ({ page }) => {
+      await page.goto("/#/parking?pay=25");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("25");
+      await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
+        "$25",
+      );
+      await waitForParkingLeafletMap(page);
+      const hasCherry = await page.evaluate(
+        ({ cherryCoords }) => {
+          const want = cherryCoords.split("~");
+          const lat = Number(want[1]);
+          const lng = Number(want[2]);
+          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "public-garage" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === lat.toFixed(6) &&
+                ll.lng.toFixed(6) === lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { cherryCoords },
+      );
+      expect(hasCherry).toBe(false);
+    });
+
+    test("shows Free only label when pay is 0", async ({ page }) => {
+      await page.goto("/#/parking?pay=0");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("0");
+      await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
+        "Free only",
+      );
+    });
+
+    test("unknown-price spots are hidden at pay=0 and shown when paying", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?pay=0&finish=van-andel-arena");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const unknownCoords = { lat: 42.960141, lng: -85.669389 };
+      await page.evaluate(
+        ({ unknownCoords }) => {
+          const lots = window.appData?.parking?.lots;
+          if (!Array.isArray(lots)) return;
+          const exists = lots.some((x) => {
+            const lat = x?.location?.latitude;
+            const lng = x?.location?.longitude;
+            return (
+              typeof lat === "number" &&
+              typeof lng === "number" &&
+              lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+              lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+            );
+          });
+          if (exists) return;
+          lots.push({
+            name: "Unknown Price Test Lot",
+            location: {
+              latitude: unknownCoords.lat,
+              longitude: unknownCoords.lng,
+            },
+            pricing: {},
+          });
+        },
+        { unknownCoords },
+      );
+      await page.evaluate(() => {
+        document
+          .getElementById("parkingMaxEveningSlider")
+          ?.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      const hiddenAtFreeOnly = await page.evaluate(
+        ({ unknownCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "public-lot" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { unknownCoords },
+      );
+      expect(hiddenAtFreeOnly).toBe(false);
+
+      await page.evaluate(() => {
+        window.location.hash = "#/parking?pay=5&finish=van-andel-arena";
+      });
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      const shownWhenPaying = await page.evaluate(
+        ({ unknownCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "public-lot" &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+              ) {
+                found = true;
+              }
+            }
+          });
+          return found;
+        },
+        { unknownCoords },
+      );
+      expect(shownWhenPaying).toBe(true);
+    });
+
+    test("slider at max keeps pay omitted (default any price)", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?pay=25");
+      await waitForParkingData(page);
+      await page.evaluate(() => {
+        const el = document.getElementById("parkingMaxEveningSlider");
+        el.value = "50";
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await expect(page).toHaveURL(/#\/parking(?:\?|$)/);
+      await expect(page).not.toHaveURL(/[?&]pay=/);
+    });
+  });
+
+  test.describe("Walk distance (walk)", () => {
+    test("hydrates walk and shows mi + minute hint", async ({ page }) => {
+      await page.goto("/#/parking?walk=0.5");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("5");
+      await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
+        "0.5 mi (~10 min)",
+      );
+    });
+
+    test("hydrates maximum walk distance 1.5 mi", async ({ page }) => {
+      await page.goto("/#/parking?walk=1.5");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("15");
+      await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
+        "1.5 mi (~30 min)",
+      );
+    });
+
+    test("walk=0.1 shows feet and minute hint", async ({ page }) => {
+      await page.goto("/#/parking?walk=0.1");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("1");
+      await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
+        "528 ft (~2 min)",
+      );
+    });
+
+    test("walk=0 hydrates slider minimum — no distance", async ({ page }) => {
+      await page.goto("/#/parking?walk=0");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("0");
+      await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
+        "Any distance",
+      );
+    });
+  });
+
   test("reset clears URL and destination", async ({ page }) => {
     await page.goto("/#/parking?finish=van-andel-arena&location=public-garage");
     await waitForParkingData(page);
@@ -385,6 +592,14 @@ test.describe("Parking map (#/parking)", () => {
 
     await page.locator("#parkingResetBtn").click();
     await expect(page).toHaveURL(/#\/parking$/, { timeout: 15_000 });
+    await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("50");
+    await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
+      "Any price",
+    );
+    await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("10");
+    await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
+      "1 mi (~20 min)",
+    );
     await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
     await expect(page.locator("#parkingDestChevron")).toBeVisible();
     await expect(page.locator("#parkingResetBtn")).toBeHidden();
@@ -522,3 +737,58 @@ test.describe("Parking map (#/parking)", () => {
     expect(result.ok, JSON.stringify(result)).toBe(true);
   });
 });
+
+/** Fixed layout captures for `#/parking`; always overwritten on successful run */
+const PARKING_LAYOUT_SNAPSHOT_DIR = join(
+  process.cwd(),
+  "tests",
+  "snapshots",
+  "parking",
+);
+
+async function writeParkingViewportPng(page, deviceName, width, height) {
+  await page.setViewportSize({ width, height });
+  await page.goto(
+    "/#/parking?finish=acrisure-amphitheater&start=private-lot~42.972319~-85.682491",
+  );
+  await page.waitForFunction(() => typeof globalThis.L !== "undefined");
+  await page.waitForFunction(
+    () =>
+      Array.isArray(window.appData?.parking?.garages) &&
+      window.appData.parking.garages.length > 0,
+  );
+  await page.waitForFunction(
+    () => typeof globalThis.__parkingMapForTest?.getZoom === "function",
+    { timeout: 15_000 },
+  );
+  await expect(page.locator("#parkingView")).toBeVisible();
+  await expect(page.locator("#parkingMapChrome")).toBeVisible();
+  await page.evaluate(() => globalThis.__parkingMapForTest?.invalidateSize?.());
+  await new Promise((r) => setTimeout(r, 400));
+
+  mkdirSync(PARKING_LAYOUT_SNAPSHOT_DIR, { recursive: true });
+  const outPath = join(PARKING_LAYOUT_SNAPSHOT_DIR, `${deviceName}.png`);
+  const buf = await page.screenshot({ fullPage: true, type: "png" });
+  writeFileSync(outPath, buf);
+  expect(buf.byteLength, `wrote ${outPath}`).toBeGreaterThan(5000);
+}
+
+test.describe(
+  "@snapshot Parking layout viewports",
+  { tag: "@snapshot" },
+  () => {
+    test.describe.configure({ timeout: 30_000 });
+
+    test("phone", { tag: "@snapshot" }, async ({ page }) => {
+      await writeParkingViewportPng(page, "phone", 390, 844);
+    });
+
+    test("tablet", { tag: "@snapshot" }, async ({ page }) => {
+      await writeParkingViewportPng(page, "tablet", 834, 1112);
+    });
+
+    test("desktop", { tag: "@snapshot" }, async ({ page }) => {
+      await writeParkingViewportPng(page, "desktop", 1440, 900);
+    });
+  },
+);

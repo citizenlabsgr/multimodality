@@ -471,14 +471,14 @@
       >
         <div
           id="parkingMapChrome"
-          class="hidden shrink-0 mb-2 flex flex-col gap-2 px-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3"
+          class="hidden shrink-0 mb-2 flex flex-col gap-2 px-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 md:flex-nowrap md:items-center md:gap-x-5 lg:gap-x-6"
         >
           <div
-            class="group relative w-full max-w-full min-w-0 shrink-0 sm:w-auto sm:min-w-[14rem]"
+            class="group relative w-full max-w-full min-w-0 shrink-0 sm:w-auto sm:min-w-[14rem] md:w-auto md:grow-0 md:min-w-0 md:basis-1/2 md:max-w-[50%] lg:grow-0 lg:basis-1/3 lg:max-w-[33.333333%]"
           >
             <select
               id="parkingDestinationSelect"
-              class="w-full min-w-0 cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-10 text-sm text-slate-900 shadow-sm transition-colors transition-shadow hover:border-slate-400 hover:bg-slate-50 hover:shadow focus:outline-none focus:ring-2 focus:ring-slate-400"
+              class="w-full min-w-0 cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-10 text-sm text-slate-900 shadow-sm transition-colors transition-shadow hover:border-slate-400 hover:bg-slate-50 hover:shadow focus:outline-none focus:ring-2 focus:ring-slate-400 sm:pl-4"
               aria-label="Where are you going?"
             >
               <option value="">Where are you going?</option>
@@ -524,14 +524,69 @@
             </button>
           </div>
           <div
-            class="flex min-w-0 w-full flex-1 flex-wrap items-center justify-center gap-2"
+            class="flex min-w-0 w-full flex-1 flex-col items-stretch gap-2 md:w-auto md:grow-0 md:min-w-0 md:basis-1/2 md:max-w-[50%] lg:flex-1 lg:basis-0 lg:max-w-none"
           >
             <div
+              id="parkingEveningBudgetWrap"
+              class="flex min-w-0 w-full items-center gap-2"
+              title="Uses posted evening pricing when listed; falls back to event pricing at public ramps/lots."
+            >
+              <label
+                for="parkingMaxEveningSlider"
+                class="shrink-0 text-xs font-medium text-slate-600"
+                >Willing to pay</label
+              >
+              <input
+                id="parkingMaxEveningSlider"
+                type="range"
+                min="0"
+                max="50"
+                step="5"
+                value="50"
+                class="min-w-0 flex-1 accent-green-700"
+                aria-label="Willing to pay"
+              />
+              <span
+                id="parkingMaxEveningBudgetOut"
+                class="w-[4.75rem] shrink-0 text-right text-sm font-semibold tabular-nums text-slate-800 sm:w-16"
+                >Any price</span
+              >
+            </div>
+            <div
               id="parkingFilterBar"
-              class="flex flex-wrap items-center justify-center gap-2"
+              class="flex basis-full flex-wrap items-center justify-center gap-2 md:justify-start md:gap-x-3 md:gap-y-2"
               role="toolbar"
               aria-label="Parking categories"
             ></div>
+            <div
+              id="parkingMaxWalkWrap"
+              class="flex min-w-0 w-full items-center gap-2 border-t border-slate-200/80 pt-2"
+              title="Straight-line distance from parking to your selected venue. Minutes assume about 3 mph walking speed."
+            >
+              <label
+                for="parkingMaxWalkSlider"
+                class="shrink-0 text-xs font-medium text-slate-600"
+                >And then walk</label
+              >
+              <input
+                id="parkingMaxWalkSlider"
+                type="range"
+                min="0"
+                max="15"
+                step="1"
+                value="10"
+                class="min-w-0 flex-1 cursor-not-allowed accent-green-700 opacity-50"
+                aria-label="And then walk"
+                disabled
+                aria-disabled="true"
+              />
+              <!-- TODO: Re-enable and finish implementing the walk slider behavior. -->
+              <span
+                id="parkingMaxWalkBudgetOut"
+                class="min-w-[6.5rem] shrink-0 text-right text-xs font-semibold tabular-nums leading-tight text-slate-800 sm:min-w-[7.5rem] sm:text-sm"
+                >1 mi (~20 min)</span
+              >
+            </div>
           </div>
         </div>
         <div id="parkingAppMap" class="min-h-0 flex-1 w-full"></div>

@@ -14,6 +14,179 @@ const PARKING_MAP_ITEM_KEYS = [
   "private-lot",
 ];
 
+/** `#/parking` — slider max (50) means no evening price cap; scale is 0–50 in $5 steps. */
+const PARKING_MAX_EVENING_SLIDER_CEILING = 50;
+const PARKING_MAX_EVENING_SLIDER_STEP = 5;
+/** When `pay` is omitted from the URL, default to max (`Any price`) for a short `#/parking` link. */
+const PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE =
+  PARKING_MAX_EVENING_SLIDER_CEILING;
+const PARKING_PAY_QUERY_KEY = "pay";
+const PARKING_PAY_QUERY_KEY_LEGACY = "maxEvening";
+
+/**
+ * Straight-line miles from parking to selected destination (~3 mph for minute hints).
+ * **Internal/DOM index:** **0** → no distance; **1…15** → **0.1…1.5 mi**.
+ * **default** index **10** = **1.0 mi** (URL omits `walk`).
+ */
+const PARKING_MAX_WALK_MI_MAX = 1.5;
+const PARKING_MAX_WALK_SLIDER_CEILING_IDX = Math.round(
+  PARKING_MAX_WALK_MI_MAX * 10,
+);
+const PARKING_DEFAULT_WALK_SLIDER_INDEX = 10;
+const PARKING_WALK_QUERY_KEY = "walk";
+const PARKING_WALK_QUERY_KEY_LEGACY = "maxWalk";
+const PARKING_WALK_MINUTES_PER_MILE = 20;
+/** Show feet (with minute hint) when under this mileage. */
+const PARKING_WALK_FEET_UNDER_MI = 0.25;
+
+/** @param {unknown} dom — `<input>` value (**0–15**) */
+function snapParkingWalkDomSliderValue(dom) {
+  const v = Number.parseInt(String(dom), 10);
+  if (!Number.isFinite(v)) return PARKING_DEFAULT_WALK_SLIDER_INDEX;
+  return Math.min(PARKING_MAX_WALK_SLIDER_CEILING_IDX, Math.max(0, v));
+}
+
+/** @param {unknown} idx — logical index: **0** no distance, **1…15** = tenth-miles */
+function snapParkingWalkInternalIndex(idx) {
+  const v = Number.parseInt(String(idx), 10);
+  if (!Number.isFinite(v)) return PARKING_DEFAULT_WALK_SLIDER_INDEX;
+  return Math.min(PARKING_MAX_WALK_SLIDER_CEILING_IDX, Math.max(0, v));
+}
+
+/** @param {unknown} dom */
+function parkingWalkInternalFromDom(dom) {
+  return snapParkingWalkDomSliderValue(dom);
+}
+
+/** @param {number} internalIx */
+function parkingWalkDomFromInternal(internalIx) {
+  return snapParkingWalkInternalIndex(internalIx);
+}
+
+/** Estimated walk time at ~3 mph. */
+function parkingWalkEstimateMinutesForMiles(miles) {
+  if (!Number.isFinite(miles) || miles <= 0) return 0;
+  return Math.max(1, Math.round(miles * PARKING_WALK_MINUTES_PER_MILE));
+}
+
+/** @param {number} walkSliderIndex — internal: **0** no distance; **1…15** → **0.1 … 1.5** mi */
+function parkingWalkOutputLabelFromSliderIndex(walkSliderIndex) {
+  const i = snapParkingWalkInternalIndex(walkSliderIndex);
+  if (i === 0) return "Any distance";
+  const miles = i / 10;
+  const min = parkingWalkEstimateMinutesForMiles(miles);
+  if (miles < PARKING_WALK_FEET_UNDER_MI) {
+    const ft = Math.round(miles * 5280);
+    return `${ft} ft (~${min} min)`;
+  }
+  const miTxt = miles === 1 ? "1 mi" : `${Number(miles.toFixed(1))} mi`;
+  return `${miTxt} (~${min} min)`;
+}
+
+function formatParkingMaxWalkHashValue(walkSliderIndex) {
+  const ix = snapParkingWalkInternalIndex(walkSliderIndex);
+  if (ix === 0) return "0";
+  return String(Number((ix / 10).toFixed(1)));
+}
+
+function getParkingWalkCapMilesFromHash() {
+  const params = getParkingRouteSearchParams();
+  let raw = params.get(PARKING_WALK_QUERY_KEY);
+  if (raw == null || String(raw).trim() === "") {
+    raw = params.get(PARKING_WALK_QUERY_KEY_LEGACY);
+  }
+  if (raw == null || String(raw).trim() === "") {
+    return 1;
+  }
+  const t = String(raw).trim().toLowerCase();
+  if (t === "0" || t === "0.0") return 0;
+  const n = Number.parseFloat(t);
+  if (!Number.isFinite(n)) return 1;
+  if (n <= 0) return 0;
+  const snapped = Math.round(Math.min(n, PARKING_MAX_WALK_MI_MAX) * 10) / 10;
+  if (!Number.isFinite(snapped) || snapped < 0) return 0;
+  return snapped;
+}
+
+function walkSliderIndexFromCapMiles(capMiles) {
+  if (capMiles == null) return PARKING_DEFAULT_WALK_SLIDER_INDEX;
+  const ix = Math.round(capMiles * 10);
+  return Math.min(PARKING_MAX_WALK_SLIDER_CEILING_IDX, Math.max(0, ix));
+}
+
+function resolvedParkingWalkCapMiles(walkSliderIndexOverride) {
+  if (
+    walkSliderIndexOverride !== undefined &&
+    walkSliderIndexOverride !== null
+  ) {
+    const ix = snapParkingWalkInternalIndex(walkSliderIndexOverride);
+    return ix / 10;
+  }
+  return getParkingWalkCapMilesFromHash();
+}
+
+function getParkingMaxWalkSliderValueForHash() {
+  const el = document.getElementById("parkingMaxWalkSlider");
+  if (!el) return PARKING_DEFAULT_WALK_SLIDER_INDEX;
+  return parkingWalkInternalFromDom(el.value);
+}
+
+function syncParkingWalkSliderFromHash() {
+  const slider = document.getElementById("parkingMaxWalkSlider");
+  const out = document.getElementById("parkingMaxWalkBudgetOut");
+  if (!slider) return;
+  const cap = getParkingWalkCapMilesFromHash();
+  const ix = walkSliderIndexFromCapMiles(cap);
+  slider.value = String(parkingWalkDomFromInternal(ix));
+  if (out) out.textContent = parkingWalkOutputLabelFromSliderIndex(ix);
+}
+
+function syncParkingWalkOutputLive() {
+  const slider = document.getElementById("parkingMaxWalkSlider");
+  const out = document.getElementById("parkingMaxWalkBudgetOut");
+  if (!slider || !out) return;
+  out.textContent = parkingWalkOutputLabelFromSliderIndex(
+    parkingWalkInternalFromDom(slider.value),
+  );
+}
+
+function ensureParkingWalkDelegation() {
+  if (parkingWalkDelegated) return;
+  const slider = document.getElementById("parkingMaxWalkSlider");
+  if (!slider) return;
+  parkingWalkDelegated = true;
+  slider.addEventListener("input", () => {
+    syncParkingWalkOutputLive();
+  });
+  slider.addEventListener("change", () => {
+    const dom = snapParkingWalkDomSliderValue(slider.value);
+    slider.value = String(dom);
+    const ix = parkingWalkInternalFromDom(dom);
+    syncParkingWalkOutputLive();
+    const keys = new Set(getEnabledParkingKeys());
+    const dest = getParkingDestinationSlugFromSelect();
+    window.location.hash = buildParkingHashFromState(
+      keys,
+      dest,
+      getParkingSpotIdForHash(),
+      undefined,
+      ix,
+    );
+    if (parkingMap) syncParkingMapOverlays(parkingMap);
+  });
+}
+
+/** Snaps to the nearest step in [0, **PARKING_MAX_EVENING_SLIDER_CEILING**] (typically from URL parsing). */
+function snapParkingEveningSliderSteps(raw) {
+  const v = Number(raw);
+  if (!Number.isFinite(v)) return PARKING_MAX_EVENING_SLIDER_CEILING;
+  const clamped = Math.max(0, Math.min(PARKING_MAX_EVENING_SLIDER_CEILING, v));
+  const snapped =
+    Math.round(clamped / PARKING_MAX_EVENING_SLIDER_STEP) *
+    PARKING_MAX_EVENING_SLIDER_STEP;
+  return Math.min(snapped, PARKING_MAX_EVENING_SLIDER_CEILING);
+}
+
 /**
  * SVG overlap paint order (bottom → top): earlier categories are underneath when circles overlap.
  * Public garages (purple) render above private garages (orange).
@@ -35,6 +208,154 @@ const PARKING_CATEGORY_DATA_KEY = {
 
 function parkingCategoryDataKey(categoryId) {
   return PARKING_CATEGORY_DATA_KEY[categoryId];
+}
+
+/** Card subheading label (singular) for parking category names. */
+function singularizeParkingCategoryLabel(label) {
+  const raw = String(label || "").trim();
+  if (!raw) return "";
+  if (/\bGarages\b/.test(raw)) return raw.replace(/\bGarages\b/g, "Garage");
+  if (/\bLots\b/.test(raw)) return raw.replace(/\bLots\b/g, "Lot");
+  return raw;
+}
+
+function parseDollarAmountsFromPriceText(text) {
+  if (typeof text !== "string" || text.trim() === "") return [];
+  const nums = [];
+  const re = /\$(\d+(?:\.\d+)?)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const n = Number.parseFloat(m[1]);
+    if (Number.isFinite(n)) nums.push(n);
+  }
+  return nums;
+}
+
+/**
+ * Worst-case posted dollars for evening-style pricing (used vs max-evening filter).
+ * Prefers `evening`; for public ramps/lots only, falls back to `events` when evening is absent.
+ */
+function parkingSpotEveningPriceCeilingDollars(pricing, categoryKey) {
+  if (!pricing || typeof pricing !== "object") return null;
+  let tier = "";
+  if (typeof pricing.evening === "string" && pricing.evening.trim()) {
+    tier = pricing.evening.trim();
+  } else if (
+    (categoryKey === "public-garage" || categoryKey === "public-lot") &&
+    typeof pricing.events === "string" &&
+    pricing.events.trim()
+  ) {
+    tier = pricing.events.trim();
+  }
+  const nums = parseDollarAmountsFromPriceText(tier);
+  if (nums.length === 0) return null;
+  return Math.max(...nums);
+}
+
+function parkingSpotPassesEveningBudget(
+  pricing,
+  categoryKey,
+  budgetCapDollars,
+) {
+  if (
+    budgetCapDollars == null ||
+    typeof budgetCapDollars !== "number" ||
+    !Number.isFinite(budgetCapDollars) ||
+    budgetCapDollars >= PARKING_MAX_EVENING_SLIDER_CEILING
+  ) {
+    return true;
+  }
+  const ceil = parkingSpotEveningPriceCeilingDollars(pricing, categoryKey);
+  if (ceil == null) return budgetCapDollars > 0;
+  return ceil <= budgetCapDollars;
+}
+
+function getParkingEveningBudgetCapFromHash() {
+  const params = getParkingRouteSearchParams();
+  let raw = params.get(PARKING_PAY_QUERY_KEY);
+  if (raw == null || String(raw).trim() === "") {
+    raw = params.get(PARKING_PAY_QUERY_KEY_LEGACY);
+  }
+  if (raw == null || String(raw).trim() === "") {
+    return PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE;
+  }
+  const n = Number.parseInt(String(raw).trim(), 10);
+  if (!Number.isFinite(n) || n < 0) {
+    return PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE;
+  }
+  const snapped = snapParkingEveningSliderSteps(n);
+  if (snapped >= PARKING_MAX_EVENING_SLIDER_CEILING) return null;
+  return snapped;
+}
+
+function resolvedParkingEveningBudgetCap(budgetCapOverride) {
+  if (budgetCapOverride !== undefined && budgetCapOverride !== null) {
+    const snapped = snapParkingEveningSliderSteps(budgetCapOverride);
+    if (snapped < PARKING_MAX_EVENING_SLIDER_CEILING) return snapped;
+    return null;
+  }
+  return getParkingEveningBudgetCapFromHash();
+}
+
+function getParkingMaxEveningSliderValueForHash() {
+  const el = document.getElementById("parkingMaxEveningSlider");
+  if (!el) return PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE;
+  return snapParkingEveningSliderSteps(el.value);
+}
+
+/** Human label beside the slider (`cap` **null** = any price); **0** shows **Free only**. */
+function parkingMaxEveningBudgetOutputLabel(cap) {
+  if (cap == null) return "Any price";
+  const n = snapParkingEveningSliderSteps(cap);
+  if (n >= PARKING_MAX_EVENING_SLIDER_CEILING) return "Any price";
+  if (n === 0) return "Free only";
+  return `$${n}`;
+}
+
+function syncParkingEveningBudgetSliderFromHash() {
+  const slider = document.getElementById("parkingMaxEveningSlider");
+  const out = document.getElementById("parkingMaxEveningBudgetOut");
+  if (!slider) return;
+  const cap = getParkingEveningBudgetCapFromHash();
+  const pos =
+    cap == null
+      ? PARKING_MAX_EVENING_SLIDER_CEILING
+      : snapParkingEveningSliderSteps(cap);
+  slider.value = String(pos);
+  if (out) out.textContent = parkingMaxEveningBudgetOutputLabel(cap);
+}
+
+function syncParkingEveningBudgetOutputLive() {
+  const slider = document.getElementById("parkingMaxEveningSlider");
+  const out = document.getElementById("parkingMaxEveningBudgetOut");
+  if (!slider || !out) return;
+  const snapped = snapParkingEveningSliderSteps(slider.value);
+  out.textContent = parkingMaxEveningBudgetOutputLabel(snapped);
+}
+
+function ensureParkingEveningBudgetDelegation() {
+  if (parkingEveningBudgetDelegated) return;
+  const slider = document.getElementById("parkingMaxEveningSlider");
+  if (!slider) return;
+  parkingEveningBudgetDelegated = true;
+  slider.addEventListener("input", () => {
+    syncParkingEveningBudgetOutputLive();
+  });
+  slider.addEventListener("change", () => {
+    const v = snapParkingEveningSliderSteps(slider.value);
+    slider.value = String(v);
+    syncParkingEveningBudgetOutputLive();
+    const keys = new Set(getEnabledParkingKeys());
+    const dest = getParkingDestinationSlugFromSelect();
+    window.location.hash = buildParkingHashFromState(
+      keys,
+      dest,
+      getParkingSpotIdForHash(),
+      undefined,
+      undefined,
+    );
+    if (parkingMap) syncParkingMapOverlays(parkingMap);
+  });
 }
 
 /** Legacy `cats` tokens → canonical category id. */
@@ -124,6 +445,8 @@ let parkingSpotPickLayerGroup = null;
 let parkingFilterBarDelegated = false;
 let parkingDestinationSelectDelegated = false;
 let parkingResetDelegated = false;
+let parkingEveningBudgetDelegated = false;
+let parkingWalkDelegated = false;
 
 function escapeHtml(s) {
   if (s == null) return "";
@@ -166,11 +489,80 @@ function formatParkingPrice(pricing, categoryKey) {
   if (!pricing || typeof pricing !== "object") {
     return privateOsm ? "Unknown" : "Free";
   }
-  if (pricing.rate) return pricing.rate;
-  if (pricing.evening) return pricing.evening;
-  if (pricing.daytime) return pricing.daytime;
   if (pricing.events) return pricing.events;
+  if (pricing.evening) return pricing.evening;
+  if (pricing.rate) return pricing.rate;
+  if (pricing.daytime) return pricing.daytime;
   return privateOsm ? "Unknown" : "Free";
+}
+
+/** Whether `s` looks like a dollar amount (not prose-only Hour_Rate garbage). */
+function parkingCostTextLooksLikeRate(s) {
+  if (typeof s !== "string" || s.trim() === "") return false;
+  return /[\$€£]|\d+\.\d{2}\b/.test(s);
+}
+
+/**
+ * Cost line for `#/parking` popups: prefers ArcGIS `hourlyRate` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
+ * @returns {{ text: string, costHourlyHint: boolean }}
+ */
+function getParkingMapCostDisplay(pricing, categoryKey) {
+  const privateOsm =
+    categoryKey === "private-garage" || categoryKey === "private-lot";
+  if (!pricing || typeof pricing !== "object") {
+    return { text: privateOsm ? "Unknown" : "Free", costHourlyHint: false };
+  }
+  const hrRaw =
+    typeof pricing.hourlyRate === "string" ? pricing.hourlyRate.trim() : "";
+  if (hrRaw) {
+    const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hrRaw);
+    return {
+      text: hrRaw,
+      costHourlyHint: parkingCostTextLooksLikeRate(hrRaw) && !alreadyHourly,
+    };
+  }
+  if (pricing.events)
+    return {
+      text: String(pricing.events).trim(),
+      costHourlyHint: false,
+    };
+  if (pricing.evening)
+    return {
+      text: String(pricing.evening).trim(),
+      costHourlyHint: false,
+    };
+  if (pricing.rate)
+    return {
+      text: String(pricing.rate).trim(),
+      costHourlyHint: false,
+    };
+  if (pricing.daytime)
+    return {
+      text: String(pricing.daytime).trim(),
+      costHourlyHint: false,
+    };
+  return { text: privateOsm ? "Unknown" : "Free", costHourlyHint: false };
+}
+
+/**
+ * Pull a stall count from scraped `availability` text (e.g. `291 spaces; …`, OSM `Capacity: 61`).
+ * @param {unknown} raw
+ * @returns {number | null}
+ */
+export function parseTotalSpacesFromAvailability(raw) {
+  if (typeof raw !== "string" || raw.trim() === "") return null;
+  const s = raw.trim();
+  let m = s.match(/(\d+)\s*spaces?\b/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  m = s.match(/Capacity:\s*(\d+)/i);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
 }
 
 /**
@@ -284,7 +676,25 @@ function getParkingSpotIdForHash() {
   return isParkingSpotIdKnown(n) ? n : undefined;
 }
 
-function buildParkingHashFromState(enabledKeys, destSlug, spotId) {
+function buildParkingHashFromState(
+  enabledKeys,
+  destSlug,
+  spotId,
+  maxEveningSliderValue,
+  maxWalkSliderValue,
+) {
+  const sliderValOnly =
+    maxEveningSliderValue === undefined || maxEveningSliderValue === null;
+  const sliderVal = sliderValOnly
+    ? getParkingMaxEveningSliderValueForHash()
+    : snapParkingEveningSliderSteps(maxEveningSliderValue);
+
+  const walkIxOnly =
+    maxWalkSliderValue === undefined || maxWalkSliderValue === null;
+  const walkIx = walkIxOnly
+    ? getParkingMaxWalkSliderValueForHash()
+    : snapParkingWalkInternalIndex(maxWalkSliderValue);
+
   const allKeys = new Set(PARKING_MAP_ITEM_KEYS);
   const enabled =
     enabledKeys instanceof Set ? enabledKeys : new Set(enabledKeys);
@@ -304,12 +714,37 @@ function buildParkingHashFromState(enabledKeys, destSlug, spotId) {
   ) {
     parts.push(`finish=${encodeURIComponent(d)}`);
   }
+  if (typeof sliderVal === "number" && Number.isFinite(sliderVal)) {
+    if (sliderVal >= PARKING_MAX_EVENING_SLIDER_CEILING) {
+      if (
+        PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE <
+        PARKING_MAX_EVENING_SLIDER_CEILING
+      ) {
+        parts.push(
+          `${PARKING_PAY_QUERY_KEY}=${PARKING_MAX_EVENING_SLIDER_CEILING}`,
+        );
+      }
+    } else if (sliderVal !== PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE) {
+      parts.push(`${PARKING_PAY_QUERY_KEY}=${Math.round(sliderVal)}`);
+    }
+  }
+  if (walkIx === 0) {
+    parts.push(`${PARKING_WALK_QUERY_KEY}=0`);
+  } else if (walkIx !== PARKING_DEFAULT_WALK_SLIDER_INDEX) {
+    parts.push(
+      `${PARKING_WALK_QUERY_KEY}=${formatParkingMaxWalkHashValue(walkIx)}`,
+    );
+  }
   let spotNorm = "";
   if (typeof spotId === "string" && spotId.trim() !== "") {
     const n = normalizeParkingSpotId(spotId.trim());
     if (n) {
       const enabledArr = [...enabled];
-      if (getAllParkingSpotMarkers(enabledArr).some((m) => m.spotId === n))
+      if (
+        getAllParkingSpotMarkers(enabledArr, sliderVal, walkIx).some(
+          (m) => m.spotId === n,
+        )
+      )
         spotNorm = n;
     }
   }
@@ -341,6 +776,8 @@ function toggleParkingCategoryFilter(key) {
     current,
     dest,
     getParkingSpotIdForHash(),
+    undefined,
+    undefined,
   );
   if (parkingMap) {
     parkingMap.invalidateSize();
@@ -353,6 +790,9 @@ function resetParkingMapChromeToDefaults() {
   const nextHash = buildParkingHashFromState(
     new Set(PARKING_MAP_ITEM_KEYS),
     "",
+    undefined,
+    PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE,
+    PARKING_DEFAULT_WALK_SLIDER_INDEX,
   );
   if (window.location.hash === nextHash) {
     const sel = document.getElementById("parkingDestinationSelect");
@@ -360,6 +800,8 @@ function resetParkingMapChromeToDefaults() {
       sel.value = "";
       syncParkingDestinationSelectAppearance();
     }
+    syncParkingEveningBudgetSliderFromHash();
+    syncParkingWalkSliderFromHash();
     buildParkingFilterBar();
     if (parkingMap) {
       parkingMap.invalidateSize();
@@ -405,6 +847,8 @@ function ensureParkingDestinationSelectDelegation() {
       new Set(getEnabledParkingKeys()),
       sel.value,
       getParkingSpotIdForHash(),
+      undefined,
+      undefined,
     );
     if (parkingMap) syncParkingMapOverlays(parkingMap);
   });
@@ -481,9 +925,17 @@ function buildParkingFilterBar() {
   const parking = appData?.parking;
   const enabled = new Set(getEnabledParkingKeys());
   bar.innerHTML = "";
+  const where = document.createElement("span");
+  where.className = "shrink-0 text-xs font-medium text-slate-600";
+  where.textContent = "To park in";
+  bar.appendChild(where);
   for (const categoryId of PARKING_MAP_ITEM_KEYS) {
     const dataKey = parkingCategoryDataKey(categoryId);
-    const label = parking?.categoryNames?.[dataKey] || categoryId;
+    const rawLabel = parking?.categoryNames?.[dataKey] || categoryId;
+    const label = String(rawLabel)
+      .replace(/\bParking\b\s*/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
     const active = enabled.has(categoryId);
     const b = document.createElement("button");
     b.type = "button";
@@ -492,7 +944,7 @@ function buildParkingFilterBar() {
     b.setAttribute("aria-label", `${active ? "Hide" : "Show"} ${label}`);
     b.textContent = label;
     const layout =
-      "rounded-lg border px-2 py-1.5 text-sm font-medium transition-colors";
+      "parking-category-filter-btn rounded-md border px-1.5 py-1 text-xs font-medium transition-colors";
     if (active) {
       const { color: stroke, fillColor: fill } =
         circleStyleForParkingCategoryKey(categoryId);
@@ -509,13 +961,29 @@ function buildParkingFilterBar() {
 }
 
 /**
- * @returns {Array<{ lat: number, lng: number, name: string, address: string, categoryKey: string, categoryName: string, price: string, spotId: string }>}
+ * @param {number | undefined} eveningSliderValue — 0–50 in $5 steps from UI; 50 = no cap. Omit to use `pay` from the hash.
+ * @param {number | undefined} walkSliderIndex — internal **0** = no distance; omit to use `walk` from the hash.
+ * @returns {Array<{ lat: number, lng: number, name: string, address: string, categoryKey: string, categoryName: string, price: string, costHourlyHint: boolean, totalSpaces: number | null, spotId: string }>}
  */
-function getAllParkingSpotMarkers(enabledKeys) {
+function getAllParkingSpotMarkers(
+  enabledKeys,
+  eveningSliderValue,
+  walkSliderIndex,
+) {
   const keys =
     Array.isArray(enabledKeys) && enabledKeys.length > 0
       ? enabledKeys
       : getEnabledParkingKeys();
+  const budgetCap = resolvedParkingEveningBudgetCap(
+    eveningSliderValue === undefined ? undefined : eveningSliderValue,
+  );
+  const walkCapMiles = resolvedParkingWalkCapMiles(
+    walkSliderIndex === undefined ? undefined : walkSliderIndex,
+  );
+  const destLl = getParkingDestinationLatLng();
+  // TODO: Re-enable `walk` filtering once we finalize the walk UX.
+  const applyWalkCap = false;
+
   const out = [];
   const parking = appData?.parking;
   if (!parking) return out;
@@ -524,13 +992,22 @@ function getAllParkingSpotMarkers(enabledKeys) {
     const dataKey = parkingCategoryDataKey(categoryId);
     const items = dataKey ? parking[dataKey] : null;
     if (!Array.isArray(items)) continue;
-    const categoryName = parking.categoryNames?.[dataKey] || categoryId;
+    const categoryName = singularizeParkingCategoryLabel(
+      parking.categoryNames?.[dataKey] || categoryId,
+    );
     for (const item of items) {
       const loc = item?.location;
       const lat = loc?.latitude ?? item?.latitude;
       const lng = loc?.longitude ?? item?.longitude;
       if (typeof lat !== "number" || typeof lng !== "number") continue;
       if (!isParkingWithinDashStopRadius(lat, lng, dashStops)) continue;
+      if (!parkingSpotPassesEveningBudget(item.pricing, categoryId, budgetCap))
+        continue;
+      if (applyWalkCap) {
+        const walkMi = haversineMiles(lat, lng, destLl[0], destLl[1]);
+        if (!Number.isFinite(walkMi) || walkMi > walkCapMiles) continue;
+      }
+      const cost = getParkingMapCostDisplay(item.pricing, categoryId);
       out.push({
         lat,
         lng,
@@ -541,7 +1018,9 @@ function getAllParkingSpotMarkers(enabledKeys) {
             : "",
         categoryKey: categoryId,
         categoryName,
-        price: formatParkingPrice(item.pricing, categoryId),
+        price: cost.text,
+        costHourlyHint: cost.costHourlyHint,
+        totalSpaces: parseTotalSpacesFromAvailability(item.availability),
         spotId: encodeParkingSpotId(categoryId, lat, lng),
       });
     }
@@ -660,15 +1139,27 @@ function parkingStartBtnIconSvg(checked) {
 
 /**
  * Shared Leaflet popup HTML for a parking spot row (circle or green start pin).
- * @param {{ name: string, categoryName: string, price?: string, address?: string }} row
+ * @param {{ name: string, categoryName: string, price?: string, costHourlyHint?: boolean, totalSpaces?: number | null, address?: string }} row
  */
 function parkingSpotPopupHtml(row) {
+  const costText =
+    row.price && String(row.price).trim() !== "" ? row.price : "—";
+  const hourlySpan =
+    row.costHourlyHint === true
+      ? ` <span style="color:#64748b;font-weight:500;font-size:11px">(hourly)</span>`
+      : "";
+  const sizeText =
+    typeof row.totalSpaces === "number" && Number.isFinite(row.totalSpaces)
+      ? `${row.totalSpaces} total spaces`
+      : "Not listed";
   let html =
     `<div class="parking-spot-popup" style="font-size:12px;min-width:12rem">` +
     `<strong>${escapeHtml(row.name)}</strong><br>` +
     `<span style="color:#64748b">${escapeHtml(row.categoryName)}</span>`;
-  if (row.price) html += `<br>${escapeHtml(row.price)}`;
   if (row.address) html += `<br>${escapeHtml(row.address)}`;
+  html +=
+    `<br><span style="color:#475569">Cost:</span> ${escapeHtml(costText)}${hourlySpan}` +
+    `<br><span style="color:#475569">Size:</span> ${escapeHtml(sizeText)}`;
   html +=
     `<div class="parking-spot-popup-actions" style="margin-top:10px;display:block;width:100%;clear:both">` +
     `<button type="button" data-parking-start-btn aria-pressed="false"` +
@@ -715,12 +1206,20 @@ function attachParkingSpotStartButton(marker, row) {
       const dest = getParkingDestinationSlugFromSelect();
       const keys = new Set(getEnabledParkingKeys());
       if (getParkingSpotIdForHash() === row.spotId) {
-        window.location.hash = buildParkingHashFromState(keys, dest, undefined);
+        window.location.hash = buildParkingHashFromState(
+          keys,
+          dest,
+          undefined,
+          undefined,
+          undefined,
+        );
       } else {
         window.location.hash = buildParkingHashFromState(
           keys,
           dest,
           row.spotId,
+          undefined,
+          undefined,
         );
       }
       if (parkingMap) syncParkingSpotPickMarker(parkingMap);
@@ -732,12 +1231,16 @@ function attachParkingSpotStartButton(marker, row) {
 function parkingSpotRowFallback(spotId, parsed) {
   const cat = parsed.categoryKey;
   const dk = parkingCategoryDataKey(cat);
-  const categoryName = appData?.parking?.categoryNames?.[dk] || cat;
+  const categoryName = singularizeParkingCategoryLabel(
+    appData?.parking?.categoryNames?.[dk] || cat,
+  );
   return {
     spotId,
     name: "Parking location",
     categoryName,
     price: "",
+    costHourlyHint: false,
+    totalSpaces: null,
     address: "",
     categoryKey: cat,
     lat: parsed.lat,
@@ -1106,6 +1609,10 @@ export function renderParkingView() {
 
   buildParkingDestinationSelect();
   buildParkingFilterBar();
+  ensureParkingEveningBudgetDelegation();
+  syncParkingEveningBudgetSliderFromHash();
+  ensureParkingWalkDelegation();
+  syncParkingWalkSliderFromHash();
   ensureParkingResetDelegation();
   document.getElementById("parkingMapChrome")?.classList.remove("hidden");
 
