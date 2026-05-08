@@ -81,6 +81,7 @@ path.parking-dash-trip-segment-path {
   padding: 0.375rem 0.75rem;
   border-radius: 0.5rem;
   border: 1px solid #933145;
+  cursor: none;
   background-color: rgb(147 49 69 / 0.1);
   font-size: 0.75rem;
   font-weight: 600;

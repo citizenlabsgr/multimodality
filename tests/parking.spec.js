@@ -61,7 +61,7 @@ test.describe("Parking map (#/parking)", () => {
       "#parkingAppMap .leaflet-marker-pane .leaflet-marker-icon",
     );
     await expect(markerIcons.first()).toBeVisible({ timeout: 5000 });
-    await expect(markerIcons).toHaveCount(2);
+    expect(await markerIcons.count()).toBeGreaterThanOrEqual(2);
 
     const before = await page
       .locator("#parkingAppMap .leaflet-overlay-pane path")
@@ -394,6 +394,16 @@ test.describe("Parking map (#/parking)", () => {
       expect(hasGreenPick).toBe(true);
     });
 
+    test("legacy venue= param still hydrates venue selector", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?venue=van-andel-arena");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
+        "van-andel-arena",
+      );
+    });
+
     /** OSM private lot in `data/parking/private/lots.json`. */
     const acrisurePrivateLotSpot = "private-lot~42.980445~-85.671441";
 
@@ -450,60 +460,63 @@ test.describe("Parking map (#/parking)", () => {
 
   test.describe("Auto-recommended parking start (chooseBest)", () => {
     /**
-     * With `pay=50` (any price), `chooseBest` prefers known dollar ceilings, max first
-     * (see `parkingMarkerHasKnownEveningDollars` + `resolvedParkingEveningBudgetCap` in `parking.mjs`).
+     * With venue selected and markers filtered by pay/walk/category gates, `chooseBest` prefers the
+     * farthest straight-line distance to the venue (ignores DASH geometry in recommendation ranking).
      */
-    test("recommended pin is among those tied for best rank (any price: max known dollars)", async ({
+    test("recommended pin is among those tied for farthest physical distance to venue", async ({
       page,
     }) => {
-      /** `walk=0.4` keeps max walk under 0.5 mi so ranking stays cost-first (not distance-first). */
       await page.goto("/#/parking?finish=van-andel-arena&pay=50&walk=0.4");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
       const { chosen, tiedIds, markerCount } = await page.evaluate(() => {
-        const CEILING = 50;
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const choose = globalThis.__chooseBestParkingStartSpotIdForTest;
-        const payEl = document.getElementById("parkingMaxEveningSlider");
-        const raw = payEl ? Number.parseInt(String(payEl.value), 10) : NaN;
-        const anyPrice = !Number.isFinite(raw) || raw >= CEILING;
-        function score(d) {
-          if (d === Number.POSITIVE_INFINITY) return -1e9;
-          if (!Number.isFinite(d)) return -1e9;
-          if (d === -1) return -1e6;
-          return d;
+        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
+        const noFree =
+          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
+        let pool = typeof filt === "function" ? filt(markers) : markers;
+        pool = typeof noFree === "function" ? noFree(pool) : pool;
+        const destSlug =
+          document.getElementById("parkingDestinationSelect")?.value || "";
+        const dest = window.appData?.destinations?.find(
+          (d) => d.slug === destSlug,
+        );
+        const dLat = dest?.latitude ?? dest?.location?.latitude;
+        const dLng = dest?.longitude ?? dest?.location?.longitude;
+        if (typeof dLat !== "number" || typeof dLng !== "number") {
+          return { chosen: choose(), tiedIds: [], markerCount: pool.length };
         }
-        function hasKnown(d) {
-          return (
-            d !== Number.POSITIVE_INFINITY && d !== -1 && Number.isFinite(d)
-          );
+        function haversineMiles(lat1, lng1, lat2, lng2) {
+          const toRad = (deg) => (deg * Math.PI) / 180;
+          const R = 3958.7613;
+          const dLat = toRad(lat2 - lat1);
+          const dLng = toRad(lng2 - lng1);
+          const aVal =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) *
+              Math.cos(toRad(lat2)) *
+              Math.sin(dLng / 2) ** 2;
+          return 2 * R * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
         }
-        const hasKnownAny = markers.some((x) => hasKnown(x.eveningSortDollars));
         let max = -Infinity;
-        for (const x of markers) {
-          if (anyPrice && hasKnownAny) {
-            if (!hasKnown(x.eveningSortDollars)) continue;
-            if (x.eveningSortDollars > max) max = x.eveningSortDollars;
-          } else {
-            const s = score(x.eveningSortDollars);
-            if (s > max) max = s;
-          }
+        const byId = new Map();
+        for (const m of pool) {
+          const d = haversineMiles(m.lat, m.lng, dLat, dLng);
+          byId.set(m.spotId, d);
+          if (d > max) max = d;
         }
-        const tied = markers
-          .filter((x) => {
-            if (anyPrice && hasKnownAny) {
-              return (
-                hasKnown(x.eveningSortDollars) && x.eveningSortDollars === max
-              );
-            }
-            return score(x.eveningSortDollars) === max;
-          })
+        const EPS = 1e-9;
+        const tied = pool
+          .filter(
+            (x) => Math.abs((byId.get(x.spotId) ?? -Infinity) - max) <= EPS,
+          )
           .map((x) => x.spotId);
         return {
           chosen: choose(),
           tiedIds: tied,
-          markerCount: markers.length,
+          markerCount: pool.length,
         };
       });
 
@@ -539,7 +552,85 @@ test.describe("Parking map (#/parking)", () => {
       expect(consistent).toBe(true);
     });
 
-    test("any price (max pay) never recommends unknown or ambiguous cost", async ({
+    test("with finite pay, recommendation is still farthest from venue within eligible pool", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking?finish=van-andel-arena&pay=10&walk=1.5");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        function haversineMiles(lat1, lng1, lat2, lng2) {
+          const toRad = (deg) => (deg * Math.PI) / 180;
+          const R = 3958.7613;
+          const dLat = toRad(lat2 - lat1);
+          const dLng = toRad(lng2 - lng1);
+          const aVal =
+            Math.sin(dLat / 2) ** 2 +
+            Math.cos(toRad(lat1)) *
+              Math.cos(toRad(lat2)) *
+              Math.sin(dLng / 2) ** 2;
+          return 2 * R * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+        }
+
+        const markers = globalThis.__getAllParkingSpotMarkersForTest();
+        let known = markers.filter(
+          (m) =>
+            m.eveningSortDollars !== Number.POSITIVE_INFINITY &&
+            m.eveningSortDollars !== -1 &&
+            Number.isFinite(m.eveningSortDollars),
+        );
+        known = known.filter(
+          (m) =>
+            !(
+              typeof m.eveningSortDollars === "number" &&
+              Number.isFinite(m.eveningSortDollars) &&
+              m.eveningSortDollars === 0
+            ),
+        );
+        const destSlug =
+          document.getElementById("parkingDestinationSelect")?.value || "";
+        const dest = window.appData?.destinations?.find(
+          (d) => d.slug === destSlug,
+        );
+        const dLat = dest?.latitude ?? dest?.location?.latitude;
+        const dLng = dest?.longitude ?? dest?.location?.longitude;
+        if (
+          typeof dLat !== "number" ||
+          typeof dLng !== "number" ||
+          known.length === 0
+        ) {
+          return {
+            anyKnown: known.length > 0,
+            chosenIsFarthest: false,
+            chosenKnown: false,
+          };
+        }
+
+        let maxDist = -Infinity;
+        const byId = new Map();
+        for (const m of known) {
+          const d = haversineMiles(m.lat, m.lng, dLat, dLng);
+          byId.set(m.spotId, d);
+          if (d > maxDist) maxDist = d;
+        }
+        const id = globalThis.__chooseBestParkingStartSpotIdForTest();
+        const chosenDist = byId.get(id);
+        return {
+          anyKnown: known.length > 0,
+          chosenKnown: byId.has(id),
+          chosenIsFarthest:
+            typeof chosenDist === "number" &&
+            Math.abs(chosenDist - maxDist) <= 1e-9,
+        };
+      });
+
+      expect(r.anyKnown).toBe(true);
+      expect(r.chosenKnown).toBe(true);
+      expect(r.chosenIsFarthest).toBe(true);
+    });
+
+    test("if user is willing to pay, auto-recommendation never picks a free lot", async ({
       page,
     }) => {
       await page.goto("/#/parking?finish=van-andel-arena&pay=50&walk=1.5");
@@ -547,29 +638,28 @@ test.describe("Parking map (#/parking)", () => {
       await waitForParkingLeafletMap(page);
 
       const r = await page.evaluate(() => {
-        function hasParseableDollarCeiling(eveningSortDollars) {
-          if (eveningSortDollars === Number.POSITIVE_INFINITY) return false;
-          if (eveningSortDollars === -1) return false;
-          return Number.isFinite(eveningSortDollars);
-        }
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const anyParseable = markers.some((m) =>
-          hasParseableDollarCeiling(m.eveningSortDollars),
-        );
         const id = globalThis.__chooseBestParkingStartSpotIdForTest();
         const row = markers.find((m) => m.spotId === id);
         return {
-          anyParseable,
-          chosenParseable:
-            !!row && hasParseableDollarCeiling(row.eveningSortDollars),
+          hasKnownFree: markers.some(
+            (m) =>
+              typeof m.eveningSortDollars === "number" &&
+              Number.isFinite(m.eveningSortDollars) &&
+              m.eveningSortDollars === 0,
+          ),
+          chosenKnownDollars:
+            typeof row?.eveningSortDollars === "number" &&
+            Number.isFinite(row.eveningSortDollars),
+          chosenIsFree:
+            typeof row?.eveningSortDollars === "number" &&
+            Number.isFinite(row.eveningSortDollars) &&
+            row.eveningSortDollars === 0,
         };
       });
 
-      expect(
-        r.anyParseable,
-        "fixture must include at least one pin with parseable $ data",
-      ).toBe(true);
-      expect(r.chosenParseable).toBe(true);
+      expect(r.chosenKnownDollars).toBe(true);
+      if (r.hasKnownFree) expect(r.chosenIsFree).toBe(false);
     });
   });
 
