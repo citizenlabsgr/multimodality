@@ -890,10 +890,12 @@ function getParkingSpotIdForHash() {
 
 /**
  * Recommended or committed parking start for map overlays — URL wins when present; otherwise auto pick.
+ * Auto pick (the `?` pin) runs only when a **destination** is chosen so bare `#/parking` does not suggest a start.
  */
 function getParkingEffectiveStartSpotId() {
   const committed = getParkingSpotIdForHash();
   if (committed) return committed;
+  if (!getParkingDestinationLatLng()) return undefined;
   return parkingStartSpotIdForAutoPick();
 }
 

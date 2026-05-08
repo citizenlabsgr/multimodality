@@ -1298,6 +1298,33 @@ test.describe("Parking map (#/parking)", () => {
       await expect(page).not.toHaveURL(/[?&]start=/);
     });
 
+    test("does not auto-pick a start pin until a destination is chosen", async ({
+      page,
+    }) => {
+      await page.goto("/#/parking");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
+      const before = await page.evaluate(() =>
+        globalThis.__getParkingEffectiveStartSpotIdForTest?.(),
+      );
+      expect(before).toBeUndefined();
+
+      await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
+      await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+      await expect(page).not.toHaveURL(/[?&]start=/);
+
+      await expect
+        .poll(
+          async () =>
+            page.evaluate(() =>
+              globalThis.__getParkingEffectiveStartSpotIdForTest?.(),
+            ),
+          { timeout: 10000 },
+        )
+        .toMatch(/^(public-garage|public-lot|private-garage|private-lot)~/);
+    });
+
     test("category filter omits start=; effective pick matches enabled categories", async ({
       page,
     }) => {
