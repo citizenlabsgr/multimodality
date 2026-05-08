@@ -471,10 +471,10 @@
       >
         <div
           id="parkingMapChrome"
-          class="hidden shrink-0 mb-2 flex flex-col gap-2 pl-4 pr-0 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:pl-5 md:flex-nowrap md:items-center md:gap-x-5 lg:gap-x-6 lg:pl-6"
+          class="hidden shrink-0 mb-2 flex flex-col gap-2 pl-4 pr-0 sm:flex-row sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-3 sm:pl-5 md:flex-nowrap md:items-center md:gap-x-5 lg:gap-x-6 lg:pl-6"
         >
           <div
-            class="group relative w-full max-w-full min-w-0 shrink-0 sm:w-auto sm:min-w-[14rem] md:w-auto md:grow-0 md:min-w-0 md:basis-1/2 md:max-w-[50%] lg:grow-0 lg:basis-1/3 lg:max-w-[33.333333%]"
+            class="group relative w-full max-w-xl min-w-0 shrink-0 sm:w-auto sm:min-w-[14rem] md:grow-0"
           >
             <select
               id="parkingDestinationSelect"
@@ -524,7 +524,7 @@
             </button>
           </div>
           <div
-            class="flex min-w-0 w-full flex-1 flex-col items-stretch gap-2 md:w-auto md:grow-0 md:min-w-0 md:basis-1/2 md:max-w-[50%] lg:flex-1 lg:basis-0 lg:max-w-none"
+            class="flex min-w-0 w-full max-w-full flex-col items-stretch gap-2 sm:w-auto sm:max-w-full md:max-w-max"
           >
             <div
               id="parkingEveningBudgetWrap"
@@ -564,7 +564,7 @@
               >
               <div
                 id="parkingFilterBar"
-                class="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-2 md:gap-x-3 md:gap-y-2"
+                class="flex min-w-0 flex-1 flex-nowrap items-center justify-start gap-2 overflow-x-auto pb-0.5 md:gap-x-3"
                 role="toolbar"
                 aria-label="Parking categories"
               ></div>
