@@ -14,6 +14,17 @@ const PARKING_MAP_ITEM_KEYS = [
   "private-lot",
 ];
 
+/**
+ * SVG overlap paint order (bottom → top): earlier categories are underneath when circles overlap.
+ * Public garages (purple) render above private garages (orange).
+ */
+const PARKING_CATEGORY_PAINT_ORDER = [
+  "private-lot",
+  "public-lot",
+  "private-garage",
+  "public-garage",
+];
+
 /** Map category id → `appData.parking` / JSON merge key. */
 const PARKING_CATEGORY_DATA_KEY = {
   "public-garage": "garages",
@@ -77,6 +88,12 @@ function circleStyleForParkingCategoryKey(key) {
   return PARKING_SPOT_STYLE_PUBLIC_GARAGE;
 }
 
+/** Index in overlap paint order (`PARKING_CATEGORY_PAINT_ORDER`, bottom → top). */
+function parkingCategoryPaintIndex(categoryKey) {
+  const i = PARKING_CATEGORY_PAINT_ORDER.indexOf(categoryKey);
+  return i === -1 ? PARKING_CATEGORY_PAINT_ORDER.length : i;
+}
+
 /** `#/parking` — DASH routes + drive parking locations (garages/lots only). */
 export function isParkingRoute() {
   const hash = window.location.hash.slice(1);
@@ -103,6 +120,7 @@ let parkingMap = null;
 let parkingDashLayerGroup = null;
 let parkingSpotsLayerGroup = null;
 let parkingDestinationLayerGroup = null;
+let parkingSpotPickLayerGroup = null;
 let parkingFilterBarDelegated = false;
 let parkingDestinationSelectDelegated = false;
 let parkingResetDelegated = false;
@@ -187,11 +205,12 @@ function parseParkingCatsFromHash() {
   );
 }
 
-/** Destination slug from `#/parking?destination=…` (or legacy `dest`), or "" if absent / invalid. */
+/** Venue slug from `#/parking?finish=…`, or legacy `destination` / `dest`, or "" if absent / invalid. */
 function parseParkingDestSlugFromHash() {
   const params = getParkingRouteSearchParams();
   let raw = null;
-  if (params.has("destination")) raw = params.get("destination");
+  if (params.has("finish")) raw = params.get("finish");
+  else if (params.has("destination")) raw = params.get("destination");
   else if (params.has("dest")) raw = params.get("dest");
   if (raw == null || String(raw).trim() === "") return "";
   const slug = String(raw).trim();
@@ -201,7 +220,71 @@ function parseParkingDestSlugFromHash() {
   return ok ? slug : "";
 }
 
-function buildParkingHashFromState(enabledKeys, destSlug) {
+/** Query param for selected parking start pin on `#/parking` (`category~lat~lng`, 6dp). Legacy: `spot`. */
+const PARKING_START_QUERY_KEY = "start";
+
+/**
+ * Stable id for a parking circle (category + coordinates to 6 decimals).
+ * @param {string} categoryKey
+ * @param {number} lat
+ * @param {number} lng
+ * @returns {string}
+ */
+function encodeParkingSpotId(categoryKey, lat, lng) {
+  if (!PARKING_MAP_ITEM_KEYS.includes(categoryKey)) return "";
+  if (
+    typeof lat !== "number" ||
+    typeof lng !== "number" ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  )
+    return "";
+  return `${categoryKey}~${lat.toFixed(6)}~${lng.toFixed(6)}`;
+}
+
+/**
+ * @param {string} raw
+ * @returns {{ categoryKey: string, lat: number, lng: number } | null}
+ */
+function parseParkingSpotIdToken(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const parts = s.split("~");
+  if (parts.length !== 3) return null;
+  const [cat, la, lo] = parts;
+  if (!PARKING_MAP_ITEM_KEYS.includes(cat)) return null;
+  const lat = Number(la);
+  const lng = Number(lo);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { categoryKey: cat, lat, lng };
+}
+
+/** @param {string} raw */
+function normalizeParkingSpotId(raw) {
+  const p = parseParkingSpotIdToken(raw);
+  if (!p) return null;
+  return encodeParkingSpotId(p.categoryKey, p.lat, p.lng);
+}
+
+function isParkingSpotIdKnown(spotId) {
+  if (!spotId) return false;
+  const norm = normalizeParkingSpotId(spotId);
+  if (!norm) return false;
+  return getAllParkingSpotMarkers().some((m) => m.spotId === norm);
+}
+
+/** Normalized start-spot id from hash if valid for current filters/data, else `undefined`. */
+function getParkingSpotIdForHash() {
+  const params = getParkingRouteSearchParams();
+  let raw = params.get(PARKING_START_QUERY_KEY);
+  if (raw == null || String(raw).trim() === "") raw = params.get("spot");
+  if (raw == null || String(raw).trim() === "") return undefined;
+  const n = normalizeParkingSpotId(String(raw).trim());
+  if (!n) return undefined;
+  return isParkingSpotIdKnown(n) ? n : undefined;
+}
+
+function buildParkingHashFromState(enabledKeys, destSlug, spotId) {
   const allKeys = new Set(PARKING_MAP_ITEM_KEYS);
   const enabled =
     enabledKeys instanceof Set ? enabledKeys : new Set(enabledKeys);
@@ -219,8 +302,19 @@ function buildParkingHashFromState(enabledKeys, destSlug) {
     Array.isArray(appData?.destinations) &&
     appData.destinations.some((x) => x.slug === d)
   ) {
-    parts.push(`destination=${encodeURIComponent(d)}`);
+    parts.push(`finish=${encodeURIComponent(d)}`);
   }
+  let spotNorm = "";
+  if (typeof spotId === "string" && spotId.trim() !== "") {
+    const n = normalizeParkingSpotId(spotId.trim());
+    if (n) {
+      const enabledArr = [...enabled];
+      if (getAllParkingSpotMarkers(enabledArr).some((m) => m.spotId === n))
+        spotNorm = n;
+    }
+  }
+  if (spotNorm)
+    parts.push(`${PARKING_START_QUERY_KEY}=${encodeURIComponent(spotNorm)}`);
   const q = parts.join("&");
   return q ? `#/parking?${q}` : "#/parking";
 }
@@ -243,7 +337,11 @@ function toggleParkingCategoryFilter(key) {
   if (current.has(key)) current.delete(key);
   else current.add(key);
   const dest = getParkingDestinationSlugFromSelect();
-  window.location.hash = buildParkingHashFromState(current, dest);
+  window.location.hash = buildParkingHashFromState(
+    current,
+    dest,
+    getParkingSpotIdForHash(),
+  );
   if (parkingMap) {
     parkingMap.invalidateSize();
     syncParkingMapOverlays(parkingMap);
@@ -306,6 +404,7 @@ function ensureParkingDestinationSelectDelegation() {
     window.location.hash = buildParkingHashFromState(
       new Set(getEnabledParkingKeys()),
       sel.value,
+      getParkingSpotIdForHash(),
     );
     if (parkingMap) syncParkingMapOverlays(parkingMap);
   });
@@ -410,7 +509,7 @@ function buildParkingFilterBar() {
 }
 
 /**
- * @returns {Array<{ lat: number, lng: number, name: string, address: string, categoryKey: string, categoryName: string, price: string }>}
+ * @returns {Array<{ lat: number, lng: number, name: string, address: string, categoryKey: string, categoryName: string, price: string, spotId: string }>}
  */
 function getAllParkingSpotMarkers(enabledKeys) {
   const keys =
@@ -443,6 +542,7 @@ function getAllParkingSpotMarkers(enabledKeys) {
         categoryKey: categoryId,
         categoryName,
         price: formatParkingPrice(item.pricing, categoryId),
+        spotId: encodeParkingSpotId(categoryId, lat, lng),
       });
     }
   }
@@ -540,6 +640,111 @@ function isParkingWithinDashStopRadius(lat, lng, dashStops) {
   return false;
 }
 
+/** Leading icon: map pin (plan) / X-in-circle (clear selection); inherits `currentColor`. */
+function parkingStartBtnIconSvg(checked) {
+  if (checked) {
+    return (
+      `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">` +
+      `<circle cx="12" cy="12" r="9"/>` +
+      `<path stroke-linecap="round" d="M15 9l-6 6M9 9l6 6"/>` +
+      `</svg>`
+    );
+  }
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">` +
+    `<path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z"/>` +
+    `<path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>` +
+    `</svg>`
+  );
+}
+
+/**
+ * Shared Leaflet popup HTML for a parking spot row (circle or green start pin).
+ * @param {{ name: string, categoryName: string, price?: string, address?: string }} row
+ */
+function parkingSpotPopupHtml(row) {
+  let html =
+    `<div class="parking-spot-popup" style="font-size:12px;min-width:12rem">` +
+    `<strong>${escapeHtml(row.name)}</strong><br>` +
+    `<span style="color:#64748b">${escapeHtml(row.categoryName)}</span>`;
+  if (row.price) html += `<br>${escapeHtml(row.price)}`;
+  if (row.address) html += `<br>${escapeHtml(row.address)}`;
+  html +=
+    `<div class="parking-spot-popup-actions" style="margin-top:10px;display:block;width:100%;clear:both">` +
+    `<button type="button" data-parking-start-btn aria-pressed="false"` +
+    ` style="margin-top:0;box-sizing:border-box;max-width:100%;padding:6px 10px;font-size:12px;font-weight:600;color:#fff;background:#16a34a;border:none;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;vertical-align:top">` +
+    `<span data-parking-start-btn-icon style="display:inline-flex;flex-shrink:0;line-height:0">` +
+    parkingStartBtnIconSvg(false) +
+    `</span>` +
+    `<span data-parking-start-btn-label style="text-align:left;white-space:normal">Plan to park here</span>` +
+    `</button>` +
+    `</div></div>`;
+  return html;
+}
+
+/** Circle markers and the green start pin share this popup + plan-to-park control. */
+function attachParkingSpotStartButton(marker, row) {
+  marker.bindPopup(parkingSpotPopupHtml(row));
+  marker.on("popupopen", () => {
+    const wrap = marker.getPopup()?.getElement?.();
+    const btn = wrap?.querySelector?.("[data-parking-start-btn]");
+    const label = btn?.querySelector?.("[data-parking-start-btn-label]");
+    const iconWrap = btn?.querySelector?.("[data-parking-start-btn-icon]");
+    if (!btn || !row.spotId) return;
+    const syncPressed = () => {
+      const on = getParkingSpotIdForHash() === row.spotId;
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      if (on) {
+        btn.style.background = "#e5e7eb";
+        btn.style.color = "#374151";
+      } else {
+        btn.style.background = "#16a34a";
+        btn.style.color = "#fff";
+      }
+      btn.title = on
+        ? "Clear parking selection"
+        : "Use this parking spot as your trip start";
+      if (iconWrap) iconWrap.innerHTML = parkingStartBtnIconSvg(on);
+      if (label)
+        label.textContent = on
+          ? "Clear parking selection"
+          : "Plan to park here";
+    };
+    syncPressed();
+    btn.onclick = () => {
+      const dest = getParkingDestinationSlugFromSelect();
+      const keys = new Set(getEnabledParkingKeys());
+      if (getParkingSpotIdForHash() === row.spotId) {
+        window.location.hash = buildParkingHashFromState(keys, dest, undefined);
+      } else {
+        window.location.hash = buildParkingHashFromState(
+          keys,
+          dest,
+          row.spotId,
+        );
+      }
+      if (parkingMap) syncParkingSpotPickMarker(parkingMap);
+    };
+  });
+}
+
+/** When `start` is set but the spot is missing from current filters, still drive the same popup. */
+function parkingSpotRowFallback(spotId, parsed) {
+  const cat = parsed.categoryKey;
+  const dk = parkingCategoryDataKey(cat);
+  const categoryName = appData?.parking?.categoryNames?.[dk] || cat;
+  return {
+    spotId,
+    name: "Parking location",
+    categoryName,
+    price: "",
+    address: "",
+    categoryKey: cat,
+    lat: parsed.lat,
+    lng: parsed.lng,
+  };
+}
+
 function syncParkingDashRoutes(map) {
   const L = globalThis.L;
   if (!map || !L) return;
@@ -583,8 +788,8 @@ function syncParkingDashRoutes(map) {
         ? p.color
         : "#933145";
     const m = L.circleMarker([p.lat, p.lng], {
-      radius: 6,
-      weight: 2,
+      radius: 4,
+      weight: 1,
       color: darkenCssHex(fill, 0.72),
       fillColor: fill,
       fillOpacity: 0.92,
@@ -608,35 +813,103 @@ function syncParkingSpots(map) {
       /* ignore */
     }
     parkingSpotsLayerGroup = null;
+    globalThis.__parkingSpotsLayerForTest = null;
   }
 
   const spots = getAllParkingSpotMarkers();
-  if (spots.length === 0) return;
+  if (spots.length === 0) {
+    globalThis.__parkingSpotsLayerForTest = null;
+    return;
+  }
+
+  spots.sort((a, b) => {
+    const d =
+      parkingCategoryPaintIndex(a.categoryKey) -
+      parkingCategoryPaintIndex(b.categoryKey);
+    if (d !== 0) return d;
+    if (a.lat !== b.lat) return a.lat - b.lat;
+    return a.lng - b.lng;
+  });
 
   parkingSpotsLayerGroup = L.layerGroup().addTo(map);
   const g = parkingSpotsLayerGroup;
+  globalThis.__parkingSpotsLayerForTest = g;
+
+  const markersByCategory = {};
+  for (const k of PARKING_MAP_ITEM_KEYS) markersByCategory[k] = [];
 
   for (const s of spots) {
     const style = circleStyleForParkingCategoryKey(s.categoryKey);
     const m = L.circleMarker([s.lat, s.lng], {
-      radius: 5,
-      weight: 1,
       ...style,
+      radius: 10,
+      weight: 1,
+      parkingCategoryKey: s.categoryKey,
     });
-    let html = `<div style="font-size:12px"><strong>${escapeHtml(s.name)}</strong><br><span style="color:#64748b">${escapeHtml(s.categoryName)}</span>`;
-    if (s.price) html += `<br>${escapeHtml(s.price)}`;
-    if (s.address) html += `<br>${escapeHtml(s.address)}`;
-    html += "</div>";
-    m.bindPopup(html);
+    attachParkingSpotStartButton(m, s);
     m.addTo(g);
+    if (markersByCategory[s.categoryKey])
+      markersByCategory[s.categoryKey].push(m);
+  }
+
+  // Paint order: see `PARKING_CATEGORY_PAINT_ORDER` (purple public garage above orange private garage).
+  for (const categoryId of PARKING_CATEGORY_PAINT_ORDER) {
+    for (const m of markersByCategory[categoryId] || []) {
+      if (typeof m.bringToFront === "function") m.bringToFront();
+    }
   }
 }
 
-/** Dark gray map-pin icon for the selected destination (SVG, no asset fetch). */
+/** Green map-pin for a user-selected parking spot (SVG, no asset fetch). */
+function parkingSpotPickIcon(L) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
+    '<path fill="#16a34a" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" ' +
+    'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2zm0 16a5 5 0 110-10 5 5 0 010 10z"/></svg>';
+  return L.icon({
+    iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -36],
+  });
+}
+
+function syncParkingSpotPickMarker(map) {
+  const L = globalThis.L;
+  if (!map || !L) return;
+
+  if (parkingSpotPickLayerGroup) {
+    try {
+      map.removeLayer(parkingSpotPickLayerGroup);
+    } catch {
+      /* ignore */
+    }
+    parkingSpotPickLayerGroup = null;
+  }
+
+  const id = getParkingSpotIdForHash();
+  if (!id) return;
+
+  const p = parseParkingSpotIdToken(id);
+  if (!p) return;
+
+  const spot = getAllParkingSpotMarkers().find((m) => m.spotId === id);
+  const row = spot ?? parkingSpotRowFallback(id, p);
+  parkingSpotPickLayerGroup = L.layerGroup().addTo(map);
+  const g = parkingSpotPickLayerGroup;
+  const m = L.marker([p.lat, p.lng], {
+    icon: parkingSpotPickIcon(L),
+    zIndexOffset: 650,
+  });
+  attachParkingSpotStartButton(m, row);
+  m.addTo(g);
+}
+
+/** Red finish pin for the selected destination (green pick / red venue). */
 function parkingDestinationMarkerIcon(L) {
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
-    '<path fill="#27272a" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" ' +
+    '<path fill="#dc2626" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" ' +
     'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2zm0 16a5 5 0 110-10 5 5 0 010 10z"/></svg>';
   return L.icon({
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
@@ -788,6 +1061,7 @@ function syncParkingMapOverlays(map) {
   syncParkingSpots(map);
   syncParkingDestinationMarker(map);
   fitParkingMapToAllContent(map);
+  syncParkingSpotPickMarker(map);
 }
 
 export function hideParkingView() {
