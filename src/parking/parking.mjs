@@ -1182,10 +1182,6 @@ function buildParkingFilterBar() {
   const parking = appData?.parking;
   const enabled = new Set(getEnabledParkingKeys());
   bar.innerHTML = "";
-  const where = document.createElement("span");
-  where.className = "shrink-0 text-xs font-medium text-slate-600";
-  where.textContent = "To park in";
-  bar.appendChild(where);
   for (const categoryId of PARKING_MAP_ITEM_KEYS) {
     const dataKey = parkingCategoryDataKey(categoryId);
     const rawLabel = parking?.categoryNames?.[dataKey] || categoryId;

@@ -1444,9 +1444,25 @@ async function assertParkingViewportScreenshot(page, name, width, height) {
   await page.evaluate(() => globalThis.__parkingMapForTest?.invalidateSize?.());
   await new Promise((r) => setTimeout(r, 400));
 
+  /** Stable pixels: infinite SVG dash animations ignore Playwright’s “disable” timing; freeze everything. */
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    `,
+  });
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+
   await expect(page).toHaveScreenshot(`${name}.png`, {
     fullPage: true,
-    animations: "disabled",
   });
 }
 

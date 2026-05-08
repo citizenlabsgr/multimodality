@@ -8,8 +8,9 @@ module.exports = defineConfig({
   snapshotPathTemplate: "{testDir}/snapshots/parking/{arg}{ext}",
   expect: {
     toHaveScreenshot: {
-      maxDiffPixelRatio: 0.02,
-      threshold: 0.2,
+      animations: "disabled",
+      maxDiffPixelRatio: 0.012,
+      threshold: 0.15,
     },
   },
   use: {

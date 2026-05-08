@@ -73,14 +73,3 @@ path.parking-dash-trip-segment-path {
     animation: none;
   }
 }
-
-/* Desktop: keep category chips compact. */
-@media (min-width: 1024px) {
-  #parkingFilterBar button.parking-category-filter-btn {
-    min-height: 2.125rem;
-    padding: 0.375rem 0.625rem;
-    font-size: 0.8125rem;
-    border-radius: 0.5rem;
-    box-shadow: none;
-  }
-}

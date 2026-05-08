@@ -553,11 +553,22 @@
               >
             </div>
             <div
-              id="parkingFilterBar"
-              class="flex basis-full flex-wrap items-center justify-center gap-2 md:justify-start md:gap-x-3 md:gap-y-2"
-              role="toolbar"
-              aria-label="Parking categories"
-            ></div>
+              class="flex w-full min-w-0 items-start gap-2"
+              role="group"
+              aria-labelledby="parkingFilterHeading"
+            >
+              <span
+                id="parkingFilterHeading"
+                class="shrink-0 pt-0.5 text-xs font-medium leading-5 text-slate-600"
+                >To park in</span
+              >
+              <div
+                id="parkingFilterBar"
+                class="flex min-w-0 flex-1 flex-wrap items-center justify-start gap-2 md:gap-x-3 md:gap-y-2"
+                role="toolbar"
+                aria-label="Parking categories"
+              ></div>
+            </div>
             <div
               id="parkingMaxWalkWrap"
               class="flex min-w-0 w-full items-center gap-2 border-t border-slate-200/80 pt-2"
