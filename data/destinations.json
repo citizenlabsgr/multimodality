@@ -1,19 +1,35 @@
 {
   "destinations": [
     {
-      "name": "Van Andel Arena",
-      "slug": "van-andel-arena",
-      "location": {
-        "latitude": 42.96298,
-        "longitude": -85.67186
-      }
-    },
-    {
       "name": "Acrisure Amphitheater",
       "slug": "acrisure-amphitheater",
       "location": {
         "latitude": 42.95878,
         "longitude": -85.67662
+      }
+    },
+    {
+      "name": "Belknap Park",
+      "slug": "belknap-park",
+      "location": {
+        "latitude": 42.98162,
+        "longitude": -85.66679
+      }
+    },
+    {
+      "name": "DeVos Performance Hall",
+      "slug": "devos-performance-hall",
+      "location": {
+        "latitude": 42.96819,
+        "longitude": -85.67234
+      }
+    },
+    {
+      "name": "Van Andel Arena",
+      "slug": "van-andel-arena",
+      "location": {
+        "latitude": 42.96298,
+        "longitude": -85.67186
       }
     }
   ]

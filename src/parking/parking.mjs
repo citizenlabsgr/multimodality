@@ -41,6 +41,11 @@ const PARKING_WALK_QUERY_KEY = "walk";
 const PARKING_WALK_QUERY_KEY_LEGACY = "maxWalk";
 /** Show feet (with minute hint) when below this cap — slider **0.1–0.4 mi**; **0.5+** as miles. */
 const PARKING_WALK_FEET_BELOW_MI = 0.5;
+/**
+ * **`walk=0`** / slider index **0**: pin filter uses this straight-line walk to nearest DASH (~**100 ft** ≈ **0.019** mi),
+ * not unlimited and not a literal **0** mi cut.
+ */
+const PARKING_WALK_ZERO_EFFECTIVE_FEET = 100;
 
 function parkingWalkMinutesPerMileFromConfig() {
   return resolveParkingRoutePace(appData?.parkingRoutePace).walkMinutesPerMile;
@@ -130,6 +135,26 @@ function walkSliderIndexFromCapMiles(capMiles) {
   return Math.min(PARKING_MAX_WALK_SLIDER_CEILING_IDX, Math.max(0, ix));
 }
 
+/**
+ * Pin filtering only: **`walk=0`** resolves to {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft straight-line to the
+ * nearest DASH stop. Other features keep raw **0** (no overlay, no auto **`start`**).
+ * @param {number} resolvedCapMiles — from {@link resolvedParkingWalkCapMiles}
+ */
+function effectiveWalkCapMilesForParkingPins(resolvedCapMiles) {
+  if (!Number.isFinite(resolvedCapMiles)) return resolvedCapMiles;
+  if (resolvedCapMiles <= 0) return PARKING_WALK_ZERO_EFFECTIVE_FEET / 5280;
+  return resolvedCapMiles;
+}
+
+/** True when the parking URL explicitly sets **`walk`** / **`maxWalk`** (not merely defaults). */
+function parkingRouteHashHasExplicitWalkParam() {
+  const params = getParkingRouteSearchParams();
+  return (
+    params.has(PARKING_WALK_QUERY_KEY) ||
+    params.has(PARKING_WALK_QUERY_KEY_LEGACY)
+  );
+}
+
 function resolvedParkingWalkCapMiles(walkSliderIndexOverride) {
   if (
     walkSliderIndexOverride !== undefined &&
@@ -137,6 +162,10 @@ function resolvedParkingWalkCapMiles(walkSliderIndexOverride) {
   ) {
     const ix = snapParkingWalkInternalIndex(walkSliderIndexOverride);
     return ix / 10;
+  }
+  /** Prefer query **`walk`** over the range input so filtering/recommendation match the URL before the slider is synced or if it is stale. */
+  if (parkingRouteHashHasExplicitWalkParam()) {
+    return getParkingWalkCapMilesFromHash();
   }
   const walkSlider = document.getElementById("parkingMaxWalkSlider");
   if (walkSlider) {
@@ -590,6 +619,8 @@ function wavyApproxWalkChordLatLngs(a, b) {
  * getBoundsZoom, so max-zoom uses 2× each axis.
  */
 const PARKING_MAP_FIT_PADDING = [36, 36];
+/** Upper bound for `fitBounds` / `setView` — must not use “zoom that fits all city context” (a *low* zoom). */
+const PARKING_MAP_FIT_MAX_ZOOM = 18;
 
 let parkingMap = null;
 let parkingDashLayerGroup = null;
@@ -889,8 +920,18 @@ function getParkingSpotIdForHash() {
 }
 
 /**
+ * Both **`finish=`** (or legacy venue keys) and committed **`start=`** / **`spot=`** are in the URL —
+ * trip step digits (**1**–**4**) appear on map pins; otherwise badges stay blank.
+ */
+function parkingTripStepNumbersHashReady() {
+  if (parseParkingDestSlugFromHash() === "") return false;
+  const sid = getParkingSpotIdForHash();
+  return typeof sid === "string" && sid.length > 0;
+}
+
+/**
  * Recommended or committed parking start for map overlays — URL wins when present; otherwise auto pick.
- * Auto pick (the `?` pin) runs only when a **destination** is chosen so bare `#/parking` does not suggest a start.
+ * Auto pick (muted green pin, unnumbered) runs only when a **destination** is chosen so bare `#/parking` does not suggest a start.
  */
 function getParkingEffectiveStartSpotId() {
   const committed = getParkingSpotIdForHash();
@@ -1093,22 +1134,52 @@ function ensureParkingFilterBarDelegation() {
   });
 }
 
+function applyParkingDestinationFromSelectChange() {
+  syncParkingDestinationSelectAppearance();
+  const sel = document.getElementById("parkingDestinationSelect");
+  if (!sel) return;
+  window.location.hash = buildParkingHashFromState(
+    new Set(getEnabledParkingKeys()),
+    sel.value,
+    getParkingCommittedStartSpotIdForHashWrite(undefined),
+    undefined,
+    undefined,
+  );
+  if (parkingMap) syncParkingMapOverlays(parkingMap);
+}
+
+/** Programmatic destination choice (map pins); keeps hash + overlays in sync with the dropdown. */
+function selectParkingDestinationBySlug(slug) {
+  const sel = document.getElementById("parkingDestinationSelect");
+  if (!sel || typeof slug !== "string" || slug.trim() === "") return;
+  const v = slug.trim();
+  if (![...sel.options].some((o) => o.value === v)) return;
+  sel.value = v;
+  applyParkingDestinationFromSelectChange();
+}
+
+/** Clear `finish` only (map popup / mirror of clearing parking start); keeps filters, pay/walk, and valid `start`. */
+function clearParkingDestinationFromMap() {
+  const sel = document.getElementById("parkingDestinationSelect");
+  if (!sel) return;
+  sel.value = "";
+  syncParkingDestinationSelectAppearance();
+  window.location.hash = buildParkingHashFromState(
+    new Set(getEnabledParkingKeys()),
+    "",
+    getParkingCommittedStartSpotIdForHashWrite(undefined),
+    undefined,
+    undefined,
+  );
+  if (parkingMap) syncParkingMapOverlays(parkingMap);
+}
+
 function ensureParkingDestinationSelectDelegation() {
   if (parkingDestinationSelectDelegated) return;
   const sel = document.getElementById("parkingDestinationSelect");
   if (!sel) return;
   parkingDestinationSelectDelegated = true;
-  sel.addEventListener("change", () => {
-    syncParkingDestinationSelectAppearance();
-    window.location.hash = buildParkingHashFromState(
-      new Set(getEnabledParkingKeys()),
-      sel.value,
-      getParkingCommittedStartSpotIdForHashWrite(undefined),
-      undefined,
-      undefined,
-    );
-    if (parkingMap) syncParkingMapOverlays(parkingMap);
-  });
+  sel.addEventListener("change", applyParkingDestinationFromSelectChange);
 }
 
 function syncParkingDestinationSelectAppearance() {
@@ -1162,17 +1233,22 @@ function buildParkingDestinationSelect() {
   syncParkingDestinationSelectAppearance();
 }
 
+/** @returns {[number, number]|null} lat, lng from a destination record */
+function parkingLatLngFromDestinationRecord(dest) {
+  if (!dest) return null;
+  const lat = dest.latitude ?? dest.location?.latitude;
+  const lng = dest.longitude ?? dest.location?.longitude;
+  if (typeof lat !== "number" || typeof lng !== "number") return null;
+  return [lat, lng];
+}
+
 /** @returns {[number, number]|null} lat, lng for selected destination */
 function getParkingDestinationLatLng() {
   const sel = document.getElementById("parkingDestinationSelect");
   const slug = sel?.value;
   if (!slug) return null;
   const dest = appData?.destinations?.find((d) => d.slug === slug);
-  if (!dest) return null;
-  const lat = dest.latitude ?? dest.location?.latitude;
-  const lng = dest.longitude ?? dest.location?.longitude;
-  if (typeof lat !== "number" || typeof lng !== "number") return null;
-  return [lat, lng];
+  return parkingLatLngFromDestinationRecord(dest);
 }
 
 function buildParkingFilterBar() {
@@ -1229,18 +1305,26 @@ function getAllParkingSpotMarkers(
   const budgetCap = resolvedParkingEveningBudgetCap(
     eveningSliderValue === undefined ? undefined : eveningSliderValue,
   );
-  const walkCapMiles = resolvedParkingWalkCapMiles(
-    walkSliderIndex === undefined ? undefined : walkSliderIndex,
+  const walkCapMiles = effectiveWalkCapMilesForParkingPins(
+    resolvedParkingWalkCapMiles(
+      walkSliderIndex === undefined ? undefined : walkSliderIndex,
+    ),
   );
   const destLl = getParkingDestinationLatLng();
-  /** Slider index **0** ⇒ **unlimited** (`walkCapMiles === 0`); else cap straight-line miles to the **nearest DASH stop** (requires **venue**). */
+  const dashStops = getDashStopLatLngsForParkingProximity();
+  /**
+   * **`walk`** omitted from URL defaults to **0.5** mi — never **0** unless explicit **`walk=0`**.
+   * **`walk=0`** uses {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft (~**0.019** mi) for this filter only.
+   */
   const applyWalkCap =
-    destLl != null && walkCapMiles > 0 && Number.isFinite(walkCapMiles);
+    destLl != null &&
+    dashStops.length > 0 &&
+    Number.isFinite(walkCapMiles) &&
+    walkCapMiles > 0;
 
   const out = [];
   const parking = appData?.parking;
   if (!parking) return out;
-  const dashStops = getDashStopLatLngsForParkingProximity();
   for (const categoryId of keys) {
     const dataKey = parkingCategoryDataKey(categoryId);
     const items = dataKey ? parking[dataKey] : null;
@@ -1257,13 +1341,12 @@ function getAllParkingSpotMarkers(
       if (!parkingSpotPassesEveningBudget(item.pricing, categoryId, budgetCap))
         continue;
       if (applyWalkCap) {
-        if (dashStops.length === 0) {
-          /* No DASH stops — cannot apply walk-to-stop cap. */
-        } else {
-          const walkToStopMi = nearestDashStopWalkMiles(lat, lng, dashStops);
-          if (!Number.isFinite(walkToStopMi) || walkToStopMi > walkCapMiles) {
-            continue;
-          }
+        const walkToStopMi = nearestDashStopWalkMiles(lat, lng, dashStops);
+        if (
+          !Number.isFinite(walkToStopMi) ||
+          walkToStopMi > walkCapMiles + 1e-9
+        ) {
+          continue;
         }
       }
       const cost = getParkingMapCostDisplay(item.pricing, categoryId);
@@ -1364,18 +1447,118 @@ function filterParkingMarkersExcludeFreeWhenPaidExists(markers) {
 }
 
 /**
- * Sort key for auto-recommended parking: farthest **physical** distance from the selected venue first.
+ * Whether {@link tryParkingDashMultimodalPath} would draw the DASH multimodal overlay for this spot
+ * (same rules as on-map estimated trip — approach walk capped by **`walk`**, straight parking→venue leg can exceed it).
+ *
+ * @param {{ lat: number; lng: number }} m
+ * @param {[number, number]|null} destLl
+ * @param {number} walkCapMiles — {@link resolvedParkingWalkCapMiles}
+ */
+function markerUsesDashMultimodalForRecommendation(m, destLl, walkCapMiles) {
+  if (m._usesDashMultimodalCached !== undefined)
+    return m._usesDashMultimodalCached;
+  const v =
+    Array.isArray(destLl) &&
+    destLl.length >= 2 &&
+    typeof walkCapMiles === "number" &&
+    Number.isFinite(walkCapMiles) &&
+    walkCapMiles > 0 &&
+    tryParkingDashMultimodalPath(
+      m.lat,
+      m.lng,
+      destLl[0],
+      destLl[1],
+      walkCapMiles,
+    ) != null;
+  m._usesDashMultimodalCached = v;
+  return v;
+}
+
+function markerUsesDashMultimodalForRecommendationFromPool(m) {
+  const destLl = getParkingDestinationLatLng();
+  const walkCap = resolvedParkingWalkCapMiles();
+  return markerUsesDashMultimodalForRecommendation(m, destLl, walkCap);
+}
+
+/**
+ * Sort key for auto-recommended parking follows **`AGENTS.md`**:
+ *
+ * - **Short** max walk (≤ **0.5** mi): prefer spots whose estimated trip **uses DASH** (multimodal overlay)
+ *   over straight-line walks to the venue when both are eligible; among multimodal picks use **farther**
+ *   straight-line miles from the venue first (same tie order as generous walk). Door-to-door-only picks
+ *   stay **closest** to the venue first, then evening dollars, then longest walk to DASH.
+ * - **Generous** max walk (&gt; **0.5** mi): **farther** straight-line miles from the venue first (paid lots away from
+ *   the entrance), **then** longest walk to nearest DASH among ties (use approach distance), then paid-tier rank,
+ *   then dollars (still paid / within walk-to-stop cap).
+ *
  * Eligibility (pay + walk + category toggles) is already applied by {@link getAllParkingSpotMarkers}.
  *
  * @returns {number}
  */
 function compareParkingMarkersForRecommendation(a, b) {
   const destLl = getParkingDestinationLatLng();
-  if (destLl) {
-    const da = haversineMiles(a.lat, a.lng, destLl[0], destLl[1]);
-    const db = haversineMiles(b.lat, b.lng, destLl[0], destLl[1]);
-    if (Math.abs(da - db) > 1e-9) return db - da;
+  if (!destLl) {
+    return String(a.spotId).localeCompare(String(b.spotId));
   }
+
+  const da = haversineMiles(a.lat, a.lng, destLl[0], destLl[1]);
+  const db = haversineMiles(b.lat, b.lng, destLl[0], destLl[1]);
+
+  const walkCap = resolvedParkingWalkCapMiles();
+  const shortWalk =
+    Number.isFinite(walkCap) && walkCap > 0 && walkCap <= 0.5 + 1e-9;
+
+  const dashStops = getDashStopLatLngsForParkingProximity();
+  const scoreA = eveningPricePickScoreForRecommendation(a.eveningSortDollars);
+  const scoreB = eveningPricePickScoreForRecommendation(b.eveningSortDollars);
+
+  if (shortWalk) {
+    const usesA = markerUsesDashMultimodalForRecommendation(a, destLl, walkCap);
+    const usesB = markerUsesDashMultimodalForRecommendation(b, destLl, walkCap);
+    if (usesA !== usesB) return usesA ? -1 : 1;
+
+    const wda = nearestDashStopWalkMiles(a.lat, a.lng, dashStops);
+    const wdb = nearestDashStopWalkMiles(b.lat, b.lng, dashStops);
+
+    if (usesA && usesB) {
+      if (Math.abs(da - db) > 1e-9) return db - da;
+      if (dashStops.length === 0) {
+        if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
+        return String(a.spotId).localeCompare(String(b.spotId));
+      }
+      if (Math.abs(wda - wdb) > 1e-9) return wdb - wda;
+      const rankA = parkingMarkerPaidTierRank(a.eveningSortDollars);
+      const rankB = parkingMarkerPaidTierRank(b.eveningSortDollars);
+      if (rankA !== rankB) return rankB - rankA;
+      if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
+      return String(a.spotId).localeCompare(String(b.spotId));
+    }
+
+    if (Math.abs(da - db) > 1e-9) return da - db;
+    if (dashStops.length === 0) {
+      if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
+      return String(a.spotId).localeCompare(String(b.spotId));
+    }
+    if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
+    if (Math.abs(wda - wdb) > 1e-9) return wdb - wda;
+    return String(a.spotId).localeCompare(String(b.spotId));
+  }
+
+  if (dashStops.length === 0) {
+    if (Math.abs(da - db) > 1e-9) return da - db;
+    if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
+    return String(a.spotId).localeCompare(String(b.spotId));
+  }
+
+  const wda = nearestDashStopWalkMiles(a.lat, a.lng, dashStops);
+  const wdb = nearestDashStopWalkMiles(b.lat, b.lng, dashStops);
+
+  if (Math.abs(da - db) > 1e-9) return db - da;
+  if (Math.abs(wda - wdb) > 1e-9) return wdb - wda;
+  const rankA = parkingMarkerPaidTierRank(a.eveningSortDollars);
+  const rankB = parkingMarkerPaidTierRank(b.eveningSortDollars);
+  if (rankA !== rankB) return rankB - rankA;
+  if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
   return String(a.spotId).localeCompare(String(b.spotId));
 }
 
@@ -1411,6 +1594,10 @@ if (typeof globalThis !== "undefined") {
     filterParkingMarkersExcludeFreeWhenPaidExists;
   globalThis.__getParkingEffectiveStartSpotIdForTest =
     getParkingEffectiveStartSpotId;
+  globalThis.__parkingTripStepNumbersHashReadyForTest =
+    parkingTripStepNumbersHashReady;
+  globalThis.__markerUsesDashMultimodalForRecommendationForTest =
+    markerUsesDashMultimodalForRecommendationFromPool;
 }
 
 /**
@@ -1630,8 +1817,11 @@ function nearestParkingDashStopFromPoints(lat, lng, dashPoints) {
 
 /**
  * When total time (walk–board + shuttle + walk–venue) is **less** than walking straight
- * (same pace knobs as **`parkingRoutePace`** in `config.json`), each walk leg fits `walkCapMiles`,
- * and straight parking→venue distance **exceeds** the max-walk cap (otherwise show door-to-door walk only).
+ * (same pace knobs as **`parkingRoutePace`** in `config.json`), the walk **to DASH** fits `walkCapMiles`
+ * (same idea as pin filtering: max willingness to reach a stop), and straight parking→venue distance
+ * **exceeds** the max-walk cap (otherwise show door-to-door walk only). The alight→venue leg uses the
+ * nearest stop to the destination and is **not** capped by `walkCapMiles` (venues off the loop can be
+ * farther than that last-mile walk).
  * Otherwise the map keeps a single straight walk segment (walking-only is faster or ties).
  * @param {number} walkCapMiles — must be **> 0** (slider above minimum); **0** / invalid ⇒ no multimodal trip (cannot reach DASH without walking).
  */
@@ -1671,7 +1861,8 @@ function tryParkingDashMultimodalPath(
     typeof walkCapMiles === "number" &&
     walkCapMiles > 0 &&
     Number.isFinite(walkCapMiles);
-  if (walkCapFinite && (w1 > walkCapMiles || w2 > walkCapMiles)) return null;
+  /** Cap applies to approach to DASH only; see JSDoc — `w2` can exceed cap when the venue is far from stops. */
+  if (walkCapFinite && w1 > walkCapMiles) return null;
 
   const directMi = haversineMiles(startLat, startLng, destLat, destLng);
   /** Finite max-walk and straight parking→venue distance already fits — prefer direct walk overlay only. */
@@ -1994,15 +2185,41 @@ function syncParkingSpots(map) {
   }
 }
 
-/** Green map-pin for parking start (`S` when confirmed in URL, `?` when auto-suggested). */
-function parkingSpotPickIcon(L, glyph = "S") {
-  const safeGlyph = escapeHtml(String(glyph || "S").slice(0, 1));
+/**
+ * Solid green map-pin; optional **`glyph`** (default **`1`**). Pass **`""`** for a committed start pin with no
+ * digit until {@link parkingTripStepNumbersHashReady}.
+ */
+function parkingSpotPickIcon(L, glyph) {
+  const raw = glyph === undefined || glyph === null ? "1" : String(glyph);
+  const showDigit = raw.trim() !== "";
+  const safeGlyph = showDigit ? escapeHtml(raw.slice(0, 1)) : "";
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
     '<path fill="#16a34a" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" ' +
     'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>' +
     '<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>' +
-    `<text x="14" y="15.4" text-anchor="middle" font-size="7.2" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" fill="#16a34a">${safeGlyph}</text>` +
+    (showDigit
+      ? `<text x="14" y="15.4" text-anchor="middle" font-size="7.2" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" fill="#16a34a">${safeGlyph}</text>`
+      : "") +
+    "</svg>";
+  return L.icon({
+    iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -36],
+  });
+}
+
+/**
+ * Muted green pick marker for {@link chooseBestParkingStartSpotId} when **`start=`** is omitted —
+ * same pin badge as {@link parkingSpotPickIcon} (**blank** white circle, no glyph).
+ */
+function parkingSpotPickSuggestionIcon(L) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
+    '<path fill="#bbf7d0" stroke="#16a34a" stroke-width="1.25" stroke-linejoin="round" ' +
+    'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>' +
+    '<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>' +
     "</svg>";
   return L.icon({
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
@@ -2027,19 +2244,25 @@ function syncParkingSpotPickMarker(map) {
 
   const id = getParkingEffectiveStartSpotId();
   if (!id) return;
-  const committedId = getParkingSpotIdForHash();
-  const isConfirmed = typeof committedId === "string" && committedId === id;
 
   const p = parseParkingSpotIdToken(id);
   if (!p) return;
 
   const spot = getAllParkingSpotMarkers().find((m) => m.spotId === id);
   const row = spot ?? parkingSpotRowFallback(id, p);
+  const committed = getParkingSpotIdForHash();
+  const isCommitted =
+    typeof committed === "string" && committed.length > 0 && committed === id;
+  const stepNums = parkingTripStepNumbersHashReady();
   parkingSpotPickLayerGroup = L.layerGroup().addTo(map);
   const g = parkingSpotPickLayerGroup;
   const m = L.marker([p.lat, p.lng], {
-    icon: parkingSpotPickIcon(L, isConfirmed ? "S" : "?"),
-    zIndexOffset: 650,
+    icon: !isCommitted
+      ? parkingSpotPickSuggestionIcon(L)
+      : stepNums
+        ? parkingSpotPickIcon(L, "1")
+        : parkingSpotPickIcon(L, ""),
+    zIndexOffset: isCommitted ? 650 : 620,
   });
   attachParkingSpotStartButton(m, row);
   m.addTo(g);
@@ -2130,12 +2353,15 @@ function addParkingDashTripStopMarkers(g, L, boardStop, alightStop) {
     `</div>`;
 
   const dashTripStopIcon = (glyph) => {
-    const safeGlyph = escapeHtml(glyph);
+    const showDigit = typeof glyph === "string" && glyph.trim() !== "";
+    const safeGlyph = showDigit ? escapeHtml(glyph) : "";
     const svg =
       '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="38" viewBox="0 0 26 38">' +
       `<path fill="${fill}" stroke="#ffffff" stroke-width="1.15" stroke-linejoin="round" d="M13 1.8c-5.7 0-10.3 4.6-10.3 10.3 0 7.4 9.6 22.9 10.1 23.7.2.3.6.3.8 0 .5-.8 10.2-16.3 10.2-23.7 0-5.7-4.6-10.3-10.3-10.3z"/>` +
       '<circle cx="13" cy="12.2" r="5.1" fill="#ffffff"/>' +
-      `<text x="13" y="14.35" text-anchor="middle" font-size="6.6" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" fill="${fill}">${safeGlyph}</text>` +
+      (showDigit
+        ? `<text x="13" y="14.35" text-anchor="middle" font-size="6.6" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" fill="${fill}">${safeGlyph}</text>`
+        : "") +
       "</svg>";
     return L.icon({
       iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
@@ -2144,6 +2370,10 @@ function addParkingDashTripStopMarkers(g, L, boardStop, alightStop) {
       popupAnchor: [0, -33],
     });
   };
+
+  const showTripDigits = parkingTripStepNumbersHashReady();
+  const glyphBoard = showTripDigits ? "2" : "";
+  const glyphAlight = showTripDigits ? "3" : "";
 
   const makeStopPin = (lat, lng, glyph, title, stopLabel, detail) => {
     const m = L.marker([lat, lng], {
@@ -2160,7 +2390,7 @@ function addParkingDashTripStopMarkers(g, L, boardStop, alightStop) {
     makeStopPin(
       boardStop.lat,
       boardStop.lng,
-      "D",
+      glyphBoard,
       "DASH (board & exit)",
       boardStop.label,
       "Same stop for boarding and exiting on this trip.",
@@ -2171,7 +2401,7 @@ function addParkingDashTripStopMarkers(g, L, boardStop, alightStop) {
   const boardM = makeStopPin(
     boardStop.lat,
     boardStop.lng,
-    "B",
+    glyphBoard,
     "Board DASH",
     boardStop.label,
     "Walk here to catch the shuttle.",
@@ -2180,7 +2410,7 @@ function addParkingDashTripStopMarkers(g, L, boardStop, alightStop) {
   const alightM = makeStopPin(
     alightStop.lat,
     alightStop.lng,
-    "E",
+    glyphAlight,
     "Exit DASH",
     alightStop.label,
     "Walk from here to the venue.",
@@ -2319,20 +2549,121 @@ function syncParkingStartFinishWalkLine(map) {
   globalThis.__parkingWalkUsesDashOverlay = false;
 }
 
-/** Red finish pin for the selected destination (green pick / red venue). */
-function parkingDestinationMarkerIcon(L) {
+/**
+ * Red finish pin for the selected destination.
+ * **`4`** when the walk overlay uses DASH (1 park → 2 board → 3 exit → 4 venue); **`2`** when the trip is
+ * park + walk to venue only (1 → 2). Pass **`""`** for selected venue without {@link parkingTripStepNumbersHashReady}.
+ */
+function parkingDestinationMarkerIcon(L, glyph) {
+  const raw = glyph === undefined || glyph === null ? "4" : String(glyph);
+  const showDigit = raw.trim() !== "";
+  const safeGlyph = showDigit ? escapeHtml(raw.slice(0, 1)) : "";
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
     '<path fill="#dc2626" stroke="#ffffff" stroke-width="1.25" stroke-linejoin="round" ' +
     'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>' +
     '<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>' +
-    '<text x="14" y="15.4" text-anchor="middle" font-size="7.2" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" fill="#dc2626">F</text>' +
+    (showDigit
+      ? `<text x="14" y="15.4" text-anchor="middle" font-size="7.2" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" font-weight="700" fill="#dc2626">${safeGlyph}</text>`
+      : "") +
     "</svg>";
   return L.icon({
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
     iconSize: [28, 42],
     iconAnchor: [14, 42],
     popupAnchor: [0, -36],
+  });
+}
+
+/** Muted red pin for venues not selected — **blank** white badge (same circle as numbered finish pin); popup **Set as destination**. */
+function parkingDestinationPlaceholderIcon(L) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
+    '<path fill="#fecaca" stroke="#dc2626" stroke-width="1.25" stroke-linejoin="round" ' +
+    'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>' +
+    '<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>' +
+    "</svg>";
+  return L.icon({
+    iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    iconSize: [28, 42],
+    iconAnchor: [14, 42],
+    popupAnchor: [0, -36],
+  });
+}
+
+function parkingDestinationPlaceholderPopupHtml(name) {
+  return (
+    `<div class="parking-destination-popup" style="font-size:12px;min-width:12rem">` +
+    `<strong>${escapeHtml(name)}</strong>` +
+    `<p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.35">Pick this venue for routes, walk limits, and parking.</p>` +
+    `<div class="parking-spot-popup-actions" style="margin-top:10px;display:block;width:100%;clear:both">` +
+    `<button type="button" data-parking-destination-select-btn` +
+    ` title="Set as destination"` +
+    ` style="margin-top:0;box-sizing:border-box;max-width:100%;padding:6px 10px;font-size:12px;font-weight:600;color:#fff;background:#dc2626;border:none;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;vertical-align:top">` +
+    `<span style="display:inline-flex;flex-shrink:0;line-height:0" aria-hidden="true">` +
+    parkingStartBtnIconSvg(false) +
+    `</span>` +
+    `<span style="text-align:left;white-space:normal;line-height:1.25">Set as destination</span>` +
+    `</button>` +
+    `</div></div>`
+  );
+}
+
+/** Placeholder venue pins: pin opens popup; button confirms selection (same hash/select as dropdown). */
+function attachParkingDestinationSelectButton(marker, name, slug) {
+  marker.bindPopup(parkingDestinationPlaceholderPopupHtml(name));
+  marker.on("popupopen", () => {
+    const wrap = marker.getPopup()?.getElement?.();
+    const btn = wrap?.querySelector?.("[data-parking-destination-select-btn]");
+    if (!btn) return;
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      selectParkingDestinationBySlug(slug);
+      try {
+        marker.closePopup();
+      } catch {
+        /* ignore */
+      }
+    };
+  });
+}
+
+function parkingDestinationSelectedPopupHtml(name) {
+  return (
+    `<div class="parking-destination-popup parking-destination-popup--selected" style="font-size:12px;min-width:12rem">` +
+    `<strong>${escapeHtml(name)}</strong>` +
+    `<p style="margin:8px 0 0;color:#64748b;font-size:11px;line-height:1.35">Selected destination</p>` +
+    `<div class="parking-spot-popup-actions" style="margin-top:10px;display:block;width:100%;clear:both">` +
+    `<button type="button" data-parking-destination-clear-btn` +
+    ` title="Clear selected destination"` +
+    ` style="margin-top:0;box-sizing:border-box;max-width:100%;padding:6px 10px;font-size:12px;font-weight:600;color:#374151;background:#e5e7eb;border:none;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:flex-start;gap:8px;vertical-align:top">` +
+    `<span style="display:inline-flex;flex-shrink:0;line-height:0" aria-hidden="true">` +
+    parkingStartBtnIconSvg(true) +
+    `</span>` +
+    `<span style="text-align:left;white-space:nowrap;line-height:1.25;flex-shrink:0">Clear selected destination</span>` +
+    `</button>` +
+    `</div></div>`
+  );
+}
+
+/** Selected venue red pin: popup **Clear selected destination** (digits only when {@link parkingTripStepNumbersHashReady}). */
+function attachParkingDestinationClearButton(marker, name) {
+  marker.bindPopup(parkingDestinationSelectedPopupHtml(name));
+  marker.on("popupopen", () => {
+    const wrap = marker.getPopup()?.getElement?.();
+    const btn = wrap?.querySelector?.("[data-parking-destination-clear-btn]");
+    if (!btn) return;
+    btn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      clearParkingDestinationFromMap();
+      try {
+        marker.closePopup();
+      } catch {
+        /* ignore */
+      }
+    };
   });
 }
 
@@ -2349,77 +2680,54 @@ function syncParkingDestinationMarker(map) {
     parkingDestinationLayerGroup = null;
   }
 
-  const ll = getParkingDestinationLatLng();
-  if (!ll) return;
+  const destinations = Array.isArray(appData?.destinations)
+    ? [...appData.destinations].sort((a, b) =>
+        String(a.name || "").localeCompare(String(b.name || ""), undefined, {
+          sensitivity: "base",
+        }),
+      )
+    : [];
 
   const sel = document.getElementById("parkingDestinationSelect");
-  const slug = sel?.value;
-  const dest = appData?.destinations?.find((d) => d.slug === slug);
-  const name = dest?.name || slug || "Destination";
+  const selectedSlug = sel?.value?.trim() || "";
 
   parkingDestinationLayerGroup = L.layerGroup().addTo(map);
   const g = parkingDestinationLayerGroup;
-  const m = L.marker(ll, { icon: parkingDestinationMarkerIcon(L) });
-  m.bindPopup(
-    `<div style="font-size:12px"><strong>${escapeHtml(name)}</strong></div>`,
-  );
-  m.addTo(g);
-}
 
-/** Every destination venue + DASH stops/polylines — geographic extent we keep in frame. */
-function collectParkingMapContextLatLngs() {
-  const out = [];
-  for (const d of appData?.destinations || []) {
-    const loc = d?.location;
-    if (
-      typeof loc?.latitude === "number" &&
-      Number.isFinite(loc.latitude) &&
-      typeof loc?.longitude === "number" &&
-      Number.isFinite(loc.longitude)
-    ) {
-      out.push([loc.latitude, loc.longitude]);
+  const placeholderMarkers = [];
+  const selectedMarkers = [];
+
+  for (const dest of destinations) {
+    const ll = parkingLatLngFromDestinationRecord(dest);
+    if (!ll) continue;
+    const slug = dest.slug;
+    if (typeof slug !== "string" || slug.trim() === "") continue;
+    const name = dest.name || slug || "Destination";
+
+    if (selectedSlug !== "") {
+      // Finish chosen: only the selected venue pin (hide other destinations).
+      if (slug !== selectedSlug) continue;
+      const stepNums = parkingTripStepNumbersHashReady();
+      const venueGlyph = stepNums
+        ? globalThis.__parkingWalkUsesDashOverlay === true
+          ? "4"
+          : "2"
+        : "";
+      const m = L.marker(ll, {
+        icon: parkingDestinationMarkerIcon(L, venueGlyph),
+      });
+      attachParkingDestinationClearButton(m, name);
+      selectedMarkers.push(m);
+      continue;
     }
-  }
-  const { points, polylines } = getParkingDashMapData();
-  for (const p of points) {
-    if (Number.isFinite(p.lat) && Number.isFinite(p.lng))
-      out.push([p.lat, p.lng]);
-  }
-  for (const pl of polylines) {
-    for (const pair of pl.latLngs || []) {
-      if (
-        Array.isArray(pair) &&
-        pair.length >= 2 &&
-        Number.isFinite(pair[0]) &&
-        Number.isFinite(pair[1])
-      ) {
-        out.push([pair[0], pair[1]]);
-      }
-    }
-  }
-  return out;
-}
 
-/**
- * Highest zoom that still fits all destinations and DASH in the map view (with
- * the same padding convention as fitBounds). Used to cap parking spot fits.
- */
-function getParkingMapContextFitMaxZoom(map, L) {
-  const pad = PARKING_MAP_FIT_PADDING;
-  const padSum = L.point(pad[0] * 2, pad[1] * 2);
-  const maxZ = typeof map.getMaxZoom === "function" ? map.getMaxZoom() : 19;
-
-  const latlngs = collectParkingMapContextLatLngs();
-  if (latlngs.length < 2) return Math.min(16, maxZ);
-
-  const bounds = L.latLngBounds(latlngs);
-  if (!bounds.isValid()) return Math.min(16, maxZ);
-
-  try {
-    return map.getBoundsZoom(bounds, false, padSum);
-  } catch {
-    return Math.min(16, maxZ);
+    const m = L.marker(ll, { icon: parkingDestinationPlaceholderIcon(L) });
+    attachParkingDestinationSelectButton(m, name, slug);
+    placeholderMarkers.push(m);
   }
+
+  for (const m of placeholderMarkers) m.addTo(g);
+  for (const m of selectedMarkers) m.addTo(g);
 }
 
 function fitParkingMapToAllContent(map) {
@@ -2435,13 +2743,14 @@ function fitParkingMapToAllContent(map) {
   const startId = getParkingSpotIdForHash();
   const startPt = startId ? parseParkingSpotIdToken(startId) : null;
 
-  const contextMaxZoom = getParkingMapContextFitMaxZoom(map, L);
+  const mapMaxZ = typeof map.getMaxZoom === "function" ? map.getMaxZoom() : 19;
+  const fitMaxZoom = Math.min(PARKING_MAP_FIT_MAX_ZOOM, mapMaxZ);
   const fitOpts = {
     padding: PARKING_MAP_FIT_PADDING,
-    maxZoom: contextMaxZoom,
+    maxZoom: fitMaxZoom,
   };
   const cappedSetZoom = (latlng, z) =>
-    map.setView(latlng, Math.min(z, contextMaxZoom));
+    map.setView(latlng, Math.min(z, fitMaxZoom));
 
   /** Zoom to **start** (green pick) + **venue** (red pin) when both are active. */
   if (destLl && startPt) {
@@ -2492,10 +2801,10 @@ function syncParkingMapOverlays(map, opts) {
   const doFit = opts?.fit !== false;
   syncParkingDashRoutes(map);
   syncParkingSpots(map);
-  syncParkingDestinationMarker(map);
-  if (doFit) fitParkingMapToAllContent(map);
   syncParkingSpotPickMarker(map);
   syncParkingStartFinishWalkLine(map);
+  syncParkingDestinationMarker(map);
+  if (doFit) fitParkingMapToAllContent(map);
 }
 
 export function hideParkingView() {
