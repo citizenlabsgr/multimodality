@@ -469,6 +469,73 @@
         class="hidden flex flex-1 flex-col min-h-0 min-w-0 w-full"
         aria-label="Parking map"
       >
+        <div
+          id="parkingMapChrome"
+          class="hidden shrink-0 mb-2 flex flex-col gap-2 px-1 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3"
+        >
+          <div
+            class="group relative w-full max-w-full min-w-0 shrink-0 sm:w-auto sm:min-w-[14rem]"
+          >
+            <select
+              id="parkingDestinationSelect"
+              class="w-full min-w-0 cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-10 text-sm text-slate-900 shadow-sm transition-colors transition-shadow hover:border-slate-400 hover:bg-slate-50 hover:shadow focus:outline-none focus:ring-2 focus:ring-slate-400"
+              aria-label="Where are you going?"
+            >
+              <option value="">Where are you going?</option>
+            </select>
+            <span
+              id="parkingDestChevron"
+              class="pointer-events-none absolute inset-y-px right-px flex w-9 items-center justify-center rounded-r-[0.4375rem] border-l border-slate-200 bg-slate-50 text-slate-600 transition-colors group-hover:bg-slate-100 group-hover:text-slate-700"
+              aria-hidden="true"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="size-4 shrink-0"
+              >
+                <path d="M6 8l4 4 4-4" />
+              </svg>
+            </span>
+            <button
+              type="button"
+              id="parkingResetBtn"
+              class="absolute inset-y-px right-px z-10 hidden flex w-9 items-center justify-center rounded-r-[0.4375rem] border-l border-slate-300/90 bg-slate-100 text-slate-500 shadow-sm hover:bg-slate-200 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              aria-label="Reset destination and parking filters"
+            >
+              <svg
+                class="size-4 shrink-0"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+                <path d="M21 3v5h-5" />
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+                <path d="M8 16H3v5" />
+              </svg>
+            </button>
+          </div>
+          <div
+            class="flex min-w-0 w-full flex-1 flex-wrap items-center justify-center gap-2"
+          >
+            <div
+              id="parkingFilterBar"
+              class="flex flex-wrap items-center justify-center gap-2"
+              role="toolbar"
+              aria-label="Parking categories"
+            ></div>
+          </div>
+        </div>
         <div id="parkingAppMap" class="min-h-0 flex-1 w-full"></div>
       </div>
     </main>

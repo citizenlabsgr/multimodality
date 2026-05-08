@@ -4,7 +4,7 @@
 
 - **`src/main.mjs`** — ES module entry; loads the current UI.
 - **`src/visit/planner.mjs`** — Visit planner (`#/visit`), modes explainer (`#/modes`), data explorer (`#/data`), and routing for the parking map (`#/parking`).
-- **`src/parking/parking.mjs`** — Parking app shell: empty map view at `#/parking` (Leaflet, downtown Grand Rapids viewport). **`src/parking/parking.css`** — layout for that view.
+- **`src/parking/parking.mjs`** — Parking app at `#/parking`: Leaflet map with **DASH** shuttle polylines/stops from `appData.busRoutes`, plus parking pins from `appData.parking` **garages and lots only** (public garages/lots and OSM private garages/lots—no meters, bike racks, or micromobility). Pins are limited to within **0.75 mi** (Haversine) of a DASH stop on the map. Category toggles and `location=` use ids **`public-garage`**, **`public-lot`**, **`private-garage`**, **`private-lot`** (mapped to `garages` / `lots` / `osmGarages` / `osmLots` in JSON); legacy `location=garages` etc. and old `cats=` still parse. Optional **`destination=<destination-slug>`** (legacy `dest=` still parses). **`src/parking/parking.css`** — layout for that view.
 - **`src/shared/data-loader.mjs`** — Fetches and merges JSON under **`data/`** (config, destinations, parking, strategies per destination, `builtins.json`, `data/bus/routes.json`) into the live **`appData`** object. Reuse this module if you add another front-end that reads the same datasets.
 
 Static assets: **`index.html`** (shell + `#appView` markup), **`src/visit/planner.css`** (visit form controls), **`src/styles.css`** (data view, modes page, global).
