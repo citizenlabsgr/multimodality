@@ -43,6 +43,10 @@
     "garageAssumedDollars": 30,
     "cardCopy": "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park."
   },
+  "parkingRoutePace": {
+    "walkMinutesPerMile": 20,
+    "dashMilesPerHour": 12
+  },
   "linkTexts": {
     "viewTransitRoute": "View transit route on Google Maps",
     "findLots": "Find lots on Google Maps",
