@@ -23,7 +23,7 @@ dev: install
 
 .PHONY: run
 run:
-	npx --yes live-server --no-browser --ignorePattern=test-results
+	npx --yes live-server --no-browser --ignorePattern='test-results|tests/snapshots'
 
 .PHONY: data
 data:

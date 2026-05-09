@@ -1468,26 +1468,17 @@ test.describe("Parking map (#/parking)", () => {
       await page.goto("/#/parking?finish=acrisure-amphitheater&walk=1.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
+      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("15");
       const generousWalkCount = await countParkingCircles();
 
-      await page.goto("/#/parking?finish=acrisure-amphitheater&walk=0");
-      await waitForParkingData(page);
-      await waitForParkingLeafletMap(page);
+      await page.locator("#parkingMaxWalkSlider").evaluate((el) => {
+        el.value = "0";
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("0");
-      // Hash + marker refresh can lag the second navigation; wait for the stricter cap to apply.
-      await page.waitForFunction(
-        (maxBefore) => {
-          const g = globalThis.__parkingSpotsLayerForTest;
-          if (!g?.eachLayer) return false;
-          let n = 0;
-          g.eachLayer(() => {
-            n += 1;
-          });
-          return n < maxBefore;
-        },
-        generousWalkCount,
-        { timeout: 15000 },
-      );
+      await expect(page).toHaveURL(/[?&]walk=0(?:&|$)/);
       const walkZeroCount = await countParkingCircles();
 
       expect(generousWalkCount).toBeGreaterThan(0);
@@ -2043,6 +2034,8 @@ async function assertParkingViewportScreenshot(
   await expect(page).toHaveScreenshot(`${snapshotName}.png`, {
     fullPage: true,
     timeout: 20_000,
+    /** OSM raster tiles and subpixel compositing vary slightly between runs. */
+    maxDiffPixels: 2500,
   });
 }
 

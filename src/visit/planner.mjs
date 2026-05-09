@@ -263,6 +263,22 @@ const MODES_PAGE_PARKING_KEYS = [
 
 let modesPageMaps = {};
 
+/** Avoid Leaflet 1.9 throwing in `invalidateSize` when `_mapPane` is not ready yet. */
+function safeInvalidateModesMapWhenReady(map) {
+  if (!map || typeof map.whenReady !== "function") return;
+  map.whenReady(() => {
+    requestAnimationFrame(() => {
+      try {
+        const c = map.getContainer?.();
+        if (c && !c.isConnected) return;
+        map.invalidateSize();
+      } catch {
+        /* map removed or panes torn down */
+      }
+    });
+  });
+}
+
 function disposeModesPageMapsMatching(predicate) {
   for (const id of Object.keys(modesPageMaps)) {
     if (!predicate(id)) continue;
@@ -472,7 +488,7 @@ function renderModesPageMap(containerId, points, options) {
     };
     delete map._modesLastFitLatLngs;
     delete map._modesLastFitOptions;
-    requestAnimationFrame(() => map.invalidateSize());
+    safeInvalidateModesMapWhenReady(map);
     return;
   }
   const polyLayer = L.layerGroup().addTo(map);
@@ -562,7 +578,7 @@ function renderModesPageMap(containerId, points, options) {
     delete map._modesLastFitLatLngs;
     delete map._modesLastFitOptions;
   }
-  requestAnimationFrame(() => map.invalidateSize());
+  safeInvalidateModesMapWhenReady(map);
 }
 
 /** Re-apply view after layout (modal maps init while hidden had wrong size). */
@@ -571,7 +587,11 @@ function refitModesModalLeafletMaps() {
     if (!id.startsWith("modes-modal-map-")) continue;
     const map = modesPageMaps[id];
     if (!map?.invalidateSize) continue;
-    map.invalidateSize();
+    try {
+      map.invalidateSize();
+    } catch {
+      continue;
+    }
     if (map._modesLastFitLatLngs && map._modesLastFitLatLngs.length >= 2) {
       map.fitBounds(
         L.latLngBounds(map._modesLastFitLatLngs),
@@ -1266,7 +1286,11 @@ function updateDataViewMap(points, options) {
     const bounds = L.latLngBounds(boundsLatLngs);
     dataMap.fitBounds(bounds, { padding: [24, 24], maxZoom: 17 });
   }
-  dataMap.invalidateSize();
+  try {
+    dataMap.invalidateSize();
+  } catch {
+    /* ignore */
+  }
 }
 
 // Path after /data/ (e.g. "parking", "parking/premium-ramps"). Returns "" for #/data. Strips query string.
@@ -5162,7 +5186,7 @@ async function init() {
 
   // Set default hash only when there was no hash at load (so we didn't overwrite URL params like time=700)
   if (!initialHash) {
-    window.location.hash = getDestinationPath();
+    window.location.hash = "#/parking";
   }
 
   if (isDataRoute()) {

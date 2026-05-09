@@ -20,7 +20,7 @@ function resultsIncludePaidStructuredParking(text) {
 
 test.describe("URL Fragment Permutations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     // Wait for the page to load and initialize
     await page.waitForSelector("#preferencesSection");
   });
@@ -221,7 +221,7 @@ test.describe("URL Fragment Permutations", () => {
 
 test.describe("Visit page strategy cards gating", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -275,7 +275,7 @@ test.describe("Visit page strategy cards gating", () => {
 
 test.describe("Empty recommendation pool (generic red fallback)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -312,7 +312,7 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
 
 test.describe("Transit-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
     await page.waitForFunction(
       () =>
@@ -385,7 +385,7 @@ test.describe("Transit-only recommendations", () => {
 
 test.describe("Strategy card summaries (collapsed)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -430,7 +430,7 @@ test.describe("Strategy card summaries (collapsed)", () => {
 
 test.describe("Rideshare round-trip budget", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -465,7 +465,7 @@ test.describe("Rideshare round-trip budget", () => {
 
 test.describe("Bike-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -565,7 +565,7 @@ test.describe("Bike-only recommendations", () => {
 
 test.describe("Micromobility-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -658,7 +658,7 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   const resultsParams = "modes=drive&day=monday&time=600&walk=0.5&pay=10";
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -756,7 +756,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
   const handCraftedParams = "modes=drive&day=monday&time=600&walk=0.5&pay=30";
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -852,7 +852,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
 
 test.describe("Parking Enforcement Logic", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -1177,7 +1177,7 @@ test.describe("Parking Enforcement Logic", () => {
   });
 
   test("should use isParkingEnforced function correctly", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForTimeout(500);
 
     // Test the function directly using the exposed function
@@ -1206,7 +1206,7 @@ test.describe("Parking Enforcement Logic", () => {
 
   test("should show clear button when only time is set", async ({ page }) => {
     // Load page first, then set hash so hashchange handler runs (init may run before hash is available)
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#whereWhenContent", { state: "attached" });
     await page.waitForTimeout(300);
 
@@ -1239,7 +1239,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     // Start with a clean page (no fragment)
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#whereWhenContent", { state: "attached" });
     await page.waitForTimeout(300);
 
@@ -1260,7 +1260,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     // Start with a clean page
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#whereWhenContent", { state: "attached" });
     await page.waitForTimeout(300);
 
@@ -1469,7 +1469,7 @@ test.describe("Modes explain modal", () => {
   test("opens from Explain modes button, shows mode maps, closes with Escape", async ({
     page,
   }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
     await page.getByRole("button", { name: "Explain modes" }).click();
     await page.waitForTimeout(800);
@@ -1496,7 +1496,7 @@ test.describe("Modes explain modal", () => {
 
 test.describe("Modes route", () => {
   test("should show mode explainers and maps at #/modes", async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
     await page.goto("/#/modes");
     await page.waitForTimeout(600);
@@ -1528,7 +1528,7 @@ test.describe("Modes route", () => {
 
 test.describe("Park & DASH data-driven copy", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/#/visit");
     await page.waitForSelector("#preferencesSection");
     await page.waitForFunction(
       () =>
