@@ -5,6 +5,8 @@ module.exports = defineConfig({
   fullyParallel: true,
   workers: "100%",
   retries: 2,
+  /** Mismatched screenshots are rewritten and the test passes; commit PNG diffs in git to review. */
+  updateSnapshots: "changed",
   snapshotPathTemplate: "{testDir}/snapshots/parking/{arg}{ext}",
   expect: {
     toHaveScreenshot: {

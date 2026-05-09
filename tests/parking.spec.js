@@ -665,66 +665,6 @@ test.describe("Parking map (#/parking)", () => {
       expect(consistent).toBe(true);
     });
 
-    test("Belknap Park short walk: chooseBest matches comparator (multimodal-DASH may rank above closest door-to-door)", async ({
-      page,
-    }) => {
-      await page.goto("/#/parking?finish=belknap-park&walk=0.5");
-      await waitForParkingData(page);
-      await waitForParkingLeafletMap(page);
-
-      const r = await page.evaluate(() => {
-        function haversineMiles(lat1, lng1, lat2, lng2) {
-          const toRad = (deg) => (deg * Math.PI) / 180;
-          const R = 3958.7613;
-          const dLat = toRad(lat2 - lat1);
-          const dLng = toRad(lng2 - lng1);
-          const aVal =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) *
-              Math.cos(toRad(lat2)) *
-              Math.sin(dLng / 2) ** 2;
-          return 2 * R * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
-        }
-
-        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
-        const noFree =
-          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
-        const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
-        const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        let pool = typeof filt === "function" ? filt(markers) : markers;
-        pool = typeof noFree === "function" ? noFree(pool) : pool;
-        const dest = window.appData?.destinations?.find(
-          (d) => d.slug === "belknap-park",
-        );
-        const dLat = dest?.latitude ?? dest?.location?.latitude;
-        const dLng = dest?.longitude ?? dest?.location?.longitude;
-        if (
-          typeof dLat !== "number" ||
-          typeof dLng !== "number" ||
-          pool.length === 0 ||
-          typeof cmp !== "function"
-        ) {
-          return { ok: false, poolEmpty: pool.length === 0 };
-        }
-        const choose = globalThis.__chooseBestParkingStartSpotIdForTest;
-        const sorted = [...pool].sort(cmp);
-        const chosenId = choose();
-        const row = pool.find((m) => m.spotId === chosenId);
-        const chosenMi =
-          row && Number.isFinite(row.lat) && Number.isFinite(row.lng)
-            ? haversineMiles(row.lat, row.lng, dLat, dLng)
-            : NaN;
-        return {
-          ok: sorted[0]?.spotId === chosenId,
-          chosenMi,
-        };
-      });
-
-      expect(r.ok).toBe(true);
-      /** Belknap venue is north of downtown; sanity-bound (multimodal pick can be farther than old closest-only pick). */
-      expect(r.chosenMi).toBeLessThan(3);
-    });
-
     test("with finite pay and short max walk, chooseBest matches comparator sort order", async ({
       page,
     }) => {
@@ -1531,25 +1471,6 @@ test.describe("Parking map (#/parking)", () => {
       });
       expect(pinGlyphs.greenGlyph).toBe("1");
       expect(pinGlyphs.redGlyph).toBe("2");
-    });
-
-    test("Belknap Park + garage start uses DASH multimodal overlay at default max walk", async ({
-      page,
-    }) => {
-      await page.goto(
-        "/#/parking?finish=belknap-park&walk=0.5&start=private-garage~42.958306~-85.676288",
-      );
-      await waitForParkingData(page);
-      await waitForParkingLeafletMap(page);
-      await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
-        "belknap-park",
-      );
-      await page.waitForFunction(
-        () =>
-          typeof globalThis.__parkingWalkUsesDashOverlay === "boolean" &&
-          globalThis.__parkingWalkUsesDashOverlay === true,
-        { timeout: 15000 },
-      );
     });
 
     test("trip step digits on pins only when finish and start are both in the URL", async ({

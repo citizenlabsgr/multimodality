@@ -9,14 +9,6 @@
       }
     },
     {
-      "name": "Belknap Park",
-      "slug": "belknap-park",
-      "location": {
-        "latitude": 42.98162,
-        "longitude": -85.66679
-      }
-    },
-    {
       "name": "DeVos Performance Hall",
       "slug": "devos-performance-hall",
       "location": {

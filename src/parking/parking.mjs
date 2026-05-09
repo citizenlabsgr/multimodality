@@ -594,9 +594,9 @@ function wavyApproxWalkChordLatLngs(a, b) {
  * Symmetric fitBounds padding in px. Leaflet combines TL+BR into one point for
  * getBoundsZoom, so max-zoom uses 2× each axis.
  */
-const PARKING_MAP_FIT_PADDING = [36, 36];
+const PARKING_MAP_FIT_PADDING = [44, 44];
 /** Inset when framing placeholder venue pins only (smaller ⇒ more zoom; balance vs. pin clipping). */
-const PARKING_MAP_FIT_DEST_ONLY_PADDING = [18, 18];
+const PARKING_MAP_FIT_DEST_ONLY_PADDING = [28, 28];
 /** Upper bound for `fitBounds` / `setView` — must not use “zoom that fits all city context” (a *low* zoom). */
 const PARKING_MAP_FIT_MAX_ZOOM = 18;
 
@@ -2764,7 +2764,7 @@ function fitParkingMapToAllContent(map) {
 
   /**
    * Finish selected, **no** `start=` yet: frame visible parking pins **and** the venue so the red
-   * finish pin stays on-screen when the pick pool is far from the destination (e.g. Belknap Park).
+   * finish pin stays on-screen when the pick pool is far from the destination (off-downtown venues).
    */
   if (destLl && !startPt && spotLatLngs.length > 0) {
     map.fitBounds(L.latLngBounds([...spotLatLngs, destLl]), fitOpts);
@@ -2822,7 +2822,7 @@ function fitParkingMapToAllContent(map) {
   } else if (dashBounds.length === 1) {
     cappedSetZoom(dashBounds[0], 15);
   } else {
-    cappedSetZoom(MODES_PAGE_EMPTY_MAP_CENTER, 13);
+    cappedSetZoom(MODES_PAGE_EMPTY_MAP_CENTER, 12);
   }
 }
 
@@ -2900,7 +2900,6 @@ function syncParkingRouteInstructionsPanel() {
     walkCap,
   );
 
-  const note = `<p class="parking-route-note">Walk legs match the dashed lines on the map — straight-line estimates, not turn-by-turn directions.</p>`;
   const listOpen = `<ol class="parking-route-steps">`;
   const listClose = `</ol>`;
 
@@ -2932,7 +2931,7 @@ function syncParkingRouteInstructionsPanel() {
     steps.push(`<strong>Walk</strong> to ${escapeHtml(destName)}.`);
 
     body.innerHTML =
-      listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose + note;
+      listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose;
     return;
   }
 
@@ -2941,7 +2940,7 @@ function syncParkingRouteInstructionsPanel() {
     `<strong>Walk</strong> to ${escapeHtml(destName)} — for this spot, door-to-door on foot is shown instead of DASH (often faster).`,
   ];
   body.innerHTML =
-    listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose + note;
+    listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose;
 }
 
 /**
@@ -2980,7 +2979,7 @@ function ensureParkingMap() {
   const [lat, lng] = MODES_PAGE_EMPTY_MAP_CENTER;
   parkingMap = L.map(el, { zoomControl: true, maxZoom: 19 }).setView(
     [lat, lng],
-    13,
+    12,
   );
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "&copy; OpenStreetMap contributors",
