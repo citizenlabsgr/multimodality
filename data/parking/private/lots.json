@@ -157,6 +157,89 @@
       "availability": "Surface: grass; OSM way/303706004"
     },
     {
+      "name": "Ramp 8",
+      "location": {
+        "latitude": 42.969595,
+        "longitude": -85.662865
+      },
+      "availability": "Access: private; OSM way/244641187"
+    },
+    {
+      "name": "Sacred Heart of Jesus Parish parking",
+      "location": {
+        "latitude": 42.960596,
+        "longitude": -85.696901
+      },
+      "availability": "Operator: Sacred Heart of Jesus Parish; Type: surface; Fee: no; OSM way/363207177"
+    },
+    {
+      "name": "Seidman Lot",
+      "location": {
+        "latitude": 42.96215,
+        "longitude": -85.679796
+      },
+      "availability": "Type: surface; Access: private; Fee: yes; OSM way/306626502"
+    },
+    {
+      "name": "Staff Parking",
+      "location": {
+        "latitude": 42.963732,
+        "longitude": -85.659664
+      },
+      "availability": "Access: private; OSM way/378037527"
+    },
+    {
+      "name": "Trinity Health parking",
+      "location": {
+        "latitude": 42.956371,
+        "longitude": -85.664387
+      },
+      "address": "333 Jefferson Avenue Southeast, Grand Rapids, MI",
+      "availability": "Operator: Trinity Health; Type: surface; Access: private; Capacity: 59; Surface: asphalt; Operator type: private; OSM way/260362503"
+    },
+    {
+      "name": "Trinity Health parking",
+      "location": {
+        "latitude": 42.957032,
+        "longitude": -85.664411
+      },
+      "address": "327 Jefferson Avenue Southeast, Grand Rapids, MI",
+      "availability": "Operator: Trinity Health; Type: surface; Access: private; Capacity: 26; Surface: asphalt; Operator type: private; OSM way/1291624533"
+    },
+    {
+      "name": "Trinity Health parking",
+      "location": {
+        "latitude": 42.957819,
+        "longitude": -85.66469
+      },
+      "availability": "Operator: Trinity Health; Type: surface; Access: private; Capacity: 84; Surface: asphalt; Operator type: private; OSM way/260362474"
+    },
+    {
+      "name": "Trinity Health parking",
+      "location": {
+        "latitude": 42.958159,
+        "longitude": -85.663523
+      },
+      "availability": "Operator: Trinity Health; Type: surface; Operator type: private; OSM way/260362496"
+    },
+    {
+      "name": "Trinity parking",
+      "location": {
+        "latitude": 42.95888,
+        "longitude": -85.664702
+      },
+      "address": "225 Jefferson Avenue Southeast, Grand Rapids, MI",
+      "availability": "Operator: Trinity; Type: surface; Access: private; Capacity: 275; Surface: asphalt; Operator type: private; OSM way/260362472"
+    },
+    {
+      "name": "Trinity United Methodist Church parking",
+      "location": {
+        "latitude": 42.958912,
+        "longitude": -85.642311
+      },
+      "availability": "Operator: Trinity United Methodist Church; Type: surface; Access: private; Surface: asphalt; OSM way/1101854172"
+    },
+    {
       "name": "Unknown",
       "location": {
         "latitude": 42.94169,
@@ -2435,89 +2518,6 @@
         "longitude": -85.666509
       },
       "availability": "Type: surface; OSM way/1299510104"
-    },
-    {
-      "name": "Ramp 8",
-      "location": {
-        "latitude": 42.969595,
-        "longitude": -85.662865
-      },
-      "availability": "Access: private; OSM way/244641187"
-    },
-    {
-      "name": "Sacred Heart of Jesus Parish parking",
-      "location": {
-        "latitude": 42.960596,
-        "longitude": -85.696901
-      },
-      "availability": "Operator: Sacred Heart of Jesus Parish; Type: surface; Fee: no; OSM way/363207177"
-    },
-    {
-      "name": "Seidman Lot",
-      "location": {
-        "latitude": 42.96215,
-        "longitude": -85.679796
-      },
-      "availability": "Type: surface; Access: private; Fee: yes; OSM way/306626502"
-    },
-    {
-      "name": "Staff Parking",
-      "location": {
-        "latitude": 42.963732,
-        "longitude": -85.659664
-      },
-      "availability": "Access: private; OSM way/378037527"
-    },
-    {
-      "name": "Trinity Health parking",
-      "location": {
-        "latitude": 42.956371,
-        "longitude": -85.664387
-      },
-      "address": "333 Jefferson Avenue Southeast, Grand Rapids, MI",
-      "availability": "Operator: Trinity Health; Type: surface; Access: private; Capacity: 59; Surface: asphalt; Operator type: private; OSM way/260362503"
-    },
-    {
-      "name": "Trinity Health parking",
-      "location": {
-        "latitude": 42.957032,
-        "longitude": -85.664411
-      },
-      "address": "327 Jefferson Avenue Southeast, Grand Rapids, MI",
-      "availability": "Operator: Trinity Health; Type: surface; Access: private; Capacity: 26; Surface: asphalt; Operator type: private; OSM way/1291624533"
-    },
-    {
-      "name": "Trinity Health parking",
-      "location": {
-        "latitude": 42.957819,
-        "longitude": -85.66469
-      },
-      "availability": "Operator: Trinity Health; Type: surface; Access: private; Capacity: 84; Surface: asphalt; Operator type: private; OSM way/260362474"
-    },
-    {
-      "name": "Trinity Health parking",
-      "location": {
-        "latitude": 42.958159,
-        "longitude": -85.663523
-      },
-      "availability": "Operator: Trinity Health; Type: surface; Operator type: private; OSM way/260362496"
-    },
-    {
-      "name": "Trinity parking",
-      "location": {
-        "latitude": 42.95888,
-        "longitude": -85.664702
-      },
-      "address": "225 Jefferson Avenue Southeast, Grand Rapids, MI",
-      "availability": "Operator: Trinity; Type: surface; Access: private; Capacity: 275; Surface: asphalt; Operator type: private; OSM way/260362472"
-    },
-    {
-      "name": "Trinity United Methodist Church parking",
-      "location": {
-        "latitude": 42.958912,
-        "longitude": -85.642311
-      },
-      "availability": "Operator: Trinity United Methodist Church; Type: surface; Access: private; Surface: asphalt; OSM way/1101854172"
     },
     {
       "name": "Watson Lot",

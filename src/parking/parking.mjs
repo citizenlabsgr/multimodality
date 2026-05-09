@@ -534,6 +534,11 @@ const PARKING_SPOT_STYLE_PRIVATE_LOT = {
   fillOpacity: 0.78,
 };
 
+/** Visible parking pin size (px). Invisible {@link PARKING_SPOT_MARKER_HIT_RADIUS} keeps taps usable on mobile. */
+const PARKING_SPOT_MARKER_RADIUS = 6;
+/** Transparent circleMarker radius (px) for touch / click; larger than {@link PARKING_SPOT_MARKER_RADIUS}. */
+const PARKING_SPOT_MARKER_HIT_RADIUS = 14;
+
 function circleStyleForParkingCategoryKey(key) {
   if (key === "public-garage") return PARKING_SPOT_STYLE_PUBLIC_GARAGE;
   if (key === "public-lot") return PARKING_SPOT_STYLE_PUBLIC_LOT;
@@ -619,6 +624,8 @@ function wavyApproxWalkChordLatLngs(a, b) {
  * getBoundsZoom, so max-zoom uses 2× each axis.
  */
 const PARKING_MAP_FIT_PADDING = [36, 36];
+/** Inset when framing placeholder venue pins only (smaller ⇒ more zoom; balance vs. pin clipping). */
+const PARKING_MAP_FIT_DEST_ONLY_PADDING = [18, 18];
 /** Upper bound for `fitBounds` / `setView` — must not use “zoom that fits all city context” (a *low* zoom). */
 const PARKING_MAP_FIT_MAX_ZOOM = 18;
 
@@ -1249,6 +1256,21 @@ function getParkingDestinationLatLng() {
   if (!slug) return null;
   const dest = appData?.destinations?.find((d) => d.slug === slug);
   return parkingLatLngFromDestinationRecord(dest);
+}
+
+/** Every destination with valid coordinates — for fitting the map when no venue is selected. */
+function getAllParkingDestinationFitLatLngs() {
+  const out = [];
+  const destinations = Array.isArray(appData?.destinations)
+    ? appData.destinations
+    : [];
+  for (const dest of destinations) {
+    const slug = dest?.slug;
+    if (typeof slug !== "string" || slug.trim() === "") continue;
+    const ll = parkingLatLngFromDestinationRecord(dest);
+    if (ll) out.push(ll);
+  }
+  return out;
 }
 
 function buildParkingFilterBar() {
@@ -2165,16 +2187,29 @@ function syncParkingSpots(map) {
 
   for (const s of spots) {
     const style = circleStyleForParkingCategoryKey(s.categoryKey);
-    const m = L.circleMarker([s.lat, s.lng], {
+    const ll = [s.lat, s.lng];
+    const hit = L.circleMarker(ll, {
+      radius: PARKING_SPOT_MARKER_HIT_RADIUS,
+      stroke: false,
+      fill: true,
+      fillColor: "#000000",
+      fillOpacity: 0,
+      interactive: true,
+      parkingCategoryKey: s.categoryKey,
+      parkingSpotPopupLayer: true,
+    });
+    const visible = L.circleMarker(ll, {
       ...style,
-      radius: 10,
+      radius: PARKING_SPOT_MARKER_RADIUS,
       weight: 1,
       parkingCategoryKey: s.categoryKey,
+      interactive: false,
     });
-    attachParkingSpotStartButton(m, s);
-    m.addTo(g);
+    attachParkingSpotStartButton(hit, s);
+    const fg = L.featureGroup([hit, visible]);
+    fg.addTo(g);
     if (markersByCategory[s.categoryKey])
-      markersByCategory[s.categoryKey].push(m);
+      markersByCategory[s.categoryKey].push(fg);
   }
 
   // Paint order: see `PARKING_CATEGORY_PAINT_ORDER` (purple public garage above orange private garage).
@@ -2739,7 +2774,6 @@ function fitParkingMapToAllContent(map) {
   const spots = getAllParkingSpotMarkers();
   const spotLatLngs = spots.map((s) => [s.lat, s.lng]);
   const destLl = getParkingDestinationLatLng();
-  // Fit to start+venue only when user explicitly provided `start`/`spot` in the URL.
   const startId = getParkingSpotIdForHash();
   const startPt = startId ? parseParkingSpotIdToken(startId) : null;
 
@@ -2752,7 +2786,31 @@ function fitParkingMapToAllContent(map) {
   const cappedSetZoom = (latlng, z) =>
     map.setView(latlng, Math.min(z, fitMaxZoom));
 
-  /** Zoom to **start** (green pick) + **venue** (red pin) when both are active. */
+  const noFinish = !destLl;
+  const allDestLatLngs = noFinish ? getAllParkingDestinationFitLatLngs() : [];
+
+  /**
+   * No venue: frame **only** placeholder destination pins — not parking (parking spreads
+   * far past venues and leaves empty margin, especially on tall viewports).
+   */
+  if (noFinish && allDestLatLngs.length > 1) {
+    map.fitBounds(L.latLngBounds(allDestLatLngs), {
+      padding: PARKING_MAP_FIT_DEST_ONLY_PADDING,
+      maxZoom: fitMaxZoom,
+    });
+    return;
+  }
+
+  /**
+   * Finish selected, **no** `start=` yet: frame visible parking pins **and** the venue so the red
+   * finish pin stays on-screen when the pick pool is far from the destination (e.g. Belknap Park).
+   */
+  if (destLl && !startPt && spotLatLngs.length > 0) {
+    map.fitBounds(L.latLngBounds([...spotLatLngs, destLl]), fitOpts);
+    return;
+  }
+
+  /** `start=` committed: frame chosen parking + venue for trip context. */
   if (destLl && startPt) {
     map.fitBounds(
       L.latLngBounds([[startPt.lat, startPt.lng], destLl]),
@@ -2761,18 +2819,31 @@ function fitParkingMapToAllContent(map) {
     return;
   }
 
-  // Fit to parking pins only. Including the venue in `fitBounds` stretches the bbox
-  // so much that turning categories off often leaves zoom unchanged.
+  /** Rare: one destination in data — keep it in view when also fitting many spots. */
+  const mergeDestWhenNoFinish = (pts) =>
+    noFinish && allDestLatLngs.length === 1 ? [...pts, ...allDestLatLngs] : pts;
+
+  // Fit to parking pins only (no `finish=` yet, or single-destination data edge case).
   if (spotLatLngs.length > 1) {
-    map.fitBounds(L.latLngBounds(spotLatLngs), fitOpts);
+    map.fitBounds(L.latLngBounds(mergeDestWhenNoFinish(spotLatLngs)), fitOpts);
     return;
   }
   if (spotLatLngs.length === 1) {
+    const merged = mergeDestWhenNoFinish(spotLatLngs);
+    if (merged.length > 1) {
+      map.fitBounds(L.latLngBounds(merged), fitOpts);
+      return;
+    }
     cappedSetZoom(spotLatLngs[0], 15);
     return;
   }
   if (destLl) {
     cappedSetZoom(destLl, 15);
+    return;
+  }
+
+  if (allDestLatLngs.length === 1) {
+    cappedSetZoom(allDestLatLngs[0], 15);
     return;
   }
 
@@ -2813,7 +2884,7 @@ function syncParkingRouteInstructionsPanel() {
 
   if (!destLl) {
     body.innerHTML = routeNextHtml(
-      `Choose <strong class="font-semibold text-slate-800">where you're going</strong> with the destination menu above.`,
+      `Choose <strong class="font-semibold text-slate-800">where you're going</strong> with the destination menu above or click on one of the map markers.`,
     );
     return;
   }

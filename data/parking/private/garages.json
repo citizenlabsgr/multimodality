@@ -78,6 +78,38 @@
       "availability": "Operator: City of Grand Rapids; Type: multi-storey; Access: yes; Fee: yes; Surface: concrete; OSM way/163042080"
     },
     {
+      "name": "Ramp 6",
+      "location": {
+        "latitude": 42.968471,
+        "longitude": -85.664302
+      },
+      "availability": "Type: multi-storey; OSM way/244637838"
+    },
+    {
+      "name": "Ramp 7",
+      "location": {
+        "latitude": 42.970902,
+        "longitude": -85.663189
+      },
+      "availability": "Type: multi-storey; Access: customers; OSM way/244643859"
+    },
+    {
+      "name": "Sneden Hall Parking Ramp",
+      "location": {
+        "latitude": 42.9643,
+        "longitude": -85.658369
+      },
+      "availability": "Operator: Grand Rapids Community College; Type: multi-storey; Fee: yes; OSM way/378037528"
+    },
+    {
+      "name": "Studio Park(ing)",
+      "location": {
+        "latitude": 42.960161,
+        "longitude": -85.671661
+      },
+      "availability": "Type: multi-storey; Access: yes; Fee: yes; OSM way/764499652"
+    },
+    {
       "name": "Unknown",
       "location": {
         "latitude": 42.953865,
@@ -244,38 +276,6 @@
         "longitude": -85.67086
       },
       "availability": "Type: multi-storey; OSM way/1340003676"
-    },
-    {
-      "name": "Ramp 6",
-      "location": {
-        "latitude": 42.968471,
-        "longitude": -85.664302
-      },
-      "availability": "Type: multi-storey; OSM way/244637838"
-    },
-    {
-      "name": "Ramp 7",
-      "location": {
-        "latitude": 42.970902,
-        "longitude": -85.663189
-      },
-      "availability": "Type: multi-storey; Access: customers; OSM way/244643859"
-    },
-    {
-      "name": "Sneden Hall Parking Ramp",
-      "location": {
-        "latitude": 42.9643,
-        "longitude": -85.658369
-      },
-      "availability": "Operator: Grand Rapids Community College; Type: multi-storey; Fee: yes; OSM way/378037528"
-    },
-    {
-      "name": "Studio Park(ing)",
-      "location": {
-        "latitude": 42.960161,
-        "longitude": -85.671661
-      },
-      "availability": "Type: multi-storey; Access: yes; Fee: yes; OSM way/764499652"
     },
     {
       "name": "Wege Parking Ramp",

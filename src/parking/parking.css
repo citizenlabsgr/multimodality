@@ -25,9 +25,11 @@ main.parking-map-active {
   overflow: hidden;
 }
 
+/* Fixed height: no grow/shrink between placeholder vs full route; fits ~4 steps + footnote (scroll if needed). */
 #parkingRouteInstructions {
   flex: 0 0 auto;
-  max-height: min(30dvh, 11.5rem);
+  min-height: 16rem;
+  max-height: 16rem;
   overflow: hidden;
 }
 

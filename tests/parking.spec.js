@@ -320,17 +320,19 @@ test.describe("Parking map (#/parking)", () => {
         const g = globalThis.__parkingSpotsLayerForTest;
         if (!g || !g.eachLayer) throw new Error("missing parking spots layer");
         let opened = false;
-        g.eachLayer((sub) => {
-          if (opened) return;
-          if (
-            sub.options &&
-            typeof sub.getLatLng === "function" &&
-            sub.options.radius === 10 &&
-            typeof sub.openPopup === "function"
-          ) {
-            sub.openPopup();
-            opened = true;
-          }
+        g.eachLayer((group) => {
+          if (opened || !group?.eachLayer) return;
+          group.eachLayer((sub) => {
+            if (opened) return;
+            if (
+              sub.options?.parkingSpotPopupLayer &&
+              typeof sub.getLatLng === "function" &&
+              typeof sub.openPopup === "function"
+            ) {
+              sub.openPopup();
+              opened = true;
+            }
+          });
         });
         if (!opened) throw new Error("no parking circleMarker found");
       });
@@ -358,24 +360,27 @@ test.describe("Parking map (#/parking)", () => {
           if (!g || !g.eachLayer)
             throw new Error("missing parking spots layer");
           let opened = false;
-          g.eachLayer((sub) => {
-            if (opened) return;
-            if (
-              sub.options?.parkingCategoryKey !== categoryKey ||
-              sub.options?.radius !== 10 ||
-              typeof sub.getLatLng !== "function" ||
-              typeof sub.openPopup !== "function"
-            ) {
-              return;
-            }
-            const ll = sub.getLatLng();
-            if (
-              ll.lat.toFixed(6) === wantLat &&
-              ll.lng.toFixed(6) === wantLng
-            ) {
-              sub.openPopup();
-              opened = true;
-            }
+          g.eachLayer((group) => {
+            if (opened || !group?.eachLayer) return;
+            group.eachLayer((sub) => {
+              if (opened) return;
+              if (
+                sub.options?.parkingCategoryKey !== categoryKey ||
+                !sub.options?.parkingSpotPopupLayer ||
+                typeof sub.getLatLng !== "function" ||
+                typeof sub.openPopup !== "function"
+              ) {
+                return;
+              }
+              const ll = sub.getLatLng();
+              if (
+                ll.lat.toFixed(6) === wantLat &&
+                ll.lng.toFixed(6) === wantLng
+              ) {
+                sub.openPopup();
+                opened = true;
+              }
+            });
           });
           if (!opened)
             throw new Error("no parking circleMarker at spot coords");
@@ -1024,19 +1029,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "public-garage" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === lat.toFixed(6) &&
-                ll.lng.toFixed(6) === lng.toFixed(6)
+                m.options?.parkingCategoryKey === "public-garage" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1098,19 +1107,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "public-lot" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
-                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                m.options?.parkingCategoryKey === "public-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1129,19 +1142,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "public-lot" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
-                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                m.options?.parkingCategoryKey === "public-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1160,19 +1177,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "public-lot" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
-                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                m.options?.parkingCategoryKey === "public-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1227,19 +1248,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "public-lot" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === freeTierCoords.lat.toFixed(6) &&
-                ll.lng.toFixed(6) === freeTierCoords.lng.toFixed(6)
+                m.options?.parkingCategoryKey === "public-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === freeTierCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === freeTierCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1294,19 +1319,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "private-lot" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
-                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                m.options?.parkingCategoryKey === "private-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1325,19 +1354,23 @@ test.describe("Parking map (#/parking)", () => {
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
           let found = false;
-          g.eachLayer((m) => {
-            if (
-              m.options?.parkingCategoryKey === "private-lot" &&
-              typeof m.getLatLng === "function"
-            ) {
-              const ll = m.getLatLng();
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
               if (
-                ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
-                ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                m.options?.parkingCategoryKey === "private-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
               ) {
-                found = true;
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === unknownCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === unknownCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
               }
-            }
+            });
           });
           return found;
         },
@@ -1694,7 +1727,7 @@ test.describe("Parking map (#/parking)", () => {
   });
 
   test("refits map view when a category filter changes", async ({ page }) => {
-    await page.goto("/#/parking");
+    await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
@@ -1729,7 +1762,7 @@ test.describe("Parking map (#/parking)", () => {
   test("refits when private-lot filter is turned off (tighter bbox can zoom in)", async ({
     page,
   }) => {
-    await page.goto("/#/parking");
+    await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
@@ -1887,12 +1920,20 @@ test.describe("Parking map (#/parking)", () => {
       if (!g) return { ok: false, error: "no parking spots layer" };
 
       const rows = [];
-      g.eachLayer((m) => {
-        const k = m.options?.parkingCategoryKey;
-        if (!k || typeof m.getElement !== "function") return;
-        const el = m.getElement();
-        if (!el) return;
-        rows.push({ k, el });
+      g.eachLayer((group) => {
+        if (!group?.eachLayer) return;
+        group.eachLayer((m) => {
+          const k = m.options?.parkingCategoryKey;
+          if (
+            !k ||
+            m.options?.parkingSpotPopupLayer ||
+            typeof m.getElement !== "function"
+          )
+            return;
+          const el = m.getElement();
+          if (!el) return;
+          rows.push({ k, el });
+        });
       });
       if (rows.length < 2) return { ok: false, error: "too few markers" };
 
@@ -1929,12 +1970,44 @@ test.describe("Parking map (#/parking)", () => {
   });
 });
 
+/**
+ * Path to the static app shell before the hash (pair with `use.baseURL` in playwright.config.js).
+ * Example: `"/"` → `http://localhost:8080/#/parking`.
+ */
+const DEFAULT_APP_PAGE = "/";
+
+/**
+ * `#/parking` layout snapshots: **`{device}-{n}-{variant}.png`** (e.g. **`desktop-1-blank.png`**).
+ * Hash paths are under `${DEFAULT_APP_PAGE}#/…`.
+ */
+const PARKING_SNAPSHOT_CASES = [
+  { n: "1", variant: "blank", hashPath: "parking" },
+  {
+    n: "2",
+    variant: "finish",
+    hashPath: "parking?finish=acrisure-amphitheater&walk=0.5",
+  },
+  {
+    n: "3",
+    variant: "start",
+    hashPath:
+      "parking?finish=acrisure-amphitheater&walk=0.5&start=private-lot~42.972319~-85.682491",
+  },
+];
+
+const PARKING_SNAPSHOT_VIEWPORTS = [
+  { name: "phone", width: 390, height: 844 },
+  { name: "tablet", width: 834, height: 1112 },
+  { name: "desktop", width: 1440, height: 900 },
+];
+
 /** Fixed layout captures for `#/parking` via Playwright snapshot compare (`snapshotPathTemplate` in playwright.config.js). */
-async function assertParkingViewportScreenshot(page, name, width, height) {
+async function assertParkingViewportScreenshot(
+  page,
+  { hashPath, snapshotName, width, height },
+) {
   await page.setViewportSize({ width, height });
-  await page.goto(
-    "/#/parking?finish=acrisure-amphitheater&walk=0.5&start=private-lot~42.972319~-85.682491",
-  );
+  await page.goto(`${DEFAULT_APP_PAGE}#/${hashPath}`);
   await page.waitForFunction(() => typeof globalThis.L !== "undefined");
   await page.waitForFunction(
     () =>
@@ -1967,8 +2040,9 @@ async function assertParkingViewportScreenshot(page, name, width, height) {
       ),
   );
 
-  await expect(page).toHaveScreenshot(`${name}.png`, {
+  await expect(page).toHaveScreenshot(`${snapshotName}.png`, {
     fullPage: true,
+    timeout: 20_000,
   });
 }
 
@@ -1976,18 +2050,26 @@ test.describe(
   "@snapshot Parking layout viewports",
   { tag: "@snapshot" },
   () => {
-    test.describe.configure({ timeout: 30_000 });
+    /** Avoid hammering `live-server` / data fetches — parallel runs caused flaky loads and unstable tiles. */
+    test.describe.configure({ mode: "serial", timeout: 45_000 });
 
-    test("phone", { tag: "@snapshot" }, async ({ page }) => {
-      await assertParkingViewportScreenshot(page, "phone", 390, 844);
-    });
-
-    test("tablet", { tag: "@snapshot" }, async ({ page }) => {
-      await assertParkingViewportScreenshot(page, "tablet", 834, 1112);
-    });
-
-    test("desktop", { tag: "@snapshot" }, async ({ page }) => {
-      await assertParkingViewportScreenshot(page, "desktop", 1440, 900);
-    });
+    for (const { n, variant, hashPath } of PARKING_SNAPSHOT_CASES) {
+      test.describe(`${n}-${variant}`, () => {
+        for (const {
+          name: device,
+          width,
+          height,
+        } of PARKING_SNAPSHOT_VIEWPORTS) {
+          test(`${device}`, { tag: "@snapshot" }, async ({ page }) => {
+            await assertParkingViewportScreenshot(page, {
+              hashPath,
+              snapshotName: `${device}-${n}-${variant}`,
+              width,
+              height,
+            });
+          });
+        }
+      });
+    }
   },
 );
