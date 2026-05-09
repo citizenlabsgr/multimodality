@@ -7,6 +7,10 @@ import {
   compareParkingWalkVersusDashMinutes,
   resolveParkingRoutePace,
 } from "./parking-route-planning.mjs";
+import {
+  circleStyleForParkingCategoryKey,
+  hexToRgba,
+} from "../shared/parking-map-marker-styles.mjs";
 
 /**
  * Parking map category ids — same strings as `#/parking?location=` (not `appData.parking` JSON keys).
@@ -509,43 +513,10 @@ function parkingCategoryIdFromUrlToken(token) {
 
 const PARKING_DESTINATION_PLACEHOLDER = "Where are you going?";
 
-/** ArcGIS public garages */
-const PARKING_SPOT_STYLE_PUBLIC_GARAGE = {
-  color: "#4338ca",
-  fillColor: "#818cf8",
-  fillOpacity: 0.76,
-};
-/** ArcGIS public lots */
-const PARKING_SPOT_STYLE_PUBLIC_LOT = {
-  color: "#1e40af",
-  fillColor: "#60a5fa",
-  fillOpacity: 0.75,
-};
-/** OSM private garages — deeper orange (paired with private lots). */
-const PARKING_SPOT_STYLE_PRIVATE_GARAGE = {
-  color: "#b45309",
-  fillColor: "#f59e0b",
-  fillOpacity: 0.78,
-};
-/** OSM private lots — lighter yellow-amber (same warm family). */
-const PARKING_SPOT_STYLE_PRIVATE_LOT = {
-  color: "#ca8a04",
-  fillColor: "#fde047",
-  fillOpacity: 0.78,
-};
-
 /** Visible parking pin size (px). Invisible {@link PARKING_SPOT_MARKER_HIT_RADIUS} keeps taps usable on mobile. */
 const PARKING_SPOT_MARKER_RADIUS = 6;
 /** Transparent circleMarker radius (px) for touch / click; larger than {@link PARKING_SPOT_MARKER_RADIUS}. */
 const PARKING_SPOT_MARKER_HIT_RADIUS = 14;
-
-function circleStyleForParkingCategoryKey(key) {
-  if (key === "public-garage") return PARKING_SPOT_STYLE_PUBLIC_GARAGE;
-  if (key === "public-lot") return PARKING_SPOT_STYLE_PUBLIC_LOT;
-  if (key === "private-garage") return PARKING_SPOT_STYLE_PRIVATE_GARAGE;
-  if (key === "private-lot") return PARKING_SPOT_STYLE_PRIVATE_LOT;
-  return PARKING_SPOT_STYLE_PUBLIC_GARAGE;
-}
 
 /** Index in overlap paint order (`PARKING_CATEGORY_PAINT_ORDER`, bottom → top). */
 function parkingCategoryPaintIndex(categoryKey) {
@@ -665,16 +636,6 @@ function darkenCssHex(hex, factor) {
       .toString(16)
       .padStart(2, "0");
   return `#${d(r)}${d(g)}${d(b)}`;
-}
-
-function hexToRgba(hex, alpha) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex);
-  if (!m) return `rgba(148, 163, 184, ${alpha})`;
-  const n = parseInt(m[1], 16);
-  const r = (n >> 16) & 255;
-  const g = (n >> 8) & 255;
-  const b = n & 255;
-  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function formatParkingPrice(pricing, categoryKey) {

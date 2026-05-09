@@ -26,11 +26,9 @@ test.describe("Data routes", () => {
     await expect(page.locator("#dataView")).toBeVisible();
     await expect(page.locator("#dataViewParkingModes")).toBeVisible();
     await expect(
-      page.locator("#data-parking-dataset.data-parking-dataset-select"),
+      page.locator("#data-parking-dataset.data-parking-dataset-trigger"),
     ).toBeVisible();
-    await expect(
-      page.locator("#data-parking-dataset option[value='']"),
-    ).toHaveText("All");
+    await expect(page.locator("#data-parking-dataset")).toContainText("All");
     await expect(page.locator("#dataViewMap")).toBeVisible();
   });
 
@@ -72,13 +70,19 @@ test.describe("Data routes", () => {
     await page.goto("/#/data/parking");
     await page.waitForSelector("#data-parking-dataset", { state: "visible" });
 
-    const dropdown = page.locator("#data-parking-dataset");
-    await expect(dropdown).toBeVisible();
-    await dropdown.selectOption("garages");
+    const trigger = page.locator("#data-parking-dataset");
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    await page
+      .locator('.data-parking-dataset-option[data-dataset-value="garages"]')
+      .click();
     await page.waitForTimeout(300);
     await expect(page).toHaveURL(/#\/data\/parking\?dataset=garages/);
 
-    await dropdown.selectOption("");
+    await trigger.click();
+    await page
+      .locator('.data-parking-dataset-option[data-dataset-value=""]')
+      .click();
     await page.waitForTimeout(300);
     await expect(page).toHaveURL(/#\/data\/parking$/);
   });

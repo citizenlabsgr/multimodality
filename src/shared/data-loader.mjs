@@ -9,6 +9,14 @@ export const MODES_PAGE_EMPTY_MAP_CENTER = [42.96333, -85.66806];
 /** Same 1.75 mi from MODES_PAGE_EMPTY_MAP_CENTER as fetch_bike_parking.py, fetch_car_parking_osm.py, fetch_car_parking_arcgis.py (surface lots), etc. */
 export const DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER = 1.75;
 
+/**
+ * OSM private garage/lot pins within this Haversine distance (mi) of any City
+ * (ArcGIS) garage or lot are dropped — prefer official pricing/names (e.g. Museum
+ * ramp vs OSM “Museum Parking”). Must match `OFFICIAL_VS_OSM_DEDUP_MILES` in
+ * scripts/fetch_car_parking_osm.py.
+ */
+const OFFICIAL_VS_OSM_DEDUP_MILES = 0.06;
+
 export function haversineMiles(lat1, lon1, lat2, lon2) {
   const toRad = (deg) => (deg * Math.PI) / 180;
   const R = 3959;
@@ -26,6 +34,53 @@ export function haversineMiles(lat1, lon1, lat2, lon2) {
 export function roundCoord5(n) {
   if (typeof n !== "number" || Number.isNaN(n)) return n;
   return Math.round(n * 1e5) / 1e5;
+}
+
+function collectOfficialDriveParkingLatLngs(parking) {
+  const out = [];
+  for (const key of ["garages", "lots"]) {
+    const items = parking[key];
+    if (!Array.isArray(items)) continue;
+    for (const item of items) {
+      const loc = item?.location;
+      if (
+        loc &&
+        typeof loc.latitude === "number" &&
+        typeof loc.longitude === "number"
+      ) {
+        out.push([loc.latitude, loc.longitude]);
+      }
+    }
+  }
+  return out;
+}
+
+/** Remove OSM pins that duplicate ArcGIS facilities (nearby centroid). */
+function dedupeOsmParkingNearOfficial(parking) {
+  const official = collectOfficialDriveParkingLatLngs(parking);
+  if (!official.length) return;
+  const cap = OFFICIAL_VS_OSM_DEDUP_MILES;
+  for (const osmKey of ["osmGarages", "osmLots"]) {
+    const arr = parking[osmKey];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    parking[osmKey] = arr.filter((item) => {
+      const loc = item?.location;
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      ) {
+        return false;
+      }
+      const { latitude: lat, longitude: lng } = loc;
+      for (const [olat, olng] of official) {
+        if (haversineMiles(lat, lng, olat, olng) <= cap + 1e-12) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
 }
 
 export const FALLBACK_DATA = {
@@ -186,6 +241,8 @@ export async function loadData() {
         );
       });
     }
+
+    dedupeOsmParkingNearOfficial(parking);
 
     const strategyPromises = destinations.map((d) =>
       fetch(`data/strategies/${d.slug}.json`).then((r) =>

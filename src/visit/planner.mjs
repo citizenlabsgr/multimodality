@@ -8,6 +8,12 @@ import {
   FALLBACK_DATA,
 } from "../shared/data-loader.mjs";
 import {
+  compareParkingDataViewPointsForPaintOrder,
+  hexToRgba,
+  parkingDatasetSwatchHtml,
+  styleForParkingDatasetKey,
+} from "../shared/parking-map-marker-styles.mjs";
+import {
   hideParkingView,
   isParkingRoute,
   parseTotalSpacesFromAvailability,
@@ -813,7 +819,7 @@ function updateDataViewMap(points, options) {
   const extraPolylines = Array.isArray(opts.extraPolylines)
     ? opts.extraPolylines
     : [];
-  const pointList = Array.isArray(points) ? points : [];
+  let pointList = Array.isArray(points) ? points : [];
   const container = document.getElementById("dataViewMap");
   if (!container) return;
   if (pointList.length === 0 && extraPolylines.length === 0) {
@@ -822,6 +828,9 @@ function updateDataViewMap(points, options) {
   }
   container.classList.remove("hidden");
   if (typeof L === "undefined") return;
+  if (pointList.length > 0 && pointList.every((p) => p.parkingItem != null)) {
+    pointList = [...pointList].sort(compareParkingDataViewPointsForPaintOrder);
+  }
   let centerLat;
   let centerLng;
   if (pointList.length > 0) {
@@ -879,9 +888,26 @@ function updateDataViewMap(points, options) {
       (p.destinationName != null && p.slug == null);
     const isDestination = p.isDestination === true;
     const isParking = p.parkingItem != null;
-    const marker = L.marker([p.lat, p.lng], {
+    const parkingDotStyle =
+      isParking && p.parkingDatasetKey
+        ? styleForParkingDatasetKey(p.parkingDatasetKey)
+        : null;
+    const markerOptions = {
       draggable: isStrategyStep || isDestination || isParking,
-    });
+    };
+    if (parkingDotStyle) {
+      const fill = hexToRgba(
+        parkingDotStyle.fillColor,
+        parkingDotStyle.fillOpacity,
+      );
+      markerOptions.icon = L.divIcon({
+        className: "data-view-parking-dot-marker",
+        html: `<span style="display:block;width:12px;height:12px;border-radius:50%;background:${fill};border:1px solid ${parkingDotStyle.color};box-sizing:border-box"></span>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6],
+      });
+    }
+    const marker = L.marker([p.lat, p.lng], markerOptions);
     if (isDestination) marker._originalLatLng = L.latLng(p.lat, p.lng);
     if (isStrategyStep || isParking)
       marker._originalLatLng = L.latLng(p.lat, p.lng);
@@ -1549,12 +1575,25 @@ function renderDataView() {
     );
     if (dataViewParkingModes) {
       dataViewParkingModes.classList.remove("hidden");
-      const optionsHtml = [
-        '<option value="">All</option>',
-        ...keysForDropdown.map(
-          (p) =>
-            `<option value="${escapeHtml(p.key)}"${effectiveKey === p.key ? " selected" : ""}>${escapeHtml(categoryNames[p.key] || p.file)}</option>`,
-        ),
+      const allSwatchesMini = keysForDropdown
+        .map((p) =>
+          parkingDatasetSwatchHtml(
+            styleForParkingDatasetKey(p.key),
+            "h-2.5 w-2.5",
+          ),
+        )
+        .join("");
+      const triggerInner =
+        effectiveKey === ""
+          ? `<span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span class="min-w-0 truncate">All</span><span class="ml-1 shrink-0 text-slate-500" aria-hidden="true">▾</span>`
+          : `${parkingDatasetSwatchHtml(styleForParkingDatasetKey(effectiveKey))}<span class="min-w-0 truncate">${escapeHtml(categoryNames[effectiveKey] || effectiveKey)}</span><span class="ml-1 shrink-0 text-slate-500" aria-hidden="true">▾</span>`;
+      const menuRows = [
+        `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${effectiveKey === "" ? " bg-slate-100" : ""}" data-dataset-value="" aria-selected="${effectiveKey === "" ? "true" : "false"}"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span>All</span></button>`,
+        ...keysForDropdown.map((p) => {
+          const label = categoryNames[p.key] || p.file;
+          const sel = effectiveKey === p.key;
+          return `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${sel ? " bg-slate-100" : ""}" data-dataset-value="${escapeHtml(p.key)}" aria-selected="${sel ? "true" : "false"}">${parkingDatasetSwatchHtml(styleForParkingDatasetKey(p.key))}<span class="min-w-0 truncate">${escapeHtml(label)}</span></button>`;
+        }),
       ].join("");
       const modeButtonsHtml = PARKING_DATA_MODES.map(
         (mode) =>
@@ -1567,8 +1606,11 @@ function renderDataView() {
           ${modeButtonsHtml}
         </div>
         <div class="flex items-center gap-2">
-          <label for="data-parking-dataset" class="text-sm font-medium text-slate-700">Dataset:</label>
-          <select id="data-parking-dataset" class="data-parking-dataset-select rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white">${optionsHtml}</select>
+          <label for="data-parking-dataset" class="text-sm font-medium text-slate-700 shrink-0">Dataset:</label>
+          <div class="data-parking-dataset-dropdown relative min-w-[10rem] max-w-[min(100%,18rem)]">
+            <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
+            <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
+          </div>
         </div>`;
       PARKING_DATA_MODES.forEach((mode) => {
         const btn = dataViewParkingModes.querySelector(
@@ -1610,15 +1652,51 @@ function renderDataView() {
           });
         }
       });
-      dataViewParkingModes
-        .querySelector(".data-parking-dataset-select")
-        .addEventListener("change", (e) => {
-          const value = e.target.value;
-          window.location.hash = buildDataParkingHash({
-            dataset: value || undefined,
-            modes: selectedModes,
+      const ddRoot = dataViewParkingModes.querySelector(
+        ".data-parking-dataset-dropdown",
+      );
+      const dsTrigger = ddRoot?.querySelector("#data-parking-dataset");
+      const dsPanel = ddRoot?.querySelector("#data-parking-dataset-panel");
+      if (ddRoot && dsTrigger && dsPanel) {
+        let outsideClose = null;
+        const closeDatasetPanel = () => {
+          dsPanel.classList.add("hidden");
+          dsTrigger.setAttribute("aria-expanded", "false");
+          if (outsideClose) {
+            document.removeEventListener("click", outsideClose, true);
+            outsideClose = null;
+          }
+        };
+        const openDatasetPanel = () => {
+          dsPanel.classList.remove("hidden");
+          dsTrigger.setAttribute("aria-expanded", "true");
+          requestAnimationFrame(() => {
+            outsideClose = (ev) => {
+              if (!ddRoot.contains(ev.target)) closeDatasetPanel();
+            };
+            document.addEventListener("click", outsideClose, true);
           });
+        };
+        dsTrigger.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          if (dsPanel.classList.contains("hidden")) openDatasetPanel();
+          else closeDatasetPanel();
         });
+        dsPanel
+          .querySelectorAll(".data-parking-dataset-option")
+          .forEach((btn) => {
+            btn.addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              const raw = btn.getAttribute("data-dataset-value");
+              const value = raw != null ? raw : "";
+              closeDatasetPanel();
+              window.location.hash = buildDataParkingHash({
+                dataset: value || undefined,
+                modes: selectedModes,
+              });
+            });
+          });
+      }
     }
 
     const filteredKeys = effectiveKey
@@ -1641,6 +1719,7 @@ function renderDataView() {
               locationName: item.name || "—",
               price: formatParkingPrice(item.pricing, p.key),
               parkingItem: { ...item },
+              parkingDatasetKey: p.key,
             });
           }
         });
@@ -1793,6 +1872,7 @@ function renderDataView() {
           locationName: item.name || "—",
           price: formatParkingPrice(item.pricing, categoryKey),
           parkingItem: { ...item },
+          parkingDatasetKey: categoryKey,
         };
       });
   } else {
