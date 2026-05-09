@@ -84,7 +84,7 @@ test.describe("Parking map (#/parking)", () => {
       walk: window.appData?.parkingRoutePace?.walkMinutesPerMile,
       dash: window.appData?.parkingRoutePace?.dashMilesPerHour,
     }));
-    expect(pace.walk).toBe(20);
+    expect(pace.walk).toBe(24);
     expect(pace.dash).toBe(12);
   });
 
@@ -1341,7 +1341,7 @@ test.describe("Parking map (#/parking)", () => {
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("5");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-        "0.5 mi (~10 min)",
+        "0.5 mi (~12 min)",
       );
     });
 
@@ -1350,7 +1350,7 @@ test.describe("Parking map (#/parking)", () => {
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("15");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-        "1.5 mi (~30 min)",
+        "1.5 mi (~36 min)",
       );
     });
 
@@ -1368,7 +1368,7 @@ test.describe("Parking map (#/parking)", () => {
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("3");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-        "2,000 ft (~6 min)",
+        "2,000 ft (~7 min)",
       );
     });
 
@@ -1377,7 +1377,7 @@ test.describe("Parking map (#/parking)", () => {
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("4");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-        "2,000 ft (~8 min)",
+        "2,000 ft (~10 min)",
       );
     });
 
@@ -1628,7 +1628,7 @@ test.describe("Parking map (#/parking)", () => {
     );
     await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("5");
     await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-      "0.5 mi (~10 min)",
+      "0.5 mi (~12 min)",
     );
     await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
     await expect(page.locator("#parkingDestChevron")).toBeVisible();

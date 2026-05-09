@@ -7,7 +7,7 @@ import {
 } from "../src/parking/parking-route-planning.mjs";
 
 test.describe("Parking route planning", () => {
-  test("defaults match historical ~3 mph walk and 12 mph DASH", () => {
+  test("defaults match ~2.5 mph walk and 12 mph DASH", () => {
     const pace = resolveParkingRoutePace({});
     expect(pace.walkMinutesPerMile).toBe(
       FALLBACK_PARKING_WALK_MINUTES_PER_MILE,

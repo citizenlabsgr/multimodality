@@ -4,7 +4,7 @@
  */
 
 /** When `config.json` omits `parkingRoutePace` or a field is invalid. */
-export const FALLBACK_PARKING_WALK_MINUTES_PER_MILE = 20;
+export const FALLBACK_PARKING_WALK_MINUTES_PER_MILE = 24;
 export const FALLBACK_PARKING_DASH_MILES_PER_HOUR = 12;
 
 /**

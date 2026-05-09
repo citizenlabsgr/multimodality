@@ -19,6 +19,11 @@ import {
   parseTotalSpacesFromAvailability,
   renderParkingView,
 } from "../parking/parking.mjs";
+import { resolveParkingRoutePace } from "../parking/parking-route-planning.mjs";
+
+function visitWalkMinutesPerMile() {
+  return resolveParkingRoutePace(appData?.parkingRoutePace).walkMinutesPerMile;
+}
 
 /**
  * Visit planner (#/visit), modes explainer (#/modes), data explorer (#/data), parking map (#/parking).
@@ -2090,7 +2095,7 @@ function updatePreferencesVisibility() {
   const walkTimeValue = document.getElementById("walkTimeValue");
   walkValue.textContent = state.walkMiles.toFixed(1);
   walkUnit.textContent = " miles";
-  const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+  const walkMinutes = Math.round(state.walkMiles * visitWalkMinutesPerMile());
   if (walkTimeValue) walkTimeValue.textContent = walkMinutes;
   if (walkTime) walkTime.style.display = "inline";
 
@@ -2281,8 +2286,7 @@ walkSlider.addEventListener("input", (e) => {
   if (!walkSlider.disabled) {
     walkValue.textContent = state.walkMiles.toFixed(1);
     walkUnit.textContent = " miles";
-    // Calculate walking time (assuming 3 mph average walking speed)
-    const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+    const walkMinutes = Math.round(state.walkMiles * visitWalkMinutesPerMile());
     if (walkTimeValue) walkTimeValue.textContent = walkMinutes;
     if (walkTime) walkTime.style.display = "inline";
   }
@@ -2747,7 +2751,7 @@ function renderResults() {
     // Convert distance (miles) to approximate time (minutes) for display; schema keeps distance only
     const distanceToMinutes = (distanceMi, mode) => {
       if (distanceMi == null || typeof distanceMi !== "number") return null;
-      const minPerMile = mode === "walk" ? 20 : 3; // walk ~3 mph, other ~20 mph
+      const minPerMile = mode === "walk" ? visitWalkMinutesPerMile() : 3; // walk: config pace; drive ~20 mph
       const mins = Math.max(1, Math.round(distanceMi * minPerMile));
       return mins;
     };
@@ -5152,7 +5156,7 @@ async function init() {
   // Initialize walk time estimate
   const walkTimeValue = document.getElementById("walkTimeValue");
   if (walkTimeValue) {
-    const walkMinutes = Math.round(state.walkMiles * 20); // 3 mph = 20 min per mile
+    const walkMinutes = Math.round(state.walkMiles * visitWalkMinutesPerMile());
     walkTimeValue.textContent = walkMinutes;
   }
 
@@ -5273,7 +5277,7 @@ function resetAll() {
   if (walkValue) walkValue.textContent = state.walkMiles.toFixed(1);
   if (walkUnit) walkUnit.textContent = " miles";
   if (walkTimeValue) {
-    const walkMinutes = Math.round(state.walkMiles * 20);
+    const walkMinutes = Math.round(state.walkMiles * visitWalkMinutesPerMile());
     walkTimeValue.textContent = walkMinutes;
   }
   if (walkTime) walkTime.style.display = "inline";

@@ -125,7 +125,7 @@ export const FALLBACK_DATA = {
       "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park.",
   },
   parkingRoutePace: {
-    walkMinutesPerMile: 20,
+    walkMinutesPerMile: 24,
     dashMilesPerHour: 12,
   },
   destinations: [],

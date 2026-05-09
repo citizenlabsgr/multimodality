@@ -32,7 +32,7 @@ const PARKING_PAY_QUERY_KEY = "pay";
 const PARKING_PAY_QUERY_KEY_LEGACY = "maxEvening";
 
 /**
- * Straight-line miles to the **nearest DASH stop** from each parking pin (~3 mph for minute hints).
+ * Straight-line miles to the **nearest DASH stop** from each parking pin (minute hints from **`parkingRoutePace.walkMinutesPerMile`**, default ~2.5 mph).
  * **Internal/DOM index:** **0** → no distance; **1…15** → **0.1…1.5 mi**.
  * **default** index **5** = **0.5 mi** (URL omits `walk`).
  */
@@ -79,7 +79,7 @@ function parkingWalkDomFromInternal(internalIx) {
   return snapParkingWalkInternalIndex(internalIx);
 }
 
-/** Estimated walk time using `config.json` → **`parkingRoutePace.walkMinutesPerMile`** (~3 mph when 20). */
+/** Estimated walk time using `config.json` → **`parkingRoutePace.walkMinutesPerMile`** (~2.5 mph when 24). */
 function parkingWalkEstimateMinutesForMiles(miles) {
   if (!Number.isFinite(miles) || miles <= 0) return 0;
   const mpm = parkingWalkMinutesPerMileFromConfig();
@@ -2914,21 +2914,21 @@ function syncParkingRouteInstructionsPanel() {
 
     const steps = [];
     steps.push(
-      `<strong>Park</strong> at ${escapeHtml(parkLabel)}.${parkDetail}`,
+      `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkDetail}`,
     );
     if (sameTripStop) {
       steps.push(
-        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)}, then <strong>board and exit</strong> DASH at that stop.`,
+        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)}, then <strong>board and exit</strong> DASH at that stop`,
       );
     } else {
       steps.push(
-        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)} and <strong>board DASH</strong>.`,
+        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)} and <strong>board DASH</strong>`,
       );
       steps.push(
-        `<strong>Ride</strong> DASH to ${escapeHtml(multimodal.alightStop.label)} and <strong>exit</strong>.`,
+        `<strong>Ride</strong> DASH to ${escapeHtml(multimodal.alightStop.label)} and <strong>exit</strong>`,
       );
     }
-    steps.push(`<strong>Walk</strong> to ${escapeHtml(destName)}.`);
+    steps.push(`<strong>Walk</strong> to ${escapeHtml(destName)}`);
 
     body.innerHTML =
       listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose;
@@ -2936,8 +2936,8 @@ function syncParkingRouteInstructionsPanel() {
   }
 
   const steps = [
-    `<strong>Park</strong> at ${escapeHtml(parkLabel)}.${parkDetail}`,
-    `<strong>Walk</strong> to ${escapeHtml(destName)} — for this spot, door-to-door on foot is shown instead of DASH (often faster).`,
+    `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkDetail}`,
+    `<strong>Walk</strong> to ${escapeHtml(destName)} — for this spot, door-to-door on foot is shown instead of DASH (often faster)`,
   ];
   body.innerHTML =
     listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose;
