@@ -152,7 +152,7 @@ Each **item** (parking location) has:
 | `pricing`      | object | no       | Price info; shown in map popups. See below.                     |
 | `availability` | string | no       | e.g. "Good availability".                                       |
 
-**`pricing`** (optional): an object. The **data view** map shows one line chosen in this order: `events`, then `evening`, then `rate`, then `daytime`. The **`#/visit`** map popup uses **`events`** as the primary cost when ArcGIS **`EVENT_CHRG`** is present; if **`hourlyRate`** (`Hour_Rate`) is also set, it is shown after the event line (weekend/hourly context). When `events` is absent, `#/visit` falls back in order: `hourlyRate`, `evening`, `rate`, `daytime`. If none are present, the data-view map shows **"Unknown"** for private OSM garages/lots (`osmGarages`, `osmLots`) and **"Free"** for other categories. Examples: `{ "rate": "$8-$10 for 4 hours" }` or `{ "daytime": "Max $27", "evening": "$27-$30", "events": "$27-$30" }`.
+**`pricing`** (optional): an object. The **data view** map shows one line chosen in this order: `events`, then `evening`, then `rate`, then `daytime`. The **`#/visit`** map popup uses **`events`** as the primary cost when ArcGIS **`EVENT_CHRG`** is present; if **`hourlyRate`** (`Hour_Rate`) is also set, it is shown after the event line (weekend/hourly context). When `events` is absent, `#/visit` falls back in order: `hourlyRate`, `evening`, `rate`, `daytime`. If none are present, the data-view map shows **"Not listed"** for private OSM garages/lots (`osmGarages`, `osmLots`) and **"Free"** for other categories. Examples: `{ "rate": "$8-$10 for 4 hours" }` or `{ "daytime": "Max $27", "evening": "$27-$30", "events": "$27-$30" }`.
 
 ### Example
 

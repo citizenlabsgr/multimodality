@@ -8,6 +8,7 @@ import {
   MODES_PAGE_EMPTY_MAP_CENTER,
   DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER,
   FALLBACK_DATA,
+  PARKING_PRICE_NOT_LISTED_LABEL,
 } from "../shared/data-loader.mjs";
 import {
   compareParkingDataViewPointsForPaintOrder,
@@ -887,13 +888,13 @@ function escapeHtml(s) {
 function formatParkingPrice(pricing, categoryKey) {
   const privateOsm = categoryKey === "osmGarages" || categoryKey === "osmLots";
   if (!pricing || typeof pricing !== "object") {
-    return privateOsm ? "Unknown" : "Free";
+    return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
   }
   if (pricing.events) return pricing.events;
   if (pricing.evening) return pricing.evening;
   if (pricing.rate) return pricing.rate;
   if (pricing.daytime) return pricing.daytime;
-  return privateOsm ? "Unknown" : "Free";
+  return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
 }
 
 function updateDataViewMap(points, options) {
@@ -3009,11 +3010,11 @@ function renderResults() {
     const cardId = `card-${i}-${Date.now()}-${Math.random()
       .toString(36)
       .slice(2, 11)}`;
-    // Restore original headings with unique number: first = Recommended/Alternative/Unknown, rest = Alternate Strategy
+    // Restore original headings with unique number: first = Recommended/Alternative/no-match, rest = Alternate Strategy
     const strategyLabelBase =
       i === 0
         ? isNoOptions
-          ? "Unknown Strategy"
+          ? "No matching options"
           : isDiscouraged
             ? "Alternative Strategy"
             : "Recommended Strategy"

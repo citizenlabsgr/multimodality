@@ -290,7 +290,7 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
 
     const results = page.locator("#results");
     await expect(results.locator(".border-red-200").first()).toBeVisible();
-    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("No matching options");
     await expect(results).toContainText("Adjust Your Filters");
     await expect(results).toContainText("Nothing in our data matches");
   });
@@ -443,7 +443,7 @@ test.describe("Rideshare round-trip budget", () => {
     await page.waitForTimeout(500);
 
     const results = page.locator("#results");
-    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("No matching options");
     await expect(results).toContainText("Adjust Your Filters");
     await expect(results.locator(".border-red-200").first()).toBeVisible();
   });
@@ -459,7 +459,7 @@ test.describe("Rideshare round-trip budget", () => {
     const results = page.locator("#results");
     await expect(results).toContainText("Recommended Strategy");
     await expect(results).toContainText("Rideshare");
-    await expect(results).not.toContainText("Unknown Strategy");
+    await expect(results).not.toContainText("No matching options");
   });
 });
 
@@ -984,8 +984,8 @@ test.describe("Parking Enforcement Logic", () => {
       }
     }).toPass({ timeout: 2500 });
 
-    // Check that the recommendation shows "Unknown Strategy"
-    await expect(results).toContainText("Unknown Strategy");
+    // Check that the recommendation shows "No matching options"
+    await expect(results).toContainText("No matching options");
     await expect(results).toContainText("not willing to pay for parking");
   });
 
@@ -1013,7 +1013,7 @@ test.describe("Parking Enforcement Logic", () => {
       }
     }).toPass({ timeout: 2500 });
 
-    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("No matching options");
     await expect(results).toContainText("not willing to pay for parking");
   });
 
@@ -1346,9 +1346,9 @@ test.describe("Parking Enforcement Logic", () => {
       }
     }).toPass({ timeout: 2500 });
 
-    // Check that the recommendation shows "Unknown Strategy" / "Adjust Your Filters"
+    // Check that the recommendation shows "No matching options" / "Adjust Your Filters"
     const results = page.locator("#results");
-    await expect(results).toContainText("Unknown Strategy");
+    await expect(results).toContainText("No matching options");
     await expect(results).toContainText("Adjust Your Filters");
   });
 
@@ -1464,7 +1464,7 @@ test.describe("Parking Enforcement Logic", () => {
     expect(resultsText.toLowerCase()).toContain("rideshare");
     expect(resultsText).toContain("Uber");
     expect(resultsText).not.toContain("Adjust Your Filters");
-    expect(resultsText).not.toContain("Unknown Strategy");
+    expect(resultsText).not.toContain("No matching options");
   });
 });
 test.describe("Modes explain modal", () => {

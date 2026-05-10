@@ -4,6 +4,7 @@ import {
   gridWalkMiles,
   haversineMiles,
   MODES_PAGE_EMPTY_MAP_CENTER,
+  PARKING_PRICE_NOT_LISTED_LABEL,
 } from "../shared/data-loader.mjs";
 import {
   compareParkingWalkVersusDashMinutes,
@@ -48,6 +49,11 @@ const PARKING_WALK_QUERY_KEY = "walk";
 const PARKING_WALK_QUERY_KEY_LEGACY = "maxWalk";
 /** Show feet (with minute hint) when below this cap — slider **0.1–0.4 mi**; **0.5+** as miles. */
 const PARKING_WALK_FEET_BELOW_MI = 0.5;
+/**
+ * Route badges only: feet for walks **under** **2,000 ft**; at **2,000 ft** and up use miles.
+ * {@link PARKING_WALK_FEET_BELOW_MI} stays **0.5** for the walk slider labels.
+ */
+const PARKING_ROUTE_WALK_METRICS_FEET_BELOW_MI = 2000 / 5280;
 /**
  * **`walk=0`** / slider index **0**: pin filter uses this grid-walk distance to nearest DASH (~**100 ft** ≈ **0.019** mi),
  * not unlimited and not a literal **0** mi cut.
@@ -98,11 +104,11 @@ function roundParkingWalkFeetNearest500ForRouteBadge(ftExact) {
   return Math.round(ftExact / 500) * 500;
 }
 
-/** Right-column copy: grid-walk distance + time (`parkingRoutePace.walkMinutesPerMile`). Below {@link PARKING_WALK_FEET_BELOW_MI} mi, distance is feet (nearest 500 ft for display; minutes from actual miles). */
+/** Right-column copy: grid-walk distance + time (`parkingRoutePace.walkMinutesPerMile`). Below {@link PARKING_ROUTE_WALK_METRICS_FEET_BELOW_MI} mi (under **2,000 ft**), distance is feet; longer legs use miles. */
 function parkingInstructionWalkEstimateMetrics(miles) {
   if (!Number.isFinite(miles) || miles <= 0) return "";
   const min = parkingWalkEstimateMinutesForMiles(miles);
-  if (miles < PARKING_WALK_FEET_BELOW_MI) {
+  if (miles < PARKING_ROUTE_WALK_METRICS_FEET_BELOW_MI) {
     const ftExact = Math.round(miles * 5280);
     let ft = roundParkingWalkFeetNearest500ForRouteBadge(ftExact);
     // Nearest-500 can be 0 for short legs; nearest 50 ft (min 50) avoids bogus "0 mi · N min".
@@ -750,13 +756,13 @@ function formatParkingPrice(pricing, categoryKey) {
   const privateOsm =
     categoryKey === "private-garage" || categoryKey === "private-lot";
   if (!pricing || typeof pricing !== "object") {
-    return privateOsm ? "Unknown" : "Free";
+    return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
   }
   if (pricing.events) return pricing.events;
   if (pricing.evening) return pricing.evening;
   if (pricing.rate) return pricing.rate;
   if (pricing.daytime) return pricing.daytime;
-  return privateOsm ? "Unknown" : "Free";
+  return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
 }
 
 /** Whether `s` looks like a dollar amount (not prose-only Hour_Rate garbage). */
@@ -792,7 +798,10 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
   const privateOsm =
     categoryKey === "private-garage" || categoryKey === "private-lot";
   if (!pricing || typeof pricing !== "object") {
-    return { text: privateOsm ? "Unknown" : "Free", costHourlyHint: false };
+    return {
+      text: privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free",
+      costHourlyHint: false,
+    };
   }
   const eventsRaw =
     typeof pricing.events === "string" ? pricing.events.trim() : "";
@@ -839,7 +848,10 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
       text: String(pricing.daytime).trim(),
       costHourlyHint: false,
     };
-  return { text: privateOsm ? "Unknown" : "Free", costHourlyHint: false };
+  return {
+    text: privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free",
+    costHourlyHint: false,
+  };
 }
 
 /**
@@ -2088,6 +2100,24 @@ function parkingRouteNeedsInputIconSvg() {
   );
 }
 
+/** Empty, em dash, or OSM **Unknown** — not a real place name for UI copy. */
+function parkingSpotNameIsPlaceholder(name) {
+  const raw = name != null ? String(name).trim() : "";
+  return raw === "" || raw === "—" || /^unknown$/i.test(raw);
+}
+
+/**
+ * Map popup heading / route "Park at …": real **name**, else **categoryName**, else **fallback**.
+ * @param {{ name?: string, categoryName?: string }} row
+ */
+function parkingSpotResolvedDisplayLabel(row, fallback) {
+  if (!parkingSpotNameIsPlaceholder(row?.name)) return String(row.name).trim();
+  const cat =
+    typeof row?.categoryName === "string" ? row.categoryName.trim() : "";
+  if (cat !== "") return cat;
+  return fallback;
+}
+
 /**
  * Shared Leaflet popup HTML for a parking spot row (circle or green start pin).
  * @param {{ name: string, categoryName: string, price?: string, costHourlyHint?: boolean, priceSupplement?: string, priceSupplementHint?: boolean, totalSpaces?: number | null, address?: string }} row
@@ -2112,10 +2142,19 @@ function parkingSpotPopupHtml(row) {
     typeof row.totalSpaces === "number" && Number.isFinite(row.totalSpaces)
       ? `${row.totalSpaces} total spaces`
       : "Not listed";
+  const heading = parkingSpotResolvedDisplayLabel(row, "Parking location");
+  const catLine =
+    typeof row.categoryName === "string" ? row.categoryName.trim() : "";
+  const showCategorySub =
+    catLine !== "" &&
+    heading.replace(/\s+/g, " ").toLowerCase() !==
+      catLine.replace(/\s+/g, " ").toLowerCase();
   let html =
     `<div class="parking-spot-popup" style="font-size:12px;min-width:12rem">` +
-    `<strong>${escapeHtml(row.name)}</strong><br>` +
-    `<span style="color:#64748b">${escapeHtml(row.categoryName)}</span>`;
+    `<strong>${escapeHtml(heading)}</strong>`;
+  if (showCategorySub) {
+    html += `<br><span style="color:#64748b">${escapeHtml(catLine)}</span>`;
+  }
   if (row.address) html += `<br>${escapeHtml(row.address)}`;
   html +=
     `<br><span style="color:#475569">Cost:</span> ${escapeHtml(costText)}${hourlySpan}${supplementSpan}` +
@@ -3039,10 +3078,7 @@ function syncParkingRouteInstructionsPanel() {
   const spot =
     getAllParkingSpotMarkers().find((m) => m.spotId === committedId) ??
     parkingSpotRowFallback(committedId, start);
-  const parkLabel =
-    spot.name && String(spot.name).trim() !== "" && spot.name !== "—"
-      ? String(spot.name).trim()
-      : "this location";
+  const parkLabel = parkingSpotResolvedDisplayLabel(spot, "this location");
   const addrRaw = typeof spot.address === "string" ? spot.address.trim() : "";
   const mapsHref = parkingGoogleMapsHref(start.lat, start.lng, addrRaw);
   const parkAddressInline =
@@ -3051,7 +3087,29 @@ function syncParkingRouteInstructionsPanel() {
       : addrRaw !== ""
         ? ` <span class="parking-route-step-detail">(${escapeHtml(addrRaw)})</span>`
         : "";
-  const parkMainHtml = `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkAddressInline}`;
+  const parkLabelAria =
+    parkLabel === "this location"
+      ? "Open this parking spot in Google Maps"
+      : `Open ${parkLabel} in Google Maps`;
+  const parkLabelHtml =
+    mapsHref !== ""
+      ? `<a href="${escapeHtml(mapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(parkLabelAria)}">${escapeHtml(parkLabel)}</a>`
+      : escapeHtml(parkLabel);
+  const parkMainHtml = `<strong>Park</strong> at ${parkLabelHtml}${parkAddressInline}`;
+
+  const venueMapsHref = parkingGoogleMapsHref(
+    destLl[0],
+    destLl[1],
+    destName === "the venue" ? "" : destName,
+  );
+  const venueLinkAria =
+    destName === "the venue"
+      ? "Open destination in Google Maps"
+      : `Open ${destName} in Google Maps`;
+  const venueNameHtml =
+    venueMapsHref !== ""
+      ? `<a href="${escapeHtml(venueMapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(venueLinkAria)}">${escapeHtml(destName)}</a>`
+      : escapeHtml(destName);
 
   const multimodal = tryParkingDashMultimodalPath(
     start.lat,
@@ -3079,12 +3137,40 @@ function syncParkingRouteInstructionsPanel() {
     const w2m = parkingInstructionWalkEstimateMetrics(multimodal.walk2Mi);
     const waitM = parkingInstructionDashWaitMetrics(multimodal);
     const onboardM = parkingInstructionDashOnboardMetrics(multimodal);
-    const boardLabel = escapeHtml(multimodal.boardStop.label);
-    const alightLabel = escapeHtml(multimodal.alightStop.label);
+    const boardRaw =
+      typeof multimodal.boardStop.label === "string"
+        ? multimodal.boardStop.label.trim()
+        : "";
+    const boardDisplay = boardRaw !== "" ? boardRaw : "DASH stop";
+    const boardMapsHref = parkingGoogleMapsHref(
+      multimodal.boardStop.lat,
+      multimodal.boardStop.lng,
+      boardRaw || boardDisplay,
+    );
+    const boardLabelHtml =
+      boardMapsHref !== ""
+        ? `<a href="${escapeHtml(boardMapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`Open ${boardDisplay} in Google Maps`)}">${escapeHtml(boardDisplay)}</a>`
+        : escapeHtml(boardDisplay);
+    const alightRaw =
+      typeof multimodal.alightStop.label === "string"
+        ? multimodal.alightStop.label.trim()
+        : "";
+    const alightDisplay = alightRaw !== "" ? alightRaw : "DASH stop";
+    const alightMapsHref = parkingGoogleMapsHref(
+      multimodal.alightStop.lat,
+      multimodal.alightStop.lng,
+      alightRaw || alightDisplay,
+    );
+    const alightLabelHtml =
+      alightMapsHref !== ""
+        ? `<a href="${escapeHtml(alightMapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`Open ${alightDisplay} in Google Maps`)}">${escapeHtml(alightDisplay)}</a>`
+        : escapeHtml(alightDisplay);
+    const boardLabelPlain = escapeHtml(boardDisplay);
+    const alightLabelPlain = escapeHtml(alightDisplay);
 
     steps.push(
       parkingRouteStepLi(
-        `<strong>Walk</strong> to ${boardLabel}`,
+        `<strong>Walk</strong> to ${boardLabelHtml}`,
         w1m ? [w1m] : [],
         "walk",
       ),
@@ -3099,7 +3185,7 @@ function syncParkingRouteInstructionsPanel() {
     if (sameTripStop) {
       steps.push(
         parkingRouteStepLi(
-          `<strong>Board</strong> DASH at ${boardLabel} and <strong>exit</strong> at the same stop`,
+          `<strong>Board</strong> DASH at ${boardLabelPlain} and <strong>exit</strong> at the same stop`,
           onboardM ? [onboardM] : [],
           "dash",
         ),
@@ -3107,7 +3193,7 @@ function syncParkingRouteInstructionsPanel() {
     } else {
       steps.push(
         parkingRouteStepLi(
-          `<strong>Board</strong> DASH, then <strong>ride</strong> to ${alightLabel} and <strong>exit</strong>`,
+          `<strong>Board</strong> DASH, then <strong>ride</strong> to ${alightLabelPlain} and <strong>exit</strong>`,
           onboardM ? [onboardM] : [],
           "dash",
         ),
@@ -3115,7 +3201,7 @@ function syncParkingRouteInstructionsPanel() {
     }
     steps.push(
       parkingRouteStepLi(
-        `<strong>Walk</strong> to ${escapeHtml(destName)}`,
+        `<strong>Walk</strong> to ${venueNameHtml}`,
         w2m ? [w2m] : [],
         "walk",
       ),
@@ -3130,7 +3216,7 @@ function syncParkingRouteInstructionsPanel() {
   const steps = [
     parkingRouteStepLi(parkMainHtml, []),
     parkingRouteStepLi(
-      `<strong>Walk</strong> to ${escapeHtml(destName)} — door-to-door on foot is shown instead of DASH when it's faster`,
+      `<strong>Walk</strong> to ${venueNameHtml} — door-to-door on foot is shown instead of DASH when it's faster`,
       doorMetrics ? [doorMetrics] : [],
       "walk",
     ),

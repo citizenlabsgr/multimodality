@@ -6,6 +6,9 @@
 /** Downtown Grand Rapids — empty maps use this until route/stop data exists. */
 export const MODES_PAGE_EMPTY_MAP_CENTER = [42.96333, -85.66806];
 
+/** Private OSM garages/lots with no `pricing` — map popups and data view. */
+export const PARKING_PRICE_NOT_LISTED_LABEL = "Not listed";
+
 /** Same 1.75 mi from MODES_PAGE_EMPTY_MAP_CENTER as fetch_bike_parking.py, fetch_car_parking_osm.py, fetch_car_parking_arcgis.py (surface lots), etc. */
 export const DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER = 1.75;
 
