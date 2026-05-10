@@ -2088,16 +2088,37 @@ function parkingStartBtnIconSvg(checked) {
   );
 }
 
-/** Route panel placeholder — more user input needed before steps appear (`aria-hidden`; copy explains). */
-function parkingRouteNeedsInputIconSvg() {
+/**
+ * Route prompt — same pin as {@link parkingDestinationPlaceholderIcon} (tap a **venue** on the map).
+ */
+function parkingRouteDestinationTapPromptIconSvg() {
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
-    `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>` +
-    `<circle cx="8" cy="12" r="1.35" fill="currentColor"/>` +
-    `<circle cx="12" cy="12" r="1.35" fill="currentColor"/>` +
-    `<circle cx="16" cy="12" r="1.35" fill="currentColor"/>` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="30" viewBox="0 0 28 42" fill="none" aria-hidden="true">` +
+    `<path fill="#fecaca" stroke="#dc2626" stroke-width="1.25" stroke-linejoin="round" ` +
+    `d="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>` +
+    `<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>` +
     `</svg>`
   );
+}
+
+/**
+ * Route prompt after a venue is set — same pin as {@link parkingSpotPickSuggestionIcon} (tap **parking** on the map).
+ */
+function parkingRouteParkingTapPromptIconSvg() {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="30" viewBox="0 0 28 42" fill="none" aria-hidden="true">` +
+    `<path fill="#bbf7d0" stroke="#16a34a" stroke-width="1.25" stroke-linejoin="round" ` +
+    `d="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>` +
+    `<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>` +
+    `</svg>`
+  );
+}
+
+/** @param {boolean} destinationChosen — **false** → red venue pin; **true** → green parking pin. */
+function parkingRoutePromptIconSvg(destinationChosen) {
+  return destinationChosen
+    ? parkingRouteParkingTapPromptIconSvg()
+    : parkingRouteDestinationTapPromptIconSvg();
 }
 
 /** Empty, em dash, or OSM **Unknown** — not a real place name for UI copy. */
@@ -3034,9 +3055,9 @@ function syncParkingRouteInstructionsPanel() {
       ? destRec.name.trim()
       : "the venue";
 
-  const routeNextHtml = (inner) =>
+  const routeNextHtml = (inner, destinationChosen = false) =>
     `<p class="parking-route-instructions-placeholder parking-route-instructions-prompt">` +
-    `<span class="parking-route-prompt-icon" aria-hidden="true">${parkingRouteNeedsInputIconSvg()}</span>` +
+    `<span class="parking-route-prompt-icon" aria-hidden="true">${parkingRoutePromptIconSvg(destinationChosen)}</span>` +
     `<span class="parking-route-prompt-msg">${inner}</span></p>`;
 
   if (!destLl) {
@@ -3049,6 +3070,7 @@ function syncParkingRouteInstructionsPanel() {
   if (!Number.isFinite(walkCap) || walkCap <= 0) {
     body.innerHTML = routeNextHtml(
       `Move <strong class="font-semibold text-slate-800">And then walk</strong> above zero so we can show walking distance from parking to DASH.`,
+      true,
     );
     return;
   }
@@ -3063,6 +3085,7 @@ function syncParkingRouteInstructionsPanel() {
   if (!committedId) {
     body.innerHTML = routeNextHtml(
       `Tap a parking location, then <strong class="font-semibold text-slate-800">Plan to park here</strong> to set where you'll leave your car.`,
+      true,
     );
     return;
   }
@@ -3071,6 +3094,7 @@ function syncParkingRouteInstructionsPanel() {
   if (!start) {
     body.innerHTML = routeNextHtml(
       `Pick a parking spot and tap <strong class="font-semibold text-slate-800">Plan to park here</strong> again.`,
+      true,
     );
     return;
   }

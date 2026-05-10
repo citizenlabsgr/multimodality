@@ -53,9 +53,8 @@ main.parking-map-active {
 
 .parking-route-prompt-icon {
   flex-shrink: 0;
-  color: rgb(71 85 105);
   line-height: 0;
-  margin-top: 0.12rem;
+  margin-top: 0.05rem;
 }
 
 .parking-route-prompt-icon svg {
@@ -106,7 +105,7 @@ main.parking-map-active {
   line-height: 1.2;
 }
 
-/* Time chips — walk (blue), wait at stop (green), DASH ride (maroon family). */
+/* Time chips — walk (blue), wait at stop (yellow), DASH ride (maroon family). */
 .parking-route-step-badge {
   display: inline-block;
   padding: 0.2rem 0.55rem;
@@ -125,9 +124,9 @@ main.parking-map-active {
 }
 
 .parking-route-step-badge--wait {
-  color: rgb(22 101 52);
-  background-color: rgb(220 252 231);
-  border-color: rgb(134 239 172);
+  color: rgb(113 63 18);
+  background-color: rgb(254 243 199);
+  border-color: rgb(252 211 77);
 }
 
 /* DASH trip / shuttle — same family as `PARKING_DASH_TRIP_STOP_FILL` */

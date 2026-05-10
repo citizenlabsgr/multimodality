@@ -1957,8 +1957,12 @@ async function assertParkingViewportScreenshot(
   await expect(page).toHaveScreenshot(`${snapshotName}.png`, {
     fullPage: true,
     timeout: 20_000,
-    /** OSM raster tiles and subpixel compositing vary slightly between runs. */
-    maxDiffPixels: 2500,
+    /**
+     * OSM tiles jitter a little; animations are frozen above. Keep this **low enough** that small
+     * UI changes (e.g. route badge colors) fail compare and refresh baselines — **2500** was large
+     * enough that a wait-chip recolor could stay under the cap and never update PNGs.
+     */
+    maxDiffPixels: 900,
   });
 }
 
