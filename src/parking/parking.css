@@ -6,12 +6,19 @@ main.parking-map-active {
   width: 100%;
   padding: 0.5rem;
   min-height: 0;
+  overflow: hidden;
 }
 
 #parkingView {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
   min-width: 0;
+  overflow: hidden;
+}
+
+/* Options chrome stays natural height; map is the only flex-grow column. */
+#parkingMapChrome {
+  flex: 0 0 auto;
 }
 
 /* Grows to fill space between chrome and route panel (`#parkingView` is `flex flex-col` in HTML). */
@@ -25,9 +32,10 @@ main.parking-map-active {
   overflow: hidden;
 }
 
-/* Fixed height: stable layout; long routes scroll inside the body. */
+/* Fixed band: long route steps scroll inside `.parking-route-instructions-body` only. */
 #parkingRouteInstructions {
   flex: 0 0 auto;
+  flex-shrink: 0;
   min-height: 10rem;
   overflow: hidden;
 }
@@ -120,5 +128,28 @@ path.parking-dash-trip-segment-path {
 @media (prefers-reduced-motion: reduce) {
   path.parking-dash-trip-segment-path {
     animation: none;
+  }
+}
+
+/*
+ * Phones: no document scroll on `#/visit` — chrome, route band, and footer stay put; map column shrinks.
+ * Class is toggled in `parking.mjs` (`html` beats `body` utility specificity via descendant selector).
+ */
+@media (max-width: 767.98px) {
+  html.parking-visit-viewport-lock {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  html.parking-visit-viewport-lock body {
+    height: 100%;
+    max-height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  main.parking-map-active {
+    flex: 1 1 0;
   }
 }

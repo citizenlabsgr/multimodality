@@ -2985,11 +2985,14 @@ function syncParkingMapOverlays(map, opts) {
   if (doFit) fitParkingMapToAllContent(map);
 }
 
+const PARKING_VISIT_VIEWPORT_LOCK_CLASS = "parking-visit-viewport-lock";
+
 export function hideParkingView() {
   const parkingView = document.getElementById("parkingView");
   if (parkingView) parkingView.classList.add("hidden");
   document.getElementById("parkingMapChrome")?.classList.add("hidden");
   document.querySelector("main")?.classList.remove("parking-map-active");
+  document.documentElement.classList.remove(PARKING_VISIT_VIEWPORT_LOCK_CLASS);
 }
 
 function applyParkingRouteLayoutShell() {
@@ -3005,6 +3008,7 @@ function applyParkingRouteLayoutShell() {
   const mainEl = document.querySelector("main");
   mainEl?.classList.remove("data-view-active");
   mainEl?.classList.add("parking-map-active");
+  document.documentElement.classList.add(PARKING_VISIT_VIEWPORT_LOCK_CLASS);
 }
 
 /**
