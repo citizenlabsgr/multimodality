@@ -1621,6 +1621,25 @@ test.describe("Parking map (#/visit)", () => {
     ).toHaveAttribute("aria-pressed", "true");
   });
 
+  test("route panel walk badges never show 0 mi (short legs use feet or time only)", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/devos-performance-hall?walk=0.4&park=public-lot~42.969938~-85.681874",
+    );
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+    const panel = page.locator("#parkingRouteInstructionsBody");
+    await expect(panel).toBeVisible({ timeout: 15_000 });
+    await expect(panel).not.toContainText("0 mi");
+    const walkBadges = panel.locator(".parking-route-step-badge--walk");
+    const n = await walkBadges.count();
+    expect(n).toBeGreaterThan(0);
+    for (let i = 0; i < n; i++) {
+      await expect(walkBadges.nth(i)).not.toContainText("0 mi");
+    }
+  });
+
   test("refits map view when a category filter changes", async ({ page }) => {
     await page.goto("/#/visit/van-andel-arena?walk=0.5");
     await waitForParkingData(page);

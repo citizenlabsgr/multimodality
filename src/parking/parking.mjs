@@ -104,13 +104,20 @@ function parkingInstructionWalkEstimateMetrics(miles) {
   const min = parkingWalkEstimateMinutesForMiles(miles);
   if (miles < PARKING_WALK_FEET_BELOW_MI) {
     const ftExact = Math.round(miles * 5280);
-    const ft = roundParkingWalkFeetNearest500ForRouteBadge(ftExact);
+    let ft = roundParkingWalkFeetNearest500ForRouteBadge(ftExact);
+    // Nearest-500 can be 0 for short legs; nearest 50 ft (min 50) avoids bogus "0 mi · N min".
+    if (ft <= 0 && ftExact > 0) {
+      ft = Math.max(50, Math.round(ftExact / 50) * 50);
+    }
     if (ft > 0) {
       return `${ft.toLocaleString("en-US")} ft · ${min} min`;
     }
   }
   const d = formatRouteDistanceMiles(miles);
-  return d ? `${d} mi · ${min} min` : `${min} min`;
+  if (d && d !== "0" && Number(d) !== 0) {
+    return `${d} mi · ${min} min`;
+  }
+  return `${min} min`;
 }
 
 /** Right-column copy: typical wait at the stop (`parkingRoutePace.dashBoardingWaitMinutes`). */
@@ -615,6 +622,10 @@ const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
 /** `#/visit` — hide parking pins farther than this from any shown DASH stop. */
 const PARKING_MAX_MILES_FROM_DASH_STOP = 0.75;
 
+/** Grand Rapids region page in the Transit app (DASH, The Rapid, real-time). */
+const PARKING_TRANSIT_APP_GRAND_RAPIDS_URL =
+  "https://transitapp.com/en/region/grand-rapids";
+
 /** Dashed estimated-walk polylines — Tailwind `blue-600`, same family as `#parkingMaxWalkSlider` (`accent-blue-600`). */
 const PARKING_WALK_OVERLAY_COLOR = "#2563eb";
 /** Wider underlay so blue dashes read on varied tiles (same dash pattern as foreground). */
@@ -696,6 +707,28 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** "DASH shuttle" in the route wait step -> Transit app (Grand Rapids). */
+function parkingRouteDashShuttleTransitAppAnchorHtml() {
+  return `<a href="${escapeHtml(PARKING_TRANSIT_APP_GRAND_RAPIDS_URL)}" class="parking-route-transit-app-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml("Free DASH shuttle in the Transit app for Grand Rapids")}">DASH shuttle</a>`;
+}
+
+/** Google Maps deep link: pin at **lat/lng**, or text search from **addressFallback** if coords invalid. */
+function parkingGoogleMapsHref(lat, lng, addressFallback) {
+  if (
+    typeof lat === "number" &&
+    typeof lng === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lng)
+  ) {
+    return `https://www.google.com/maps?q=${encodeURIComponent(`${lat},${lng}`)}`;
+  }
+  const a = typeof addressFallback === "string" ? addressFallback.trim() : "";
+  if (a !== "") {
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}`;
+  }
+  return "";
 }
 
 /** Darken a `#RRGGBB` hex for circle stroke (GTFS colors have no stroke field). */
@@ -2043,6 +2076,18 @@ function parkingStartBtnIconSvg(checked) {
   );
 }
 
+/** Route panel placeholder — more user input needed before steps appear (`aria-hidden`; copy explains). */
+function parkingRouteNeedsInputIconSvg() {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">` +
+    `<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.75"/>` +
+    `<circle cx="8" cy="12" r="1.35" fill="currentColor"/>` +
+    `<circle cx="12" cy="12" r="1.35" fill="currentColor"/>` +
+    `<circle cx="16" cy="12" r="1.35" fill="currentColor"/>` +
+    `</svg>`
+  );
+}
+
 /**
  * Shared Leaflet popup HTML for a parking spot row (circle or green start pin).
  * @param {{ name: string, categoryName: string, price?: string, costHourlyHint?: boolean, priceSupplement?: string, priceSupplementHint?: boolean, totalSpaces?: number | null, address?: string }} row
@@ -2951,7 +2996,9 @@ function syncParkingRouteInstructionsPanel() {
       : "the venue";
 
   const routeNextHtml = (inner) =>
-    `<p class="parking-route-instructions-placeholder"><span class="parking-route-next-label">Next:</span> ${inner}</p>`;
+    `<p class="parking-route-instructions-placeholder parking-route-instructions-prompt">` +
+    `<span class="parking-route-prompt-icon" aria-hidden="true">${parkingRouteNeedsInputIconSvg()}</span>` +
+    `<span class="parking-route-prompt-msg">${inner}</span></p>`;
 
   if (!destLl) {
     body.innerHTML = routeNextHtml(
@@ -2997,10 +3044,13 @@ function syncParkingRouteInstructionsPanel() {
       ? String(spot.name).trim()
       : "this location";
   const addrRaw = typeof spot.address === "string" ? spot.address.trim() : "";
+  const mapsHref = parkingGoogleMapsHref(start.lat, start.lng, addrRaw);
   const parkAddressInline =
-    addrRaw !== ""
-      ? ` <span class="parking-route-step-detail">(${escapeHtml(addrRaw)})</span>`
-      : "";
+    addrRaw !== "" && mapsHref !== ""
+      ? ` <a href="${escapeHtml(mapsHref)}" class="parking-route-step-detail parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`Open ${addrRaw} in Google Maps`)}">(${escapeHtml(addrRaw)})</a>`
+      : addrRaw !== ""
+        ? ` <span class="parking-route-step-detail">(${escapeHtml(addrRaw)})</span>`
+        : "";
   const parkMainHtml = `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkAddressInline}`;
 
   const multimodal = tryParkingDashMultimodalPath(
@@ -3041,7 +3091,7 @@ function syncParkingRouteInstructionsPanel() {
     );
     steps.push(
       parkingRouteStepLi(
-        `<strong>Wait</strong> for the next DASH shuttle`,
+        `<strong>Wait</strong> for the next free ${parkingRouteDashShuttleTransitAppAnchorHtml()}`,
         waitM ? [waitM] : [],
         "wait",
       ),

@@ -529,7 +529,6 @@
             <div
               id="parkingEveningBudgetWrap"
               class="flex min-w-0 w-full items-center gap-2"
-              title="Uses posted evening pricing when listed; falls back to event pricing at public ramps/lots."
             >
               <label
                 for="parkingMaxEveningSlider"
@@ -572,7 +571,6 @@
             <div
               id="parkingMaxWalkWrap"
               class="flex min-w-0 w-full items-center gap-2"
-              title="Straight-line distance from parking to the nearest DASH stop (then shuttle to your venue). Minutes use the configured walk pace (about 2.5 mph by default)."
             >
               <label
                 for="parkingMaxWalkSlider"
@@ -600,18 +598,12 @@
         <div id="parkingAppMap" class="min-h-0 w-full flex-1"></div>
         <section
           id="parkingRouteInstructions"
-          class="mt-2 flex min-h-0 shrink-0 flex-col rounded-lg border border-slate-200 bg-white px-3 py-2 sm:px-4"
-          aria-labelledby="parkingRouteInstructionsHeading"
+          class="mt-2 flex shrink-0 flex-col rounded-lg border border-slate-200 bg-white px-3 py-2 sm:px-4"
+          aria-label="Steps from parking to the venue"
         >
-          <h3
-            id="parkingRouteInstructionsHeading"
-            class="text-xs font-semibold uppercase tracking-wide text-slate-500"
-          >
-            Route
-          </h3>
           <div
             id="parkingRouteInstructionsBody"
-            class="parking-route-instructions-body mt-1 min-h-0 text-sm text-slate-800"
+            class="parking-route-instructions-body text-sm text-slate-800"
             aria-live="polite"
           ></div>
         </section>

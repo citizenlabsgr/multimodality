@@ -32,19 +32,10 @@ main.parking-map-active {
   overflow: hidden;
 }
 
-/* Fixed band: long route steps scroll inside `.parking-route-instructions-body` only. */
+/* Sits under the map; height follows content (map column keeps flex growth). */
 #parkingRouteInstructions {
   flex: 0 0 auto;
   flex-shrink: 0;
-  min-height: 10rem;
-  overflow: hidden;
-}
-
-.parking-route-instructions-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .parking-route-instructions-placeholder {
@@ -54,10 +45,26 @@ main.parking-map-active {
   font-size: 0.8125rem;
 }
 
-.parking-route-next-label {
-  font-weight: 600;
+.parking-route-instructions-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+}
+
+.parking-route-prompt-icon {
+  flex-shrink: 0;
   color: rgb(71 85 105);
-  margin-right: 0.2rem;
+  line-height: 0;
+  margin-top: 0.12rem;
+}
+
+.parking-route-prompt-icon svg {
+  display: block;
+}
+
+.parking-route-prompt-msg {
+  flex: 1;
+  min-width: 0;
 }
 
 .parking-route-steps {
@@ -134,6 +141,26 @@ main.parking-map-active {
 .parking-route-step-detail {
   color: rgb(100 116 139);
   font-weight: 400;
+}
+
+a.parking-route-step-maps-link,
+a.parking-route-transit-app-link {
+  text-decoration: underline;
+  text-decoration-color: rgb(148 163 184);
+  text-underline-offset: 2px;
+}
+
+a.parking-route-step-maps-link:hover,
+a.parking-route-transit-app-link:hover {
+  color: rgb(71 85 105);
+  text-decoration-color: rgb(100 116 139);
+}
+
+a.parking-route-step-maps-link:focus-visible,
+a.parking-route-transit-app-link:focus-visible {
+  outline: 2px solid rgb(59 130 246);
+  outline-offset: 2px;
+  border-radius: 2px;
 }
 
 .leaflet-tooltip.parking-estimated-walk-tooltip {
