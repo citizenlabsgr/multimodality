@@ -83,9 +83,11 @@ test.describe("Parking map (#/visit)", () => {
     const pace = await page.evaluate(() => ({
       walk: window.appData?.parkingRoutePace?.walkMinutesPerMile,
       dash: window.appData?.parkingRoutePace?.dashMilesPerHour,
+      dashWait: window.appData?.parkingRoutePace?.dashBoardingWaitMinutes,
     }));
     expect(pace.walk).toBe(24);
     expect(pace.dash).toBe(12);
+    expect(pace.dashWait).toBe(5);
   });
 
   test("preserves destination and category filters in the URL across reload", async ({
@@ -697,17 +699,14 @@ test.describe("Parking map (#/visit)", () => {
       await waitForParkingLeafletMap(page);
 
       const r = await page.evaluate(() => {
-        function haversineMiles(lat1, lng1, lat2, lng2) {
+        function gridWalkMiles(lat1, lng1, lat2, lng2) {
           const toRad = (deg) => (deg * Math.PI) / 180;
-          const R = 3958.7613;
-          const dLat = toRad(lat2 - lat1);
-          const dLng = toRad(lng2 - lng1);
-          const aVal =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) *
-              Math.cos(toRad(lat2)) *
-              Math.sin(dLng / 2) ** 2;
-          return 2 * R * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+          const midLat = (lat1 + lat2) / 2;
+          const latMiPerDeg = 69.172;
+          const lonMiPerDeg = latMiPerDeg * Math.cos(toRad(midLat));
+          const dLatMi = Math.abs(lat2 - lat1) * latMiPerDeg;
+          const dLonMi = Math.abs(lng2 - lng1) * lonMiPerDeg;
+          return dLatMi + dLonMi;
         }
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
@@ -736,7 +735,7 @@ test.describe("Parking map (#/visit)", () => {
         if (dashPool.length === 0) return { ok: false, reason: "no-dash-pool" };
         let maxVenueMi = -Infinity;
         for (const m of dashPool) {
-          const d = haversineMiles(m.lat, m.lng, dLat, dLng);
+          const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
           if (Number.isFinite(d) && d > maxVenueMi) maxVenueMi = d;
         }
         const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
@@ -745,7 +744,7 @@ test.describe("Parking map (#/visit)", () => {
           chosenRow &&
           Number.isFinite(chosenRow.lat) &&
           Number.isFinite(chosenRow.lng)
-            ? haversineMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
+            ? gridWalkMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
             : NaN;
         const chosenUsesDash = chosenRow ? dashFn(chosenRow) : false;
         return {
@@ -771,17 +770,14 @@ test.describe("Parking map (#/visit)", () => {
       await waitForParkingLeafletMap(page);
 
       const r = await page.evaluate(() => {
-        function haversineMiles(lat1, lng1, lat2, lng2) {
+        function gridWalkMiles(lat1, lng1, lat2, lng2) {
           const toRad = (deg) => (deg * Math.PI) / 180;
-          const R = 3958.7613;
-          const dLat = toRad(lat2 - lat1);
-          const dLng = toRad(lng2 - lng1);
-          const aVal =
-            Math.sin(dLat / 2) ** 2 +
-            Math.cos(toRad(lat1)) *
-              Math.cos(toRad(lat2)) *
-              Math.sin(dLng / 2) ** 2;
-          return 2 * R * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+          const midLat = (lat1 + lat2) / 2;
+          const latMiPerDeg = 69.172;
+          const lonMiPerDeg = latMiPerDeg * Math.cos(toRad(midLat));
+          const dLatMi = Math.abs(lat2 - lat1) * latMiPerDeg;
+          const dLonMi = Math.abs(lng2 - lng1) * lonMiPerDeg;
+          return dLatMi + dLonMi;
         }
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
@@ -809,7 +805,7 @@ test.describe("Parking map (#/visit)", () => {
         }
         let maxVenueMi = -Infinity;
         for (const m of pool) {
-          const d = haversineMiles(m.lat, m.lng, dLat, dLng);
+          const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
           if (Number.isFinite(d) && d > maxVenueMi) maxVenueMi = d;
         }
         const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
@@ -818,7 +814,7 @@ test.describe("Parking map (#/visit)", () => {
           chosenRow &&
           Number.isFinite(chosenRow.lat) &&
           Number.isFinite(chosenRow.lng)
-            ? haversineMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
+            ? gridWalkMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
             : NaN;
         return {
           ok:
@@ -843,17 +839,14 @@ test.describe("Parking map (#/visit)", () => {
         await waitForParkingLeafletMap(page);
 
         const r = await page.evaluate(() => {
-          function haversineMiles(lat1, lng1, lat2, lng2) {
+          function gridWalkMiles(lat1, lng1, lat2, lng2) {
             const toRad = (deg) => (deg * Math.PI) / 180;
-            const R = 3958.7613;
-            const dLat = toRad(lat2 - lat1);
-            const dLng = toRad(lng2 - lng1);
-            const aVal =
-              Math.sin(dLat / 2) ** 2 +
-              Math.cos(toRad(lat1)) *
-                Math.cos(toRad(lat2)) *
-                Math.sin(dLng / 2) ** 2;
-            return 2 * R * Math.atan2(Math.sqrt(aVal), Math.sqrt(1 - aVal));
+            const midLat = (lat1 + lat2) / 2;
+            const latMiPerDeg = 69.172;
+            const lonMiPerDeg = latMiPerDeg * Math.cos(toRad(midLat));
+            const dLatMi = Math.abs(lat2 - lat1) * latMiPerDeg;
+            const dLonMi = Math.abs(lng2 - lng1) * lonMiPerDeg;
+            return dLatMi + dLonMi;
           }
           const markers = globalThis.__getAllParkingSpotMarkersForTest();
           const filt =
@@ -883,7 +876,7 @@ test.describe("Parking map (#/visit)", () => {
           }
           let maxVenueMi = -Infinity;
           for (const m of pool) {
-            const d = haversineMiles(m.lat, m.lng, dLat, dLng);
+            const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
             if (Number.isFinite(d) && d > maxVenueMi) maxVenueMi = d;
           }
           const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
@@ -892,7 +885,7 @@ test.describe("Parking map (#/visit)", () => {
             chosenRow &&
             Number.isFinite(chosenRow.lat) &&
             Number.isFinite(chosenRow.lng)
-              ? haversineMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
+              ? gridWalkMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
               : NaN;
           return {
             ok:

@@ -1,6 +1,8 @@
 import {
   appData,
   loadData,
+  formatRouteDistanceMiles,
+  gridWalkMiles,
   haversineMiles,
   roundCoord5,
   MODES_PAGE_EMPTY_MAP_CENTER,
@@ -24,6 +26,19 @@ import { resolveParkingRoutePace } from "../parking/parking-route-planning.mjs";
 
 function visitWalkMinutesPerMile() {
   return resolveParkingRoutePace(appData?.parkingRoutePace).walkMinutesPerMile;
+}
+
+/** Whole minutes from walk miles using planner/parking pace config. */
+function visitWalkMinutesFromMiles(distanceMi) {
+  if (
+    distanceMi == null ||
+    typeof distanceMi !== "number" ||
+    !Number.isFinite(distanceMi) ||
+    distanceMi <= 0
+  ) {
+    return null;
+  }
+  return Math.max(1, Math.round(distanceMi * visitWalkMinutesPerMile()));
 }
 
 /**
@@ -2848,14 +2863,25 @@ function renderResults() {
     const venueName = state.destination || "the venue";
     const stepDescription = (step, index, isLastWalk) => {
       if (isLastWalk) {
-        const mins =
-          typeof step.distance === "number"
-            ? distanceToMinutes(step.distance, "walk")
-            : null;
-        const distStr = mins != null ? "about " + formatTime(mins) + " " : "";
-        return `Walk ${distStr}to ${venueName}.`;
+        if (
+          typeof step.distance === "number" &&
+          Number.isFinite(step.distance)
+        ) {
+          const mins = distanceToMinutes(step.distance, "walk");
+          return `Walk about ${formatRouteDistanceMiles(step.distance)} mi (~${formatTime(mins)} on foot) to ${venueName}.`;
+        }
+        return `Walk to ${venueName}.`;
       }
       switch (step.mode) {
+        case "walk":
+          if (
+            typeof step.distance === "number" &&
+            Number.isFinite(step.distance)
+          ) {
+            const mins = distanceToMinutes(step.distance, "walk");
+            return `Walk about ${formatRouteDistanceMiles(step.distance)} mi (~${formatTime(mins)} on foot).`;
+          }
+          return "Walk to the next step.";
         case "drive":
           return "Park at the location shown on the map.";
         case "rideshare":
@@ -2898,10 +2924,7 @@ function renderResults() {
                 description +=
                   " Expect to pay about " + formatCost(step.cost) + costSuffix;
               }
-              if (
-                typeof step.distance === "number" &&
-                !(index === stepsToShow.length - 1 && step.mode === "walk")
-              ) {
+              if (typeof step.distance === "number" && step.mode !== "walk") {
                 const mins = distanceToMinutes(step.distance, step.mode);
                 if (mins != null)
                   description += " About " + formatTime(mins) + ".";
@@ -3411,7 +3434,7 @@ function nearestDashStopFromPool(lat, lng, pool) {
   let best = null;
   let bestD = Infinity;
   for (const s of pool) {
-    const d = haversineMiles(lat, lng, s.latitude, s.longitude);
+    const d = gridWalkMiles(lat, lng, s.latitude, s.longitude);
     if (d < bestD) {
       bestD = d;
       best = { ...s, milesFromPoint: d };
@@ -3453,18 +3476,32 @@ function pickParkDashExampleLot(lots, dashRoutes) {
   return cands[0];
 }
 
+function withParkDashWalkMinutePlaceholders(obj) {
+  const stopMins = visitWalkMinutesFromMiles(
+    Number.parseFloat(String(obj.parkDashWalkToStopMi)),
+  );
+  const venueMins = visitWalkMinutesFromMiles(
+    Number.parseFloat(String(obj.parkDashVenueStopWalkMi)),
+  );
+  return {
+    ...obj,
+    parkDashWalkToStopWalkMin: stopMins != null ? String(stopMins) : "",
+    parkDashVenueStopWalkMin: venueMins != null ? String(venueMins) : "",
+  };
+}
+
 function buildParkDashPlaceholderMap(state) {
   const generic = {
     parkDashLotName: "a surface lot that lists DASH service",
     parkDashLotAddress: "Grand Rapids, MI",
     parkDashLotPricingNote:
       "Compare pricing on posted signs; our scrape may omit some tiers.",
-    parkDashWalkToStopMi: "0.15",
+    parkDashWalkToStopMi: formatRouteDistanceMiles(0.15),
     parkDashBoardStopName: "the nearest signed DASH stop",
     parkDashLotMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("DASH parking downtown Grand Rapids MI")}`,
     parkDashLotLinkLabel: "DASH parking area in Google Maps",
     parkDashVenueStopName: "the DASH stop closest to the venue",
-    parkDashVenueStopWalkMi: "0.15",
+    parkDashVenueStopWalkMi: formatRouteDistanceMiles(0.15),
     parkDashVenueStopMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("DASH shuttle stop Grand Rapids MI")}`,
     parkDashVenueStopLinkLabel: "DASH stops in Google Maps",
   };
@@ -3493,13 +3530,13 @@ function buildParkDashPlaceholderMap(state) {
   let venueLinkLabel = generic.parkDashVenueStopLinkLabel;
   if (venueStop && typeof vLat === "number" && typeof vLng === "number") {
     if (venueStop.name) venueStopName = venueStop.name;
-    const w = haversineMiles(
+    const w = gridWalkMiles(
       venueStop.latitude,
       venueStop.longitude,
       vLat,
       vLng,
     );
-    venueWalkMi = w.toFixed(2);
+    venueWalkMi = formatRouteDistanceMiles(w);
     const pin = googleMapsPinUrl(venueStop.latitude, venueStop.longitude);
     if (pin) {
       venueMapsUrl = pin;
@@ -3508,24 +3545,24 @@ function buildParkDashPlaceholderMap(state) {
   }
 
   if (!Array.isArray(lots) || !dashRoutes || pool.length === 0) {
-    return {
+    return withParkDashWalkMinutePlaceholders({
       ...generic,
       parkDashVenueStopName: venueStopName,
       parkDashVenueStopWalkMi: venueWalkMi,
       parkDashVenueStopMapsUrl: venueMapsUrl,
       parkDashVenueStopLinkLabel: venueLinkLabel,
-    };
+    });
   }
 
   const pick = pickParkDashExampleLot(lots, dashRoutes);
   if (!pick) {
-    return {
+    return withParkDashWalkMinutePlaceholders({
       ...generic,
       parkDashVenueStopName: venueStopName,
       parkDashVenueStopWalkMi: venueWalkMi,
       parkDashVenueStopMapsUrl: venueMapsUrl,
       parkDashVenueStopLinkLabel: venueLinkLabel,
-    };
+    });
   }
 
   const lot = pick.lot;
@@ -3555,11 +3592,11 @@ function buildParkDashPlaceholderMap(state) {
     }
   }
 
-  return {
+  return withParkDashWalkMinutePlaceholders({
     parkDashLotName: lot.name || generic.parkDashLotName,
     parkDashLotAddress: addr || generic.parkDashLotAddress,
     parkDashLotPricingNote: pricingNote,
-    parkDashWalkToStopMi: pick.walkMilesToDash.toFixed(2),
+    parkDashWalkToStopMi: formatRouteDistanceMiles(pick.walkMilesToDash),
     parkDashBoardStopName: boardName,
     parkDashLotMapsUrl: lotMaps,
     parkDashLotLinkLabel: `${lot.name || "Lot"} in Google Maps`,
@@ -3567,7 +3604,7 @@ function buildParkDashPlaceholderMap(state) {
     parkDashVenueStopWalkMi: venueWalkMi,
     parkDashVenueStopMapsUrl: venueMapsUrl,
     parkDashVenueStopLinkLabel: venueLinkLabel,
-  };
+  });
 }
 
 // "No options" cards (formerly in data/recommendations per destination). Same rules for all venues.
@@ -3815,12 +3852,7 @@ function buildParkingBasedDriveRecommendations(state) {
       ) {
         continue;
       }
-      const distanceMi = haversineMiles(
-        loc.latitude,
-        loc.longitude,
-        vLat,
-        vLng,
-      );
+      const distanceMi = gridWalkMiles(loc.latitude, loc.longitude, vLat, vLng);
       if (distanceMi > walkBudget + 1e-9) continue;
 
       const costRange = estimateParkingCostRange(item.pricing, costCategory);
@@ -3858,7 +3890,16 @@ function buildParkingBasedDriveRecommendations(state) {
       }
 
       const walkLabel =
-        distanceMi >= 0.095 ? `${distanceMi.toFixed(2)} mi` : "a short";
+        distanceMi >= 0.095
+          ? `${formatRouteDistanceMiles(distanceMi)} mi`
+          : "a short";
+      const walkMinApprox = visitWalkMinutesFromMiles(distanceMi);
+      const walkStepDetail =
+        walkMinApprox != null
+          ? distanceMi >= 0.095
+            ? `about ${formatRouteDistanceMiles(distanceMi)} mi (~${walkMinApprox} min on foot)`
+            : `a short walk (~${walkMinApprox} min on foot)`
+          : `~${walkLabel}`;
       const costLabel =
         costRange.min === costRange.max
           ? `about $${costRange.min}`
@@ -3898,7 +3939,7 @@ function buildParkingBasedDriveRecommendations(state) {
         },
         {
           title: "Walk to Destination",
-          description: `Walk from your parking spot to ${destName} (~${walkLabel}).`,
+          description: `Walk from your parking spot to ${destName} (${walkStepDetail}).`,
         },
       ];
 
@@ -3952,7 +3993,7 @@ function buildParkingBasedDriveRecommendations(state) {
         },
         {
           title: "Park and Walk",
-          description: `Once you find a spot, park and walk up to {walkMiles} miles to ${destName}.`,
+          description: `Once you find a spot, park and walk up to {walkMiles} mi to ${destName} ({walkMilesMaxWalkMin} min on foot at your max walk setting).`,
         },
       ],
       _metadata: freeMeta,
@@ -4348,7 +4389,7 @@ function findNearestBikeRackToDestination(state) {
     ) {
       continue;
     }
-    const d = haversineMiles(loc.latitude, loc.longitude, vLat, vLng);
+    const d = gridWalkMiles(loc.latitude, loc.longitude, vLat, vLng);
     if (d < bestD) {
       bestD = d;
       best = item;
@@ -4411,7 +4452,7 @@ function findBestRapidRouteStopForDestination(state) {
       if (typeof s.latitude !== "number" || typeof s.longitude !== "number") {
         continue;
       }
-      const d = haversineMiles(s.latitude, s.longitude, vLat, vLng);
+      const d = gridWalkMiles(s.latitude, s.longitude, vLat, vLng);
       const rk = rapidRouteTieBreakKey(route);
       if (
         d < bestD - 1e-9 ||
@@ -4444,6 +4485,7 @@ function buildTransitAppRecommendation(state) {
   const destName = dest?.name || state.destination || "the venue";
 
   const stopToVenueMi = hit.miles;
+  const stopWalkMin = visitWalkMinutesFromMiles(stopToVenueMi);
   const pinUrl = googleMapsPinUrl(hit.stop.latitude, hit.stop.longitude);
   const routeLabel = formatRapidRouteLabel(hit.route);
 
@@ -4456,8 +4498,8 @@ function buildTransitAppRecommendation(state) {
 
   const walkPhrase =
     stopToVenueMi < 0.095
-      ? "a very short walk from that stop to the door."
-      : `about ${stopToVenueMi.toFixed(2)} mi on foot from that stop to the venue.`;
+      ? `a very short walk from that stop to the door (~${stopWalkMin} min on foot).`
+      : `about ${formatRouteDistanceMiles(stopToVenueMi)} mi on foot from that stop to the venue (~${stopWalkMin} min on foot).`;
 
   const stopLabel =
     hit.stop.name && String(hit.stop.name).trim()
@@ -4467,7 +4509,7 @@ function buildTransitAppRecommendation(state) {
   return [
     {
       title: `Take ${routeLabel}`,
-      body: `Our GTFS data places ${stopLabel} on ${routeLabel} within your walk range (~${stopToVenueMi.toFixed(2)} mi from ${destName}). Budget at least $${(TRANSIT_STANDARD_ONE_WAY_FARE * 2).toFixed(2)} for a round trip.`,
+      body: `Our GTFS data places ${stopLabel} on ${routeLabel} within your walk range (~${formatRouteDistanceMiles(stopToVenueMi)} mi · ~${stopWalkMin} min on foot from ${destName}). Budget at least $${(TRANSIT_STANDARD_ONE_WAY_FARE * 2).toFixed(2)} for a round trip.`,
       badge: "Real-time",
       modeKey: "transit",
       variantKey: "transitApp",
@@ -4534,8 +4576,8 @@ function buildBikeRackRecommendation(state) {
   const walkFromRackText =
     typeof rackToVenueMi === "number"
       ? rackToVenueMi < 0.095
-        ? `a very short walk from the rack to ${destName}.`
-        : `About ${rackToVenueMi.toFixed(2)} mi on foot from the rack to ${destName}.`
+        ? `A very short walk from the rack to ${destName} (~${visitWalkMinutesFromMiles(rackToVenueMi)} min on foot).`
+        : `About ${formatRouteDistanceMiles(rackToVenueMi)} mi on foot from the rack to ${destName} (~${visitWalkMinutesFromMiles(rackToVenueMi)} min on foot).`
       : `Walk from your bike to ${destName}.`;
 
   const meta = {
@@ -4569,7 +4611,7 @@ function buildBikeRackRecommendation(state) {
               : "Find Bike Parking Near the Venue",
           description:
             typeof rackToVenueMi === "number"
-              ? `Closest rack in our data is ${rackToVenueMi.toFixed(2)} mi from the venue. Open the map for directions to that pin.`
+              ? `Closest rack in our data is ${formatRouteDistanceMiles(rackToVenueMi)} mi from the venue. Open the map for directions to that pin.`
               : `Use Google Maps to find a public bike rack near ${destName}.`,
           link,
         },
@@ -4619,11 +4661,12 @@ function buildMicromobilityLimeHubSteps(
     item.location.latitude,
     item.location.longitude,
   );
-  const radiusPhrase = `about ${maxWalkRadiusMi.toFixed(2)} mi walk of ${destName}`;
+  const radiusPhrase = `about ${formatRouteDistanceMiles(maxWalkRadiusMi)} mi walk of ${destName}`;
+  const restFootMin = visitWalkMinutesFromMiles(hubToVenueMi);
   const walkRestText =
     hubToVenueMi < 0.095
-      ? `From that parking area to ${destName} is a very short walk.`
-      : `About ${hubToVenueMi.toFixed(2)} mi on foot from that parking area to ${destName} (straight line).`;
+      ? `From that parking area to ${destName} is a very short walk (~${restFootMin} min on foot).`
+      : `About ${formatRouteDistanceMiles(hubToVenueMi)} mi on foot from that parking area to ${destName} (~${restFootMin} min; approximate, not turn-by-turn).`;
 
   let step2Title;
   let step2Description;
@@ -4631,18 +4674,18 @@ function buildMicromobilityLimeHubSteps(
     step2Title = "Go to Parking at the Farther End of Your Range";
     if (poolWasFallback) {
       step2Description = hubLabel
-        ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—no pin met the usual ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi walk cap; see the card note. Open the map for directions.`
-        : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—see the card note about the walk-distance cap. Open the map for directions.`;
+        ? `${hubLabel} is about ${formatRouteDistanceMiles(hubToVenueMi)} mi from ${destName} (straight line)—no pin met the usual ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi walk cap; see the card note. Open the map for directions.`
+        : `The map pin is about ${formatRouteDistanceMiles(hubToVenueMi)} mi from ${destName} (straight line)—see the card note about the walk-distance cap. Open the map for directions.`;
     } else {
       step2Description = hubLabel
-        ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the farthest Lime-related pin in our data within ${radiusPhrase} (your walk limit or ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi, whichever is less). Open the map for directions.`
-        : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the farthest in our data within ${radiusPhrase}. Open the map for directions.`;
+        ? `${hubLabel} is about ${formatRouteDistanceMiles(hubToVenueMi)} mi from ${destName} (straight line)—the farthest Lime-related pin in our data within ${radiusPhrase} (your walk limit or ${MICROMOBILITY_MAX_WALK_TO_VENUE_MI} mi, whichever is less). Open the map for directions.`
+        : `The map pin is about ${formatRouteDistanceMiles(hubToVenueMi)} mi from ${destName} (straight line)—the farthest in our data within ${radiusPhrase}. Open the map for directions.`;
     }
   } else {
     step2Title = "Go to the Closest Parking Pin";
     step2Description = hubLabel
-      ? `${hubLabel} is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the shortest walk among our Lime-related pins.`
-      : `The map pin is about ${hubToVenueMi.toFixed(2)} mi from ${destName} (straight line)—the closest in our data.`;
+      ? `${hubLabel} is about ${formatRouteDistanceMiles(hubToVenueMi)} mi from ${destName} (straight line)—the shortest walk among our Lime-related pins.`
+      : `The map pin is about ${formatRouteDistanceMiles(hubToVenueMi)} mi from ${destName} (straight line)—the closest in our data.`;
   }
 
   return [
@@ -4710,7 +4753,7 @@ function buildMicromobilityLimeHubRecommendation(state) {
     ) {
       continue;
     }
-    const d = haversineMiles(loc.latitude, loc.longitude, vLat, vLng);
+    const d = gridWalkMiles(loc.latitude, loc.longitude, vLat, vLng);
     itemsWithDist.push({ item, d });
   }
   if (itemsWithDist.length === 0) return [];
@@ -4787,14 +4830,19 @@ function buildRecommendationPlaceholders() {
   );
   const destinationDisplay =
     dest?.name || state?.destination || "your destination";
+  const routePace = resolveParkingRoutePace(appData?.parkingRoutePace);
   return {
     walkMiles: walkMiles.toFixed(1),
+    walkMilesMaxWalkMin: String(
+      Math.max(1, Math.round(walkMiles * visitWalkMinutesPerMile())),
+    ),
     destination: state?.destination ?? "",
     destinationDisplay,
     destinationEncoded: encodeURIComponent(
       `${destinationDisplay}, Grand Rapids, MI`,
     ),
     ...buildParkDashPlaceholderMap(state),
+    dashBoardingWaitMinutes: String(routePace.dashBoardingWaitMinutes),
   };
 }
 

@@ -31,6 +31,27 @@ export function haversineMiles(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(Math.max(0, 1 - a)));
 }
 
+/**
+ * Approximate pedestrian distance without cutting diagonally across blocks: sum of
+ * north–south and east–west miles in local equirectangular space at the midpoint latitude
+ * (taxicab / Manhattan metric). Always ≥ {@link haversineMiles} for the same pair.
+ */
+export function gridWalkMiles(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const midLat = (lat1 + lat2) / 2;
+  const latMiPerDeg = 69.172;
+  const lonMiPerDeg = latMiPerDeg * Math.cos(toRad(midLat));
+  const dLatMi = Math.abs(lat2 - lat1) * latMiPerDeg;
+  const dLonMi = Math.abs(lon2 - lon1) * lonMiPerDeg;
+  return dLatMi + dLonMi;
+}
+
+/** One decimal place for user-facing route / walk distances (trims trailing zeros). */
+export function formatRouteDistanceMiles(mi) {
+  if (typeof mi !== "number" || !Number.isFinite(mi)) return "";
+  return String(Number(mi.toFixed(1)));
+}
+
 export function roundCoord5(n) {
   if (typeof n !== "number" || Number.isNaN(n)) return n;
   return Math.round(n * 1e5) / 1e5;
@@ -127,6 +148,7 @@ export const FALLBACK_DATA = {
   parkingRoutePace: {
     walkMinutesPerMile: 24,
     dashMilesPerHour: 12,
+    dashBoardingWaitMinutes: 5,
   },
   destinations: [],
   recommendations: {},

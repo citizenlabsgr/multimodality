@@ -4,15 +4,19 @@ import {
   resolveParkingRoutePace,
   FALLBACK_PARKING_WALK_MINUTES_PER_MILE,
   FALLBACK_PARKING_DASH_MILES_PER_HOUR,
+  FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES,
 } from "../src/parking/parking-route-planning.mjs";
 
 test.describe("Parking route planning", () => {
-  test("defaults match ~2.5 mph walk and 12 mph DASH", () => {
+  test("defaults match ~2.5 mph walk, 12 mph DASH, and boarding wait", () => {
     const pace = resolveParkingRoutePace({});
     expect(pace.walkMinutesPerMile).toBe(
       FALLBACK_PARKING_WALK_MINUTES_PER_MILE,
     );
     expect(pace.dashMilesPerHour).toBe(FALLBACK_PARKING_DASH_MILES_PER_HOUR);
+    expect(pace.dashBoardingWaitMinutes).toBe(
+      FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES,
+    );
   });
 
   test("prefers walking direct when it takes less time than park + DASH + walk", () => {
@@ -24,6 +28,7 @@ test.describe("Parking route planning", () => {
       shuttleMi: 0.7379129479103455,
       walkMinutesPerMile: 20,
       dashMilesPerHour: 12,
+      dashBoardingWaitMinutes: 0,
     });
     expect(r.tDashMin).toBeGreaterThan(r.tDirectMin);
     expect(r.useDashOverlay).toBe(false);
@@ -38,6 +43,7 @@ test.describe("Parking route planning", () => {
       shuttleMi: 0.8459853328570723,
       walkMinutesPerMile: 20,
       dashMilesPerHour: 12,
+      dashBoardingWaitMinutes: 0,
     });
     expect(r.tDashMin).toBeLessThan(r.tDirectMin);
     expect(r.useDashOverlay).toBe(true);
@@ -51,9 +57,24 @@ test.describe("Parking route planning", () => {
       shuttleMi: 4,
       walkMinutesPerMile: 20,
       dashMilesPerHour: 12,
+      dashBoardingWaitMinutes: 0,
     });
     expect(r.tDirectMin).toBe(20);
     expect(r.tDashMin).toBe(20);
+    expect(r.useDashOverlay).toBe(false);
+  });
+
+  test("default boarding wait is included in DASH total time", () => {
+    const r = compareParkingWalkVersusDashMinutes({
+      directMi: 1,
+      w1: 0,
+      w2: 0,
+      shuttleMi: 4,
+      walkMinutesPerMile: 20,
+      dashMilesPerHour: 12,
+    });
+    expect(r.tDirectMin).toBe(20);
+    expect(r.tDashMin).toBe(20 + FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES);
     expect(r.useDashOverlay).toBe(false);
   });
 
@@ -61,9 +82,11 @@ test.describe("Parking route planning", () => {
     const pace = resolveParkingRoutePace({
       walkMinutesPerMile: 18,
       dashMilesPerHour: 10,
+      dashBoardingWaitMinutes: 3,
     });
     expect(pace.walkMinutesPerMile).toBe(18);
     expect(pace.dashMilesPerHour).toBe(10);
+    expect(pace.dashBoardingWaitMinutes).toBe(3);
 
     const r = compareParkingWalkVersusDashMinutes({
       directMi: 1,
@@ -72,6 +95,7 @@ test.describe("Parking route planning", () => {
       shuttleMi: 0.5,
       walkMinutesPerMile: 18,
       dashMilesPerHour: 10,
+      dashBoardingWaitMinutes: 0,
     });
     expect(r.tDirectMin).toBe(18);
     expect(r.tDashMin).toBeCloseTo(0.2 * 18 + 0.5 * 6 + 0.2 * 18, 5);

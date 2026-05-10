@@ -68,14 +68,69 @@ main.parking-map-active {
   list-style-position: outside;
 }
 
-.parking-route-steps li {
+.parking-route-steps .parking-route-step-item {
   display: list-item;
 }
 
-.parking-route-steps li + li {
+.parking-route-steps .parking-route-step-item + .parking-route-step-item {
   margin-top: 0.35rem;
 }
 
+.parking-route-step-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.parking-route-step-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.parking-route-step-metrics {
+  flex: 0 1 auto;
+  max-width: min(12rem, 46%);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+  line-height: 1.2;
+}
+
+/* Time chips — walk (blue), wait at stop (green), DASH ride (maroon family). */
+.parking-route-step-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.parking-route-step-badge--walk {
+  color: rgb(29 78 216);
+  background-color: rgb(219 234 254);
+  border-color: rgb(147 197 253);
+}
+
+.parking-route-step-badge--wait {
+  color: rgb(22 101 52);
+  background-color: rgb(220 252 231);
+  border-color: rgb(134 239 172);
+}
+
+/* DASH trip / shuttle — same family as `PARKING_DASH_TRIP_STOP_FILL` */
+.parking-route-step-badge--dash {
+  color: rgb(147 49 69);
+  background-color: rgb(252 231 236);
+  border-color: rgb(251 182 198);
+}
+
+/* Legacy: older inline route hints (keep if any remain) */
 .parking-route-step-detail {
   color: rgb(100 116 139);
   font-weight: 400;

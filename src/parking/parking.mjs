@@ -1,5 +1,7 @@
 import {
   appData,
+  formatRouteDistanceMiles,
+  gridWalkMiles,
   haversineMiles,
   MODES_PAGE_EMPTY_MAP_CENTER,
 } from "../shared/data-loader.mjs";
@@ -32,7 +34,8 @@ const PARKING_PAY_QUERY_KEY = "pay";
 const PARKING_PAY_QUERY_KEY_LEGACY = "maxEvening";
 
 /**
- * Straight-line miles to the **nearest DASH stop** from each parking pin (minute hints from **`parkingRoutePace.walkMinutesPerMile`**, default ~2.5 mph).
+ * Grid-style walk miles (N–S + E–W, no diagonal shortcut) to the **nearest DASH stop** from each pin
+ * (minute hints from **`parkingRoutePace.walkMinutesPerMile`**, default ~2.5 mph).
  * **Internal/DOM index:** **0** → no distance; **1…15** → **0.1…1.5 mi**.
  * **default** index **5** = **0.5 mi** (URL omits `walk`).
  */
@@ -46,7 +49,7 @@ const PARKING_WALK_QUERY_KEY_LEGACY = "maxWalk";
 /** Show feet (with minute hint) when below this cap — slider **0.1–0.4 mi**; **0.5+** as miles. */
 const PARKING_WALK_FEET_BELOW_MI = 0.5;
 /**
- * **`walk=0`** / slider index **0**: pin filter uses this straight-line walk to nearest DASH (~**100 ft** ≈ **0.019** mi),
+ * **`walk=0`** / slider index **0**: pin filter uses this grid-walk distance to nearest DASH (~**100 ft** ≈ **0.019** mi),
  * not unlimited and not a literal **0** mi cut.
  */
 const PARKING_WALK_ZERO_EFFECTIVE_FEET = 100;
@@ -84,6 +87,73 @@ function parkingWalkEstimateMinutesForMiles(miles) {
   if (!Number.isFinite(miles) || miles <= 0) return 0;
   const mpm = parkingWalkMinutesPerMileFromConfig();
   return Math.max(1, Math.round(miles * mpm));
+}
+
+/**
+ * Route-badge feet only: nearest **500** ft (display). Does not affect the walk slider; see {@link roundParkingWalkFeetForDisplay}.
+ * @param {number} ftExact
+ */
+function roundParkingWalkFeetNearest500ForRouteBadge(ftExact) {
+  if (!Number.isFinite(ftExact) || ftExact <= 0) return 0;
+  return Math.round(ftExact / 500) * 500;
+}
+
+/** Right-column copy: grid-walk distance + time (`parkingRoutePace.walkMinutesPerMile`). Below {@link PARKING_WALK_FEET_BELOW_MI} mi, distance is feet (nearest 500 ft for display; minutes from actual miles). */
+function parkingInstructionWalkEstimateMetrics(miles) {
+  if (!Number.isFinite(miles) || miles <= 0) return "";
+  const min = parkingWalkEstimateMinutesForMiles(miles);
+  if (miles < PARKING_WALK_FEET_BELOW_MI) {
+    const ftExact = Math.round(miles * 5280);
+    const ft = roundParkingWalkFeetNearest500ForRouteBadge(ftExact);
+    if (ft > 0) {
+      return `${ft.toLocaleString("en-US")} ft · ${min} min`;
+    }
+  }
+  const d = formatRouteDistanceMiles(miles);
+  return d ? `${d} mi · ${min} min` : `${min} min`;
+}
+
+/** Right-column copy: typical wait at the stop (`parkingRoutePace.dashBoardingWaitMinutes`). */
+function parkingInstructionDashWaitMetrics(multimodal) {
+  const waitM = multimodal.dashBoardingWaitMinutes;
+  if (typeof waitM !== "number" || !Number.isFinite(waitM)) return "";
+  return `${waitM} min wait`;
+}
+
+/** Right-column copy: on-board time along the DASH loop (excludes wait at the stop; no distance in the badge). */
+function parkingInstructionDashOnboardMetrics(multimodal) {
+  const rideM = multimodal.shuttleMinutes;
+  if (typeof rideM !== "number" || !Number.isFinite(rideM)) return "";
+  return `${rideM} min ride`;
+}
+
+/**
+ * One route step: main instruction (left) and optional time badge(s) (right).
+ * @param {string} mainHtml
+ * @param {string[]} metricLines — plain text / escaped snippets (already safe HTML)
+ * @param {'walk' | 'wait' | 'dash' | undefined} badgeVariant — colors the badge(s); omit when no metrics
+ */
+function parkingRouteStepLi(mainHtml, metricLines, badgeVariant) {
+  const lines = Array.isArray(metricLines)
+    ? metricLines.filter((s) => typeof s === "string" && s.trim() !== "")
+    : [];
+  const variant =
+    lines.length > 0 &&
+    (badgeVariant === "walk" ||
+      badgeVariant === "wait" ||
+      badgeVariant === "dash")
+      ? badgeVariant
+      : null;
+  const metrics =
+    lines.length > 0 && variant
+      ? `<span class="parking-route-step-metrics" aria-label="Time and distance estimates">${lines
+          .map(
+            (line) =>
+              `<span class="parking-route-step-badge parking-route-step-badge--${variant}">${line}</span>`,
+          )
+          .join("")}</span>`
+      : "";
+  return `<li class="parking-route-step-item"><div class="parking-route-step-row"><span class="parking-route-step-main">${mainHtml}</span>${metrics}</div></li>`;
 }
 
 /** Under 1,000 ft: nearest **500** ft; 1,000 ft and up: nearest **1,000** ft. */
@@ -140,7 +210,7 @@ function walkSliderIndexFromCapMiles(capMiles) {
 }
 
 /**
- * Pin filtering only: **`walk=0`** resolves to {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft straight-line to the
+ * Pin filtering only: **`walk=0`** resolves to {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft grid-walk to the
  * nearest DASH stop. Other features keep raw **0** (no overlay, no auto **`start`**).
  * @param {number} resolvedCapMiles — from {@link resolvedParkingWalkCapMiles}
  */
@@ -579,7 +649,7 @@ function wavyApproxWalkChordLatLngs(a, b) {
   if (len < 1e-14) return [a, b];
   const perpLat = -dlng / len;
   const perpLng = dlat / len;
-  const chordMi = haversineMiles(lat1, lng1, lat2, lng2);
+  const chordMi = gridWalkMiles(lat1, lng1, lat2, lng2);
   const ampDeg = Math.min(0.00044, Math.max(0.0001, chordMi * 0.00024));
   const waveCycles = 4;
   const samples = Math.max(30, Math.min(84, Math.round(34 + chordMi * 128)));
@@ -1325,7 +1395,7 @@ function getAllParkingSpotMarkers(
   const dashStops = getDashStopLatLngsForParkingProximity();
   /**
    * **`walk`** omitted from URL defaults to **0.5** mi — never **0** unless explicit **`walk=0`**.
-   * **`walk=0`** uses {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft (~**0.019** mi) for this filter only.
+   * **`walk=0`** uses {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft (~**0.019** mi) grid-walk for this filter only.
    */
   const applyWalkCap =
     destLl != null &&
@@ -1459,7 +1529,7 @@ function filterParkingMarkersExcludeFreeWhenPaidExists(markers) {
 
 /**
  * Whether {@link tryParkingDashMultimodalPath} would draw the DASH multimodal overlay for this spot
- * (same rules as on-map estimated trip — approach walk capped by **`walk`**, straight parking→venue leg can exceed it).
+ * (same rules as on-map estimated trip — approach walk capped by **`walk`**, alight→venue leg can exceed it).
  *
  * @param {{ lat: number; lng: number }} m
  * @param {[number, number]|null} destLl
@@ -1495,10 +1565,10 @@ function markerUsesDashMultimodalForRecommendationFromPool(m) {
  * Sort key for auto-recommended parking follows **`AGENTS.md`**:
  *
  * - **Short** max walk (≤ **0.5** mi): prefer spots whose estimated trip **uses DASH** (multimodal overlay)
- *   over straight-line walks to the venue when both are eligible; among multimodal picks use **farther**
- *   straight-line miles from the venue first (same tie order as generous walk). Door-to-door-only picks
+ *   over door-to-door walks to the venue when both are eligible; among multimodal picks use **farther**
+ *   grid-walk miles from the venue first (same tie order as generous walk). Door-to-door-only picks
  *   stay **closest** to the venue first, then evening dollars, then longest walk to DASH.
- * - **Generous** max walk (&gt; **0.5** mi): **farther** straight-line miles from the venue first (paid lots away from
+ * - **Generous** max walk (&gt; **0.5** mi): **farther** grid-walk miles from the venue first (paid lots away from
  *   the entrance), **then** longest walk to nearest DASH among ties (use approach distance), then paid-tier rank,
  *   then dollars (still paid / within walk-to-stop cap).
  *
@@ -1512,8 +1582,8 @@ function compareParkingMarkersForRecommendation(a, b) {
     return String(a.spotId).localeCompare(String(b.spotId));
   }
 
-  const da = haversineMiles(a.lat, a.lng, destLl[0], destLl[1]);
-  const db = haversineMiles(b.lat, b.lng, destLl[0], destLl[1]);
+  const da = gridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
+  const db = gridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
 
   const walkCap = resolvedParkingWalkCapMiles();
   const shortWalk =
@@ -1692,13 +1762,13 @@ function getDashStopLatLngsForParkingProximity() {
   }));
 }
 
-/** Shortest straight-line miles from a point to any DASH stop (walk slider vs chosen venue). */
+/** Shortest grid-walk miles from a point to any DASH stop (walk slider vs chosen venue). */
 function nearestDashStopWalkMiles(lat, lng, dashStops) {
   if (!Array.isArray(dashStops) || dashStops.length === 0)
     return Number.POSITIVE_INFINITY;
   let best = Infinity;
   for (const s of dashStops) {
-    const d = haversineMiles(lat, lng, s.lat, s.lng);
+    const d = gridWalkMiles(lat, lng, s.lat, s.lng);
     if (d < best) best = d;
   }
   return best;
@@ -1811,7 +1881,7 @@ function nearestParkingDashStopFromPoints(lat, lng, dashPoints) {
   let best = null;
   let bestD = Infinity;
   for (const p of dashPoints) {
-    const d = haversineMiles(lat, lng, p.lat, p.lng);
+    const d = gridWalkMiles(lat, lng, p.lat, p.lng);
     if (d < bestD) {
       bestD = d;
       best = p;
@@ -1827,13 +1897,13 @@ function nearestParkingDashStopFromPoints(lat, lng, dashPoints) {
 }
 
 /**
- * When total time (walk–board + shuttle + walk–venue) is **less** than walking straight
+ * When total time (walk–board + shuttle + walk–venue) is **less** than walking door-to-door
  * (same pace knobs as **`parkingRoutePace`** in `config.json`), the walk **to DASH** fits `walkCapMiles`
- * (same idea as pin filtering: max willingness to reach a stop), and straight parking→venue distance
+ * (same idea as pin filtering: max willingness to reach a stop), and grid-walk parking→venue distance
  * **exceeds** the max-walk cap (otherwise show door-to-door walk only). The alight→venue leg uses the
  * nearest stop to the destination and is **not** capped by `walkCapMiles` (venues off the loop can be
  * farther than that last-mile walk).
- * Otherwise the map keeps a single straight walk segment (walking-only is faster or ties).
+ * Otherwise the map keeps a single door-to-door walk segment (walking-only is faster or ties).
  * @param {number} walkCapMiles — must be **> 0** (slider above minimum); **0** / invalid ⇒ no multimodal trip (cannot reach DASH without walking).
  */
 function tryParkingDashMultimodalPath(
@@ -1866,7 +1936,7 @@ function tryParkingDashMultimodalPath(
   if (!board || !alight) return null;
 
   const w1 = board.walkMi;
-  const w2 = haversineMiles(alight.lat, alight.lng, destLat, destLng);
+  const w2 = gridWalkMiles(alight.lat, alight.lng, destLat, destLng);
 
   const walkCapFinite =
     typeof walkCapMiles === "number" &&
@@ -1875,8 +1945,8 @@ function tryParkingDashMultimodalPath(
   /** Cap applies to approach to DASH only; see JSDoc — `w2` can exceed cap when the venue is far from stops. */
   if (walkCapFinite && w1 > walkCapMiles) return null;
 
-  const directMi = haversineMiles(startLat, startLng, destLat, destLng);
-  /** Finite max-walk and straight parking→venue distance already fits — prefer direct walk overlay only. */
+  const directMi = gridWalkMiles(startLat, startLng, destLat, destLng);
+  /** Finite max-walk and grid-walk parking→venue distance already fits — prefer direct walk overlay only. */
   if (walkCapFinite && directMi <= walkCapMiles + 1e-9) return null;
 
   const pace = resolveParkingRoutePace(appData?.parkingRoutePace);
@@ -1904,9 +1974,15 @@ function tryParkingDashMultimodalPath(
     shuttleMi,
     walkMinutesPerMile: pace.walkMinutesPerMile,
     dashMilesPerHour: pace.dashMilesPerHour,
+    dashBoardingWaitMinutes: pace.dashBoardingWaitMinutes,
   });
 
   if (!useDashOverlay) return null;
+
+  const shuttleRideMinutes = Math.max(
+    1,
+    Math.round((shuttleMi * 60) / pace.dashMilesPerHour),
+  );
 
   return {
     walk1: [
@@ -1928,6 +2004,12 @@ function tryParkingDashMultimodalPath(
       lng: alight.lng,
       label: alight.label,
     },
+    walk1Mi: w1,
+    walk2Mi: w2,
+    shuttleMi,
+    /** On-board time along the DASH loop (excludes typical wait at the stop). */
+    shuttleMinutes: shuttleRideMinutes,
+    dashBoardingWaitMinutes: pace.dashBoardingWaitMinutes,
     tooltip:
       "Estimated trip — walk to DASH, shuttle along the route, then walk to the venue (walk legs are approximate, not turn-by-turn).",
   };
@@ -2915,10 +2997,11 @@ function syncParkingRouteInstructionsPanel() {
       ? String(spot.name).trim()
       : "this location";
   const addrRaw = typeof spot.address === "string" ? spot.address.trim() : "";
-  const parkDetail =
+  const parkAddressInline =
     addrRaw !== ""
       ? ` <span class="parking-route-step-detail">(${escapeHtml(addrRaw)})</span>`
       : "";
+  const parkMainHtml = `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkAddressInline}`;
 
   const multimodal = tryParkingDashMultimodalPath(
     start.lat,
@@ -2941,34 +3024,68 @@ function syncParkingRouteInstructionsPanel() {
       ) < 2e-5;
 
     const steps = [];
+    steps.push(parkingRouteStepLi(parkMainHtml, []));
+    const w1m = parkingInstructionWalkEstimateMetrics(multimodal.walk1Mi);
+    const w2m = parkingInstructionWalkEstimateMetrics(multimodal.walk2Mi);
+    const waitM = parkingInstructionDashWaitMetrics(multimodal);
+    const onboardM = parkingInstructionDashOnboardMetrics(multimodal);
+    const boardLabel = escapeHtml(multimodal.boardStop.label);
+    const alightLabel = escapeHtml(multimodal.alightStop.label);
+
     steps.push(
-      `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkDetail}`,
+      parkingRouteStepLi(
+        `<strong>Walk</strong> to ${boardLabel}`,
+        w1m ? [w1m] : [],
+        "walk",
+      ),
+    );
+    steps.push(
+      parkingRouteStepLi(
+        `<strong>Wait</strong> for the next DASH shuttle`,
+        waitM ? [waitM] : [],
+        "wait",
+      ),
     );
     if (sameTripStop) {
       steps.push(
-        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)}, then <strong>board and exit</strong> DASH at that stop`,
+        parkingRouteStepLi(
+          `<strong>Board</strong> DASH at ${boardLabel} and <strong>exit</strong> at the same stop`,
+          onboardM ? [onboardM] : [],
+          "dash",
+        ),
       );
     } else {
       steps.push(
-        `<strong>Walk</strong> to ${escapeHtml(multimodal.boardStop.label)} and <strong>board DASH</strong>`,
-      );
-      steps.push(
-        `<strong>Ride</strong> DASH to ${escapeHtml(multimodal.alightStop.label)} and <strong>exit</strong>`,
+        parkingRouteStepLi(
+          `<strong>Board</strong> DASH, then <strong>ride</strong> to ${alightLabel} and <strong>exit</strong>`,
+          onboardM ? [onboardM] : [],
+          "dash",
+        ),
       );
     }
-    steps.push(`<strong>Walk</strong> to ${escapeHtml(destName)}`);
+    steps.push(
+      parkingRouteStepLi(
+        `<strong>Walk</strong> to ${escapeHtml(destName)}`,
+        w2m ? [w2m] : [],
+        "walk",
+      ),
+    );
 
-    body.innerHTML =
-      listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose;
+    body.innerHTML = listOpen + steps.join("") + listClose;
     return;
   }
 
+  const doorMi = gridWalkMiles(start.lat, start.lng, destLl[0], destLl[1]);
+  const doorMetrics = parkingInstructionWalkEstimateMetrics(doorMi);
   const steps = [
-    `<strong>Park</strong> at ${escapeHtml(parkLabel)}${parkDetail}`,
-    `<strong>Walk</strong> to ${escapeHtml(destName)} — for this spot, door-to-door on foot is shown instead of DASH (often faster)`,
+    parkingRouteStepLi(parkMainHtml, []),
+    parkingRouteStepLi(
+      `<strong>Walk</strong> to ${escapeHtml(destName)} — door-to-door on foot is shown instead of DASH when it's faster`,
+      doorMetrics ? [doorMetrics] : [],
+      "walk",
+    ),
   ];
-  body.innerHTML =
-    listOpen + steps.map((s) => `<li>${s}</li>`).join("") + listClose;
+  body.innerHTML = listOpen + steps.join("") + listClose;
 }
 
 /**

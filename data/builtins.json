@@ -13,21 +13,21 @@
       "steps": [
         {
           "title": "Park at a Value Lot Near the DASH Route",
-          "description": "Park at {parkDashLotName} ({parkDashLotAddress}). {parkDashLotPricingNote} Using our scraped lot list and DASH stop coordinates, it is about {parkDashWalkToStopMi} mi on foot from this lot to the nearest stop ({parkDashBoardStopName}). Confirm hours and rates on posted signs.",
+          "description": "Park at {parkDashLotName} ({parkDashLotAddress}). {parkDashLotPricingNote} Using our scraped lot list and DASH stop coordinates, it is about {parkDashWalkToStopMi} mi on foot (~{parkDashWalkToStopWalkMin} min) from this lot to the nearest stop ({parkDashBoardStopName}). Confirm hours and rates on posted signs.",
           "linkTemplate": "{parkDashLotMapsUrl}",
           "linkLabel": "{parkDashLotLinkLabel}"
         },
         {
           "title": "Walk to the Nearest DASH Stop",
-          "description": "From your car, walk about {parkDashWalkToStopMi} mi to {parkDashBoardStopName} (the closest DASH stop to this lot in our GTFS-derived route data). Follow sidewalks and posted signage for The Rapid DASH."
+          "description": "From your car, walk about {parkDashWalkToStopMi} mi (~{parkDashWalkToStopWalkMin} min on foot) to {parkDashBoardStopName} (the closest DASH stop to this lot in our GTFS-derived route data). Follow sidewalks and posted signage for The Rapid DASH."
         },
         {
           "title": "Ride DASH Toward the Venue",
-          "description": "Board the free DASH shuttle and ride toward {destinationDisplay}. Stay on until you are as close to the venue as the route allows."
+          "description": "Board the free DASH shuttle and ride toward {destinationDisplay}. Plan about {dashBoardingWaitMinutes} minutes waiting for the next bus at the stop; time on board depends how far you travel along the loop. Stay on until you are as close to the venue as the route allows."
         },
         {
           "title": "Get off DASH and Walk to the Venue",
-          "description": "Exit at {parkDashVenueStopName}, about {parkDashVenueStopWalkMi} mi on foot from the venue coordinates in our data—then walk to the entrance.",
+          "description": "Exit at {parkDashVenueStopName}, about {parkDashVenueStopWalkMi} mi on foot (~{parkDashVenueStopWalkMin} min) from the venue coordinates in our data—then walk to the entrance.",
           "linkTemplate": "{parkDashVenueStopMapsUrl}",
           "linkLabel": "{parkDashVenueStopLinkLabel}"
         }
@@ -119,7 +119,7 @@
         },
         {
           "title": "Board the DASH Shuttle",
-          "description": "Wait for the next DASH shuttle and board it. The shuttle is free and runs through downtown Grand Rapids."
+          "description": "Allow about {dashBoardingWaitMinutes} minutes for the next DASH shuttle, then board. The shuttle is free and runs through downtown Grand Rapids."
         },
         {
           "title": "Walk to Destination",
