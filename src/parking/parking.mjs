@@ -1540,7 +1540,8 @@ function parkingMarkerPaidTierRank(eveningSortDollars) {
 
 /**
  * Auto-recommendation pool: keep only markers with parseable known dollars (including `$0`).
- * Unknown / ambiguous cost markers are never eligible for automatic `start` suggestions.
+ * {@link buildParkingRecommendationMarkerPool} uses this first, then falls back to all eligible
+ * markers when every visible pin is unknown / ambiguous-priced.
  *
  * @param {Array<{ eveningSortDollars: number }>} markers
  */
@@ -1549,6 +1550,20 @@ function filterParkingMarkersForRecommendation(markers) {
   return markers.filter((m) =>
     parkingMarkerHasKnownEveningDollars(m.eveningSortDollars),
   );
+}
+
+/**
+ * Markers eligible for the muted green auto-pick: prefer known-dollar ceilings; if none, use
+ * unknown / ambiguous so private-only filters still get a suggestion.
+ *
+ * @param {Array<{ eveningSortDollars: number }>} markers — already pay / walk / category filtered
+ */
+function buildParkingRecommendationMarkerPool(markers) {
+  if (!Array.isArray(markers) || markers.length === 0) return [];
+  let pool = filterParkingMarkersForRecommendation(markers);
+  pool = filterParkingMarkersExcludeFreeWhenPaidExists(pool);
+  if (pool.length > 0) return pool;
+  return filterParkingMarkersExcludeFreeWhenPaidExists(markers);
 }
 
 /**
@@ -1689,7 +1704,7 @@ function compareParkingMarkersForRecommendation(a, b) {
 }
 
 /**
- * Best parking pin for auto **`start`** — applies {@link filterParkingMarkersForRecommendation} then
+ * Best parking pin for auto **`start`** — {@link buildParkingRecommendationMarkerPool} then
  * {@link compareParkingMarkersForRecommendation}.
  *
  * @param {Set<string>|string[]|undefined} enabledKeysOverride — when provided (e.g. category toggle **before** hash updates), use this instead of **`location=`** from the URL.
@@ -1701,10 +1716,9 @@ function chooseBestParkingStartSpotId(enabledKeysOverride) {
       : Array.isArray(enabledKeysOverride)
         ? getAllParkingSpotMarkers(enabledKeysOverride)
         : getAllParkingSpotMarkers();
-  markers = filterParkingMarkersForRecommendation(markers);
-  markers = filterParkingMarkersExcludeFreeWhenPaidExists(markers);
-  if (markers.length === 0) return undefined;
-  const sorted = [...markers].sort(compareParkingMarkersForRecommendation);
+  const pool = buildParkingRecommendationMarkerPool(markers);
+  if (pool.length === 0) return undefined;
+  const sorted = [...pool].sort(compareParkingMarkersForRecommendation);
   return sorted[0].spotId;
 }
 
@@ -1716,6 +1730,8 @@ if (typeof globalThis !== "undefined") {
     compareParkingMarkersForRecommendation;
   globalThis.__filterParkingMarkersForRecommendationForTest =
     filterParkingMarkersForRecommendation;
+  globalThis.__buildParkingRecommendationMarkerPoolForTest =
+    buildParkingRecommendationMarkerPool;
   globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest =
     filterParkingMarkersExcludeFreeWhenPaidExists;
   globalThis.__getParkingEffectiveStartSpotIdForTest =
@@ -3046,6 +3062,14 @@ function syncParkingRouteInstructionsPanel() {
   const body = document.getElementById("parkingRouteInstructionsBody");
   if (!body) return;
 
+  const unverifiedNote = document.getElementById(
+    "parkingRouteUnverifiedDataNote",
+  );
+  const setParkingRouteUnverifiedNoteVisible = (visible) => {
+    if (!unverifiedNote) return;
+    unverifiedNote.classList.toggle("hidden", !visible);
+  };
+
   const destLl = getParkingDestinationLatLng();
   const walkCap = resolvedParkingWalkCapMiles();
   const destSlug = getParkingDestinationSlugFromSelect();
@@ -3064,6 +3088,7 @@ function syncParkingRouteInstructionsPanel() {
     body.innerHTML = routeNextHtml(
       `Choose <strong class="font-semibold text-slate-800">where you're going</strong> with the destination menu above or click on one of the map markers.`,
     );
+    setParkingRouteUnverifiedNoteVisible(true);
     return;
   }
 
@@ -3072,6 +3097,7 @@ function syncParkingRouteInstructionsPanel() {
       `Move <strong class="font-semibold text-slate-800">And then walk</strong> above zero so we can show walking distance from parking to DASH.`,
       true,
     );
+    setParkingRouteUnverifiedNoteVisible(true);
     return;
   }
 
@@ -3079,6 +3105,7 @@ function syncParkingRouteInstructionsPanel() {
   const committedId = getParkingSpotIdForHash();
   if (rawStartId && !committedId) {
     body.innerHTML = `<p class="parking-route-instructions-placeholder">Your chosen parking isn't on the map with the current <strong class="font-semibold text-slate-800">To park in</strong> filters. Turn a category back on or pick another spot.</p>`;
+    setParkingRouteUnverifiedNoteVisible(true);
     return;
   }
 
@@ -3087,6 +3114,7 @@ function syncParkingRouteInstructionsPanel() {
       `Tap a parking location, then <strong class="font-semibold text-slate-800">Plan to park here</strong> to set where you'll leave your car.`,
       true,
     );
+    setParkingRouteUnverifiedNoteVisible(true);
     return;
   }
 
@@ -3096,6 +3124,7 @@ function syncParkingRouteInstructionsPanel() {
       `Pick a parking spot and tap <strong class="font-semibold text-slate-800">Plan to park here</strong> again.`,
       true,
     );
+    setParkingRouteUnverifiedNoteVisible(true);
     return;
   }
 
@@ -3232,6 +3261,7 @@ function syncParkingRouteInstructionsPanel() {
     );
 
     body.innerHTML = listOpen + steps.join("") + listClose;
+    setParkingRouteUnverifiedNoteVisible(false);
     return;
   }
 
@@ -3240,12 +3270,13 @@ function syncParkingRouteInstructionsPanel() {
   const steps = [
     parkingRouteStepLi(parkMainHtml, []),
     parkingRouteStepLi(
-      `<strong>Walk</strong> to ${venueNameHtml} — door-to-door on foot is shown instead of DASH when it's faster`,
+      `<strong>Walk</strong> to ${venueNameHtml}`,
       doorMetrics ? [doorMetrics] : [],
       "walk",
     ),
   ];
   body.innerHTML = listOpen + steps.join("") + listClose;
+  setParkingRouteUnverifiedNoteVisible(false);
 }
 
 /**

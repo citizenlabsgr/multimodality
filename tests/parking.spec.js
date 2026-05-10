@@ -587,14 +587,13 @@ test.describe("Parking map (#/visit)", () => {
 
       const consistent = await page.evaluate(() => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
-        const noFree =
-          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
         const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
         const choose = globalThis.__chooseBestParkingStartSpotIdForTest;
         if (!markers.length || typeof cmp !== "function") return false;
-        let pool = typeof filt === "function" ? filt(markers) : markers;
-        pool = typeof noFree === "function" ? noFree(pool) : pool;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
         if (!pool.length) return false;
         const sorted = [...pool].sort(cmp);
         return sorted[0]?.spotId === choose();
@@ -645,14 +644,13 @@ test.describe("Parking map (#/visit)", () => {
 
       const consistent = await page.evaluate(() => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
-        const noFree =
-          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
         const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
         const choose = globalThis.__chooseBestParkingStartSpotIdForTest;
         if (!markers.length || typeof cmp !== "function") return false;
-        let pool = typeof filt === "function" ? filt(markers) : markers;
-        pool = typeof noFree === "function" ? noFree(pool) : pool;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
         if (!pool.length) return false;
         const sorted = [...pool].sort(cmp);
         return sorted[0]?.spotId === choose();
@@ -670,24 +668,28 @@ test.describe("Parking map (#/visit)", () => {
 
       const r = await page.evaluate(() => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
         const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
-        const noFree =
-          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
         const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
-        let pool = typeof filt === "function" ? filt(markers) : markers;
-        pool = typeof noFree === "function" ? noFree(pool) : pool;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
+        const hasKnownDollarPin =
+          typeof filt === "function" ? filt(markers).length > 0 : false;
         if (!pool.length || typeof cmp !== "function") {
-          return { anyKnown: false, matchesSort: false };
+          return { anyPick: false, matchesSort: false };
         }
         const sorted = [...pool].sort(cmp);
         const id = globalThis.__chooseBestParkingStartSpotIdForTest();
         return {
-          anyKnown: true,
+          anyPick: true,
+          hasKnownDollarPin,
           matchesSort: sorted[0]?.spotId === id,
         };
       });
 
-      expect(r.anyKnown).toBe(true);
+      expect(r.anyPick).toBe(true);
+      expect(r.hasKnownDollarPin).toBe(true);
       expect(r.matchesSort).toBe(true);
     });
 
@@ -709,13 +711,12 @@ test.describe("Parking map (#/visit)", () => {
           return dLatMi + dLonMi;
         }
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
-        const noFree =
-          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
         const dashFn =
           globalThis.__markerUsesDashMultimodalForRecommendationForTest;
-        let pool = typeof filt === "function" ? filt(markers) : markers;
-        pool = typeof noFree === "function" ? noFree(pool) : pool;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
         const dest = window.appData?.destinations?.find(
           (d) => d.slug === "acrisure-amphitheater",
         );
@@ -780,11 +781,10 @@ test.describe("Parking map (#/visit)", () => {
           return dLatMi + dLonMi;
         }
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
-        const noFree =
-          globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
-        let pool = typeof filt === "function" ? filt(markers) : markers;
-        pool = typeof noFree === "function" ? noFree(pool) : pool;
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
         const dest = window.appData?.destinations?.find(
           (d) => d.slug === "acrisure-amphitheater",
         );
@@ -849,12 +849,10 @@ test.describe("Parking map (#/visit)", () => {
             return dLatMi + dLonMi;
           }
           const markers = globalThis.__getAllParkingSpotMarkersForTest();
-          const filt =
-            globalThis.__filterParkingMarkersForRecommendationForTest;
-          const noFree =
-            globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest;
-          let pool = typeof filt === "function" ? filt(markers) : markers;
-          pool = typeof noFree === "function" ? noFree(pool) : pool;
+          const buildPool =
+            globalThis.__buildParkingRecommendationMarkerPoolForTest;
+          const pool =
+            typeof buildPool === "function" ? buildPool(markers) : markers;
           const dest = window.appData?.destinations?.find(
             (d) => d.slug === "acrisure-amphitheater",
           );
@@ -932,6 +930,32 @@ test.describe("Parking map (#/visit)", () => {
 
       expect(r.chosenKnownDollars).toBe(true);
       if (r.hasKnownFree) expect(r.chosenIsFree).toBe(false);
+    });
+
+    test("Acrisure private-garage and private-lot only still auto-picks when no parseable price", async ({
+      page,
+    }) => {
+      await page.goto(
+        "/#/visit/acrisure-amphitheater?location=private-garage,private-lot&pay=50",
+      );
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const markers = globalThis.__getAllParkingSpotMarkersForTest();
+        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
+        const id = globalThis.__chooseBestParkingStartSpotIdForTest();
+        return {
+          markerCount: markers.length,
+          knownDollarPins:
+            typeof filt === "function" ? filt(markers).length : 0,
+          chosenId: id,
+        };
+      });
+
+      expect(r.markerCount).toBeGreaterThan(0);
+      expect(r.knownDollarPins).toBe(0);
+      expect(r.chosenId).toBeTruthy();
     });
   });
 
