@@ -13,7 +13,7 @@ import {
 } from "../shared/parking-map-marker-styles.mjs";
 
 /**
- * Parking map category ids — same strings as `#/parking?location=` (not `appData.parking` JSON keys).
+ * Parking map category ids — same strings as `#/visit?location=` (not `appData.parking` JSON keys).
  */
 const PARKING_MAP_ITEM_KEYS = [
   "public-garage",
@@ -22,10 +22,10 @@ const PARKING_MAP_ITEM_KEYS = [
   "private-lot",
 ];
 
-/** `#/parking` — slider max (50) means no evening price cap; scale is 0–50 in $5 steps. */
+/** `#/visit` — slider max (50) means no evening price cap; scale is 0–50 in $5 steps. */
 const PARKING_MAX_EVENING_SLIDER_CEILING = 50;
 const PARKING_MAX_EVENING_SLIDER_STEP = 5;
-/** When `pay` is omitted from the URL, default to max (`Any price`) for a short `#/parking` link. */
+/** When `pay` is omitted from the URL, default to max (`Any price`) for a short `#/visit` link. */
 const PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE =
   PARKING_MAX_EVENING_SLIDER_CEILING;
 const PARKING_PAY_QUERY_KEY = "pay";
@@ -524,12 +524,17 @@ function parkingCategoryPaintIndex(categoryKey) {
   return i === -1 ? PARKING_CATEGORY_PAINT_ORDER.length : i;
 }
 
-/** `#/parking` — DASH routes + drive parking locations (garages/lots only). */
+/** `#/visit` — DASH routes + drive parking locations (garages/lots only). Legacy `#/parking` is rewritten on load. */
 export function isParkingRoute() {
   const hash = window.location.hash.slice(1);
   const pathPart =
     hash.indexOf("?") >= 0 ? hash.slice(0, hash.indexOf("?")) : hash;
-  return pathPart === "/parking" || pathPart === "/parking/";
+  if (pathPart === "/parking" || pathPart === "/parking/") return true;
+  return (
+    pathPart === "/visit" ||
+    pathPart === "/visit/" ||
+    pathPart.startsWith("/visit/")
+  );
 }
 
 /** Same downtown filter as `src/visit/planner.mjs` / `#/data/routes`. */
@@ -537,7 +542,7 @@ const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
 const DATA_ROUTES_CITY_CENTER_LON = -85.66806;
 const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
 
-/** `#/parking` — hide parking pins farther than this from any shown DASH stop. */
+/** `#/visit` — hide parking pins farther than this from any shown DASH stop. */
 const PARKING_MAX_MILES_FROM_DASH_STOP = 0.75;
 
 /** Dashed estimated-walk polylines — Tailwind `blue-600`, same family as `#parkingMaxWalkSlider` (`accent-blue-600`). */
@@ -676,7 +681,7 @@ function parkingMapEventPlusHourlySupplement(eventsText, hourlyText) {
 }
 
 /**
- * Cost line for `#/parking` popups: prefers ArcGIS `hourlyRate` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
+ * Cost line for `#/visit` popups: prefers ArcGIS `hourlyRate` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
  * When **`events`** and **`hourlyRate`** are both set (city map), primary line is the **event** charge plus **`hourlyRate`** as a supplement (weekend / hourly context).
  * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
  */
@@ -756,7 +761,7 @@ export function parseTotalSpacesFromAvailability(raw) {
 }
 
 /**
- * Query string for `#/parking?…` (empty when no `?` in hash).
+ * Query string for `#/visit?…` (empty when no `?` in hash).
  */
 function getParkingRouteSearchParams() {
   const hash = window.location.hash.slice(1);
@@ -767,7 +772,7 @@ function getParkingRouteSearchParams() {
 
 /**
  * `null` = no `location` (or legacy `cats`) param → show all categories.
- * `Set` (possibly empty) = explicit filter from `#/parking?location=public-garage,private-lot`.
+ * `Set` (possibly empty) = explicit filter from `#/visit?location=public-garage,private-lot`.
  */
 function parseParkingCatsFromHash() {
   const params = getParkingRouteSearchParams();
@@ -787,14 +792,30 @@ function parseParkingCatsFromHash() {
   );
 }
 
-/** Query param for chosen venue on `#/parking` (destination slug). Legacy: `venue`, `destination`, `dest`. */
+/** Query param for chosen venue (destination slug) when not using the `/visit/<slug>` path. Legacy: `venue`, `destination`, `dest`. */
 const PARKING_FINISH_QUERY_KEY = "finish";
 
-/** Query param for selected parking start pin on `#/parking` (`category~lat~lng`, 6dp). Legacy: `spot`. */
-const PARKING_START_QUERY_KEY = "start";
+/** Query param for selected parking pin on `#/visit` (`category~lat~lng`, 6dp). Legacy: `start`, `spot`. */
+const PARKING_PARK_QUERY_KEY = "park";
 
-/** Venue slug from `#/parking?finish=…`, or legacy `venue` / `destination` / `dest`, or "" if absent / invalid. */
+function parseParkingRoutePathSlug() {
+  const hash = window.location.hash.slice(1);
+  const qIdx = hash.indexOf("?");
+  const path = (qIdx >= 0 ? hash.slice(0, qIdx) : hash).replace(/\/$/, "");
+  if (path === "/visit" || path === "/visit/") return "";
+  if (!path.startsWith("/visit/")) return "";
+  return path.slice("/visit/".length).trim();
+}
+
+/** Venue slug from `#/visit/<slug>` or legacy `finish=` / `venue` / `destination` / `dest`, or "" if absent / invalid. */
 function parseParkingDestSlugFromHash() {
+  const pathSlug = parseParkingRoutePathSlug();
+  if (pathSlug) {
+    const ok =
+      Array.isArray(appData?.destinations) &&
+      appData.destinations.some((d) => d.slug === pathSlug);
+    if (ok) return pathSlug;
+  }
   const params = getParkingRouteSearchParams();
   let raw = null;
   if (params.has(PARKING_FINISH_QUERY_KEY))
@@ -853,17 +874,18 @@ function normalizeParkingSpotId(raw) {
   return encodeParkingSpotId(p.categoryKey, p.lat, p.lng);
 }
 
-/** Normalized `start` / `spot` token from the hash when syntactically valid (no marker filter). */
+/** Normalized `park` / legacy `start` / `spot` token from the hash when syntactically valid (no marker filter). */
 function normalizeParkingSpotIdFromHashRaw() {
   const params = getParkingRouteSearchParams();
-  let raw = params.get(PARKING_START_QUERY_KEY);
+  let raw = params.get(PARKING_PARK_QUERY_KEY);
+  if (raw == null || String(raw).trim() === "") raw = params.get("start");
   if (raw == null || String(raw).trim() === "") raw = params.get("spot");
   if (raw == null || String(raw).trim() === "") return undefined;
   return normalizeParkingSpotId(String(raw).trim());
 }
 
 /**
- * User-committed `start=` / `spot=` preserved when rewriting the hash — only when already in the URL
+ * User-committed `park=` / legacy `start=` / `spot=` preserved when rewriting the hash — only when already in the URL
  * and still a visible marker for `enabledKeysOverride` (or current categories when omitted).
  * Auto-recommendation never writes here; use {@link getParkingEffectiveStartSpotId} for the green pin.
  *
@@ -888,7 +910,7 @@ function getParkingSpotIdForHash() {
 }
 
 /**
- * Both **`finish=`** (or legacy venue keys) and committed **`start=`** / **`spot=`** are in the URL —
+ * Both a **destination** (path or `finish=` / legacy venue keys) and committed **`park=`** / legacy **`start=`** / **`spot=`** are in the URL —
  * trip step digits (**1**–**4**) appear on map pins; otherwise badges stay blank.
  */
 function parkingTripStepNumbersHashReady() {
@@ -899,7 +921,7 @@ function parkingTripStepNumbersHashReady() {
 
 /**
  * Recommended or committed parking start for map overlays — URL wins when present; otherwise auto pick.
- * Auto pick (muted green pin, unnumbered) runs only when a **destination** is chosen so bare `#/parking` does not suggest a start.
+ * Auto pick (muted green pin, unnumbered) runs only when a **destination** is chosen so bare `#/visit` does not suggest a pick.
  */
 function getParkingEffectiveStartSpotId() {
   const committed = getParkingSpotIdForHash();
@@ -909,7 +931,7 @@ function getParkingEffectiveStartSpotId() {
 }
 
 /**
- * After slider/toggle/destination updates: when **`walk` index is 0**, omit `start` (do not auto-pick).
+ * After slider/toggle/destination updates: when **`walk` index is 0**, omit `park` (do not auto-pick).
  *
  * @param {Set<string>|string[]|undefined} enabledKeysOverride
  * @param {number|undefined} walkSliderIndexOverride — internal index after a walk-slider commit
@@ -924,6 +946,18 @@ function parkingStartSpotIdForAutoPick(
       : getParkingMaxWalkSliderValueForHash();
   if (walkIx === 0) return undefined;
   return chooseBestParkingStartSpotId(enabledKeysOverride);
+}
+
+function parkingVisitBasePath(destSlug) {
+  const d = typeof destSlug === "string" ? destSlug.trim() : "";
+  if (
+    d &&
+    Array.isArray(appData?.destinations) &&
+    appData.destinations.some((x) => x.slug === d)
+  ) {
+    return `/visit/${d}`;
+  }
+  return "/visit";
 }
 
 function buildParkingHashFromState(
@@ -957,13 +991,7 @@ function buildParkingHashFromState(
     parts.push(`location=${[...enabled].sort().join(",")}`);
   }
   const d = typeof destSlug === "string" ? destSlug.trim() : "";
-  if (
-    d &&
-    Array.isArray(appData?.destinations) &&
-    appData.destinations.some((x) => x.slug === d)
-  ) {
-    parts.push(`${PARKING_FINISH_QUERY_KEY}=${encodeURIComponent(d)}`);
-  }
+  const basePath = parkingVisitBasePath(d);
   if (typeof sliderVal === "number" && Number.isFinite(sliderVal)) {
     if (sliderVal >= PARKING_MAX_EVENING_SLIDER_CEILING) {
       if (
@@ -999,12 +1027,12 @@ function buildParkingHashFromState(
     }
   }
   if (spotNorm)
-    parts.push(`${PARKING_START_QUERY_KEY}=${encodeURIComponent(spotNorm)}`);
+    parts.push(`${PARKING_PARK_QUERY_KEY}=${encodeURIComponent(spotNorm)}`);
   const q = parts.join("&");
-  return q ? `#/parking?${q}` : "#/parking";
+  return q ? `#${basePath}?${q}` : `#${basePath}`;
 }
 
-/** Drop stale `start=` when `walk=0` so the URL matches “no parking pick” semantics. */
+/** Drop stale `park=` when `walk=0` so the URL matches “no parking pick” semantics. */
 function syncParkingHashStripStartWhenWalkZero() {
   if (getParkingMaxWalkSliderValueForHash() !== 0) return;
   if (!normalizeParkingSpotIdFromHashRaw()) return;
@@ -1051,7 +1079,7 @@ function toggleParkingCategoryFilter(key) {
   }
 }
 
-/** All parking categories on, no destination — `#/parking` with no query. */
+/** All parking categories on, no destination — `#/visit` with no query. */
 function resetParkingMapChromeToDefaults() {
   const nextHash = buildParkingHashFromState(
     new Set(PARKING_MAP_ITEM_KEYS),
@@ -2207,7 +2235,7 @@ function parkingSpotPickIcon(L, glyph) {
 }
 
 /**
- * Muted green pick marker for {@link chooseBestParkingStartSpotId} when **`start=`** is omitted —
+ * Muted green pick marker for {@link chooseBestParkingStartSpotId} when **`park=`** is omitted —
  * same pin badge as {@link parkingSpotPickIcon} (**blank** white circle, no glyph).
  */
 function parkingSpotPickSuggestionIcon(L) {
@@ -2763,7 +2791,7 @@ function fitParkingMapToAllContent(map) {
   }
 
   /**
-   * Finish selected, **no** `start=` yet: frame visible parking pins **and** the venue so the red
+   * Finish selected, **no** `park=` yet: frame visible parking pins **and** the venue so the red
    * finish pin stays on-screen when the pick pool is far from the destination (off-downtown venues).
    */
   if (destLl && !startPt && spotLatLngs.length > 0) {
@@ -2771,7 +2799,7 @@ function fitParkingMapToAllContent(map) {
     return;
   }
 
-  /** `start=` committed: frame chosen parking + venue for trip context. */
+  /** `park=` committed: frame chosen parking + venue for trip context. */
   if (destLl && startPt) {
     map.fitBounds(
       L.latLngBounds([[startPt.lat, startPt.lng], destLl]),
@@ -2964,6 +2992,29 @@ export function hideParkingView() {
   document.querySelector("main")?.classList.remove("parking-map-active");
 }
 
+function applyParkingRouteLayoutShell() {
+  const appView = document.getElementById("appView");
+  const dataView = document.getElementById("dataView");
+  const modesView = document.getElementById("modesView");
+  const parkingView = document.getElementById("parkingView");
+  if (!appView || !dataView || !modesView || !parkingView) return;
+  appView.classList.add("hidden");
+  dataView.classList.add("hidden");
+  modesView.classList.add("hidden");
+  parkingView.classList.remove("hidden");
+  const mainEl = document.querySelector("main");
+  mainEl?.classList.remove("data-view-active");
+  mainEl?.classList.add("parking-map-active");
+}
+
+/**
+ * Hide the planner and show the parking map shell before data loads (default `#/visit`).
+ * Map chrome stays hidden until {@link renderParkingView} finishes wiring controls.
+ */
+export function prepareParkingShellVisibility() {
+  applyParkingRouteLayoutShell();
+}
+
 function ensureParkingMap() {
   const L = globalThis.L;
   if (!L) return null;
@@ -3007,13 +3058,7 @@ export function renderParkingView() {
   ensureParkingResetDelegation();
   document.getElementById("parkingMapChrome")?.classList.remove("hidden");
 
-  appView.classList.add("hidden");
-  dataView.classList.add("hidden");
-  modesView.classList.add("hidden");
-  parkingView.classList.remove("hidden");
-  const mainEl = document.querySelector("main");
-  mainEl?.classList.remove("data-view-active");
-  mainEl?.classList.add("parking-map-active");
+  applyParkingRouteLayoutShell();
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {

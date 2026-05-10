@@ -1,5 +1,5 @@
 /**
- * Circle marker styles for `#/parking` and drive pins on `#/data/parking`.
+ * Circle marker styles for `#/visit` and drive pins on `#/data/parking`.
  * Keep in sync visually with Leaflet `circleMarker` options there.
  */
 
@@ -47,7 +47,7 @@ export const PARKING_DATA_VIEW_STYLE_RACKS = {
   fillOpacity: 0.78,
 };
 
-/** `appData.parking` keys for drive garages/lots — bottom → top (same as `#/parking`). */
+/** `appData.parking` keys for drive garages/lots — bottom → top (same as `#/visit`). */
 export const PARKING_DRIVE_DATA_KEYS_PAINT_ORDER = [
   "osmLots",
   "lots",

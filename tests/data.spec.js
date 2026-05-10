@@ -17,7 +17,7 @@ test.describe("Data routes", () => {
   test("should show parking data and dataset dropdown at #/data/parking", async ({
     page,
   }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
@@ -35,7 +35,7 @@ test.describe("Data routes", () => {
   test("should toggle mode buttons and update URL at #/data/parking", async ({
     page,
   }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
@@ -64,7 +64,7 @@ test.describe("Data routes", () => {
   test("should change dataset dropdown and update URL at #/data/parking", async ({
     page,
   }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
@@ -90,7 +90,7 @@ test.describe("Data routes", () => {
   test("should show strategies and destination filters at #/data/strategies", async ({
     page,
   }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/strategies");

@@ -1,4 +1,4 @@
-/* #/parking — full-width map only */
+/* #/visit — full-width map only */
 main.parking-map-active {
   display: flex;
   flex-direction: column;
@@ -103,7 +103,7 @@ path.parking-estimated-walk-line-path {
   }
 }
 
-/* Trip-only DASH segment (`#/parking` multimodal) — flowing dashes; period = sum of dasharray pair (sync `parking.mjs`). */
+/* Trip-only DASH segment (`#/visit` multimodal) — flowing dashes; period = sum of dasharray pair (sync `parking.mjs`). */
 @keyframes parking-dash-trip-flow {
   to {
     stroke-dashoffset: -32;

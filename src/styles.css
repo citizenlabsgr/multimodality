@@ -24,7 +24,7 @@ body.modes-explain-modal-open {
   max-height: 85vh;
 }
 
-/* `#/data/parking` — colored dots match `#/parking` circleMarkers (Leaflet divIcon reset). */
+/* `#/data/parking` — colored dots match `#/visit` circleMarkers (Leaflet divIcon reset). */
 .data-view-parking-dot-marker {
   background: transparent !important;
   border: none !important;

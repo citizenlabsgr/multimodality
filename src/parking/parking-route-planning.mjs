@@ -1,6 +1,6 @@
 /**
  * Parking map route overlay — walking pace vs DASH pace for comparing
- * straight-line walk to park + DASH + walk (same formulas as `#/parking` overlays).
+ * straight-line walk to park + DASH + walk (same formulas as `#/visit` overlays).
  */
 
 /** When `config.json` omits `parkingRoutePace` or a field is invalid. */

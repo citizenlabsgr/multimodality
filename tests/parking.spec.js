@@ -3,7 +3,7 @@ import { installConsoleErrorAssertions } from "./helpers/console-errors.js";
 
 installConsoleErrorAssertions(test);
 
-test.describe("Parking map (#/parking)", () => {
+test.describe("Parking map (#/visit)", () => {
   async function waitForParkingData(page) {
     await page.waitForFunction(() => typeof globalThis.L !== "undefined");
     await page.waitForFunction(
@@ -23,7 +23,7 @@ test.describe("Parking map (#/parking)", () => {
   test("shows Leaflet map with DASH routes and parking spots", async ({
     page,
   }) => {
-    await page.goto("/#/parking");
+    await page.goto("/#/visit");
     await waitForParkingData(page);
     await expect(page.locator("#parkingView")).toBeVisible();
     await expect(page.locator("#appView")).toBeHidden();
@@ -53,7 +53,7 @@ test.describe("Parking map (#/parking)", () => {
     ).toBeVisible();
 
     await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
-    await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+    await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
     const markerIcons = page.locator(
       "#parkingAppMap .leaflet-marker-pane .leaflet-marker-icon",
     );
@@ -66,7 +66,7 @@ test.describe("Parking map (#/parking)", () => {
     await page
       .locator('#parkingFilterBar [data-parking-category="public-garage"]')
       .click();
-    await expect(page).toHaveURL(/#\/parking\?location=/);
+    await expect(page).toHaveURL(/#\/visit\/van-andel-arena\?location=/);
     await page.waitForFunction(
       (prev) =>
         document.querySelectorAll("#parkingAppMap .leaflet-overlay-pane path")
@@ -78,7 +78,7 @@ test.describe("Parking map (#/parking)", () => {
   test("loads parkingRoutePace from config.json into appData", async ({
     page,
   }) => {
-    await page.goto("/#/parking");
+    await page.goto("/#/visit");
     await waitForParkingData(page);
     const pace = await page.evaluate(() => ({
       walk: window.appData?.parkingRoutePace?.walkMinutesPerMile,
@@ -91,17 +91,17 @@ test.describe("Parking map (#/parking)", () => {
   test("preserves destination and category filters in the URL across reload", async ({
     page,
   }) => {
-    await page.goto("/#/parking");
+    await page.goto("/#/visit");
     await waitForParkingData(page);
 
     await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
-    await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+    await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
 
     await page
       .locator('#parkingFilterBar [data-parking-category="public-garage"]')
       .click();
     await expect(page).toHaveURL(/[?&]location=/);
-    await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+    await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
 
     await page.reload();
     await waitForParkingData(page);
@@ -114,7 +114,7 @@ test.describe("Parking map (#/parking)", () => {
     ).toHaveAttribute("aria-pressed", "false");
 
     await page.goto(
-      "/#/parking?finish=acrisure-amphitheater&location=private-garage,public-lot&walk=0.5",
+      "/#/visit/acrisure-amphitheater?location=private-garage,public-lot&walk=0.5",
     );
     await waitForParkingData(page);
 
@@ -137,7 +137,7 @@ test.describe("Parking map (#/parking)", () => {
   test("parses legacy category tokens (garages, osmLots) into canonical ids", async ({
     page,
   }) => {
-    await page.goto("/#/parking?location=garages,osmLots");
+    await page.goto("/#/visit?location=garages,osmLots");
     await waitForParkingData(page);
     await expect(
       page.locator('#parkingFilterBar [data-parking-category="public-garage"]'),
@@ -154,7 +154,7 @@ test.describe("Parking map (#/parking)", () => {
     test("shows chevron affordance when empty and hides inline reset", async ({
       page,
     }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/visit");
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
       await expect(page.locator("#parkingDestChevron")).toBeVisible();
@@ -164,13 +164,13 @@ test.describe("Parking map (#/parking)", () => {
     test("shows inline reset and hides chevron after choosing a destination", async ({
       page,
     }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/visit");
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestChevron")).toBeVisible();
       await expect(page.locator("#parkingResetBtn")).toBeHidden();
 
       await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
-      await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+      await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
       await expect(page.locator("#parkingDestChevron")).toBeHidden();
       await expect(page.locator("#parkingResetBtn")).toBeVisible();
     });
@@ -178,7 +178,7 @@ test.describe("Parking map (#/parking)", () => {
     test("shows inline reset on load when hash has destination", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=acrisure-amphitheater&walk=0.5");
+      await page.goto("/#/visit/acrisure-amphitheater?walk=0.5");
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
         "acrisure-amphitheater",
@@ -188,7 +188,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("map popup Set as destination selects finish", async ({ page }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/visit");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
@@ -236,7 +236,7 @@ test.describe("Parking map (#/parking)", () => {
       ).toBeVisible();
       await popup.locator("[data-parking-destination-select-btn]").click();
 
-      await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
+      await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
         "van-andel-arena",
       );
@@ -246,7 +246,7 @@ test.describe("Parking map (#/parking)", () => {
     test("map popup Clear selected destination removes finish", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
@@ -296,14 +296,14 @@ test.describe("Parking map (#/parking)", () => {
       ).toBeVisible();
       await popup.locator("[data-parking-destination-clear-btn]").click();
 
-      await expect(page).not.toHaveURL(/[?&]finish=/);
+      await expect(page).not.toHaveURL(/\/visit\/van-andel-arena/);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
       await expect(page.locator("#parkingDestChevron")).toBeVisible();
       await expect(page.locator("#parkingResetBtn")).toBeHidden();
     });
   });
 
-  test.describe("Selected parking start (start query)", () => {
+  test.describe("Selected parking spot (park query)", () => {
     /** Cherry Commerce Ramp in `data/parking/public/garages.json` (public garage). */
     const cherrySpot = "public-garage~42.960041~-85.669489";
 
@@ -389,15 +389,13 @@ test.describe("Parking map (#/parking)", () => {
       );
     }
 
-    test("start param hydrates and shows green pick marker", async ({
+    test("park param hydrates and shows green pick marker", async ({
       page,
     }) => {
-      await page.goto(
-        `/#/parking?pay=50&start=${encodeURIComponent(cherrySpot)}`,
-      );
+      await page.goto(`/#/visit?pay=50&park=${encodeURIComponent(cherrySpot)}`);
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).toHaveURL(/[?&]park=/);
       const hasGreenPick = await page.evaluate(() => {
         const imgs = document.querySelectorAll(
           "#parkingAppMap .leaflet-marker-pane img",
@@ -409,21 +407,21 @@ test.describe("Parking map (#/parking)", () => {
       expect(hasGreenPick).toBe(true);
     });
 
-    test("reset clears start from the URL", async ({ page }) => {
+    test("reset clears park from the URL", async ({ page }) => {
       await page.goto(
-        `/#/parking?pay=50&walk=0.5&finish=van-andel-arena&start=${encodeURIComponent(cherrySpot)}`,
+        `/#/visit/van-andel-arena?pay=50&walk=0.5&park=${encodeURIComponent(cherrySpot)}`,
       );
       await waitForParkingData(page);
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).toHaveURL(/[?&]park=/);
       await page.locator("#parkingResetBtn").click();
-      await expect(page).toHaveURL(/#\/parking$/);
-      await expect(page).not.toHaveURL(/start=/);
+      await expect(page).toHaveURL(/#\/visit$/);
+      await expect(page).not.toHaveURL(/park=/);
     });
 
-    test("parking popup Plan to park here sets start in the URL", async ({
+    test("parking popup Plan to park here sets park in the URL", async ({
       page,
     }) => {
-      await page.goto("/#/parking?pay=50");
+      await page.goto("/#/visit?pay=50");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await openFirstParkingCirclePopup(page);
@@ -435,7 +433,7 @@ test.describe("Parking map (#/parking)", () => {
         "Plan to park here",
       );
       await btn.click();
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).toHaveURL(/[?&]park=/);
       const hasGreenPick = await page.evaluate(() => {
         const imgs = document.querySelectorAll(
           "#parkingAppMap .leaflet-marker-pane img",
@@ -456,15 +454,13 @@ test.describe("Parking map (#/parking)", () => {
       ).toHaveText("Clear parking selection");
     });
 
-    test("parking popup shows selected button when start is in the URL", async ({
+    test("parking popup shows selected button when park is in the URL", async ({
       page,
     }) => {
-      await page.goto(
-        `/#/parking?pay=50&start=${encodeURIComponent(cherrySpot)}`,
-      );
+      await page.goto(`/#/visit?pay=50&park=${encodeURIComponent(cherrySpot)}`);
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      await expect(page).toHaveURL(/[?&]start=/);
+      await expect(page).toHaveURL(/[?&]park=/);
       await page.waitForFunction(
         () => {
           const g = globalThis.__parkingSpotsLayerForTest;
@@ -493,7 +489,7 @@ test.describe("Parking map (#/parking)", () => {
       page,
     }) => {
       await page.goto(
-        `/#/parking?pay=50&destination=van-andel-arena&spot=${encodeURIComponent(cherrySpot)}`,
+        `/#/visit/van-andel-arena?pay=50&spot=${encodeURIComponent(cherrySpot)}`,
       );
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
@@ -514,7 +510,7 @@ test.describe("Parking map (#/parking)", () => {
     test("legacy venue= param still hydrates venue selector", async ({
       page,
     }) => {
-      await page.goto("/#/parking?venue=van-andel-arena");
+      await page.goto("/#/visit?venue=van-andel-arena");
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
         "van-andel-arena",
@@ -524,11 +520,11 @@ test.describe("Parking map (#/parking)", () => {
     /** OSM private lot in `data/parking/private/lots.json`. */
     const acrisurePrivateLotSpot = "private-lot~42.980445~-85.671441";
 
-    test("setting walk slider to zero clears start and hides green pick marker", async ({
+    test("setting walk slider to zero clears park and hides green pick marker", async ({
       page,
     }) => {
       await page.goto(
-        `/#/parking?finish=acrisure-amphitheater&walk=1&start=${encodeURIComponent(acrisurePrivateLotSpot)}`,
+        `/#/visit/acrisure-amphitheater?walk=1&park=${encodeURIComponent(acrisurePrivateLotSpot)}`,
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -552,7 +548,7 @@ test.describe("Parking map (#/parking)", () => {
       });
 
       await expect(page).toHaveURL(/[?&]walk=0(?:&|$)/);
-      await expect(page).not.toHaveURL(/start=/);
+      await expect(page).not.toHaveURL(/park=/);
 
       const hasGreenAfter = await page.evaluate(() => {
         const imgs = document.querySelectorAll(
@@ -565,12 +561,12 @@ test.describe("Parking map (#/parking)", () => {
       expect(hasGreenAfter).toBe(false);
     });
 
-    test("walk=0 in URL drops stale start on load", async ({ page }) => {
+    test("walk=0 in URL drops stale park on load", async ({ page }) => {
       await page.goto(
-        `/#/parking?finish=acrisure-amphitheater&walk=0&start=${encodeURIComponent(acrisurePrivateLotSpot)}`,
+        `/#/visit/acrisure-amphitheater?walk=0&park=${encodeURIComponent(acrisurePrivateLotSpot)}`,
       );
       await waitForParkingData(page);
-      await expect(page).not.toHaveURL(/start=/);
+      await expect(page).not.toHaveURL(/park=/);
       await expect(page).toHaveURL(/[?&]walk=0(?:&|$)/);
     });
   });
@@ -583,7 +579,7 @@ test.describe("Parking map (#/parking)", () => {
     test("short walk cap: chooseBest matches comparator sort order", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&pay=50&walk=0.4");
+      await page.goto("/#/visit/van-andel-arena?pay=50&walk=0.4");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -605,13 +601,13 @@ test.describe("Parking map (#/parking)", () => {
       expect(consistent).toBe(true);
     });
 
-    test("auto pick without start= shows muted green pin (no step number)", async ({
+    test("auto pick without park= shows muted green pin (no step number)", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&pay=50&walk=0.4");
+      await page.goto("/#/visit/van-andel-arena?pay=50&walk=0.4");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
       const glyphs = await page.evaluate(() => {
         const decodeSrc = (src) => {
           const i = src.indexOf(",");
@@ -641,9 +637,7 @@ test.describe("Parking map (#/parking)", () => {
     test("generous walk cap sorts by distance before price (comparator matches chooseBest)", async ({
       page,
     }) => {
-      await page.goto(
-        "/#/parking?finish=acrisure-amphitheater&walk=1.5&pay=50",
-      );
+      await page.goto("/#/visit/acrisure-amphitheater?walk=1.5&pay=50");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -668,7 +662,7 @@ test.describe("Parking map (#/parking)", () => {
     test("with finite pay and short max walk, chooseBest matches comparator sort order", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&pay=10&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?pay=10&walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -698,7 +692,7 @@ test.describe("Parking map (#/parking)", () => {
     test("Acrisure default walk (0.5 mi) recommends farthest multimodal-DASH paid pin when eligible", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=acrisure-amphitheater&pay=50");
+      await page.goto("/#/visit/acrisure-amphitheater?pay=50");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -772,7 +766,7 @@ test.describe("Parking map (#/parking)", () => {
     test("Acrisure walk=1.5 without pay param recommends farthest paid pin from venue", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=acrisure-amphitheater&walk=1.5");
+      await page.goto("/#/visit/acrisure-amphitheater?walk=1.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -844,7 +838,7 @@ test.describe("Parking map (#/parking)", () => {
       page,
     }) => {
       for (const walk of ["1", "1.5"]) {
-        await page.goto(`/#/parking?finish=acrisure-amphitheater&walk=${walk}`);
+        await page.goto(`/#/visit/acrisure-amphitheater?walk=${walk}`);
         await waitForParkingData(page);
         await waitForParkingLeafletMap(page);
 
@@ -918,7 +912,7 @@ test.describe("Parking map (#/parking)", () => {
     test("if user is willing to pay, auto-recommendation never picks a free lot", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&pay=50&walk=1.5");
+      await page.goto("/#/visit/van-andel-arena?pay=50&walk=1.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -953,7 +947,7 @@ test.describe("Parking map (#/parking)", () => {
     const cherryCoords = "public-garage~42.960041~-85.669489";
 
     test("hydrates slider and label from pay in the URL", async ({ page }) => {
-      await page.goto("/#/parking?pay=25");
+      await page.goto("/#/visit?pay=25");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("25");
       await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
@@ -995,7 +989,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("shows Free only label when pay is 0", async ({ page }) => {
-      await page.goto("/#/parking?pay=0");
+      await page.goto("/#/visit?pay=0");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("0");
       await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
@@ -1006,7 +1000,7 @@ test.describe("Parking map (#/parking)", () => {
     test("unknown-price spots are hidden while pay is capped and shown at any price", async ({
       page,
     }) => {
-      await page.goto("/#/parking?pay=0&finish=van-andel-arena&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?pay=0&walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -1072,8 +1066,7 @@ test.describe("Parking map (#/parking)", () => {
       expect(hiddenAtFreeOnly).toBe(false);
 
       await page.evaluate(() => {
-        window.location.hash =
-          "#/parking?pay=5&finish=van-andel-arena&walk=0.5";
+        window.location.hash = "#/visit/van-andel-arena?pay=5&walk=0.5";
       });
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1107,8 +1100,7 @@ test.describe("Parking map (#/parking)", () => {
       expect(hiddenAtLowCap).toBe(false);
 
       await page.evaluate(() => {
-        window.location.hash =
-          "#/parking?pay=50&finish=van-andel-arena&walk=0.5";
+        window.location.hash = "#/visit/van-andel-arena?pay=50&walk=0.5";
       });
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1145,7 +1137,7 @@ test.describe("Parking map (#/parking)", () => {
     test("ArcGIS hourlyRate with weekends/weekday-evening prose counts as free under pay cap", async ({
       page,
     }) => {
-      await page.goto("/#/parking?pay=15&finish=van-andel-arena&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?pay=15&walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -1217,7 +1209,7 @@ test.describe("Parking map (#/parking)", () => {
       page,
     }) => {
       await page.goto(
-        "/#/parking?pay=10&finish=van-andel-arena&location=private-lot&walk=0.5",
+        "/#/visit/van-andel-arena?pay=10&location=private-lot&walk=0.5",
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1285,7 +1277,7 @@ test.describe("Parking map (#/parking)", () => {
 
       await page.evaluate(() => {
         window.location.hash =
-          "#/parking?pay=50&finish=van-andel-arena&location=private-lot&walk=0.5";
+          "#/visit/van-andel-arena?pay=50&location=private-lot&walk=0.5";
       });
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1322,7 +1314,7 @@ test.describe("Parking map (#/parking)", () => {
     test("slider at max keeps pay omitted (default any price)", async ({
       page,
     }) => {
-      await page.goto("/#/parking?pay=25");
+      await page.goto("/#/visit?pay=25");
       await waitForParkingData(page);
       await page.evaluate(() => {
         const el = document.getElementById("parkingMaxEveningSlider");
@@ -1330,14 +1322,14 @@ test.describe("Parking map (#/parking)", () => {
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).toHaveURL(/#\/parking(?:\?|$)/);
+      await expect(page).toHaveURL(/#\/visit(?:\?|$)/);
       await expect(page).not.toHaveURL(/[?&]pay=/);
     });
   });
 
   test.describe("Walk distance (walk)", () => {
     test("hydrates walk and shows mi + minute hint", async ({ page }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/visit");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("5");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
@@ -1346,7 +1338,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("hydrates maximum walk distance 1.5 mi", async ({ page }) => {
-      await page.goto("/#/parking?walk=1.5");
+      await page.goto("/#/visit?walk=1.5");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("15");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
@@ -1355,7 +1347,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("walk=0.1 shows feet and minute hint", async ({ page }) => {
-      await page.goto("/#/parking?walk=0.1");
+      await page.goto("/#/visit?walk=0.1");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("1");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
@@ -1364,7 +1356,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("walk=0.3 shows feet and minute hint", async ({ page }) => {
-      await page.goto("/#/parking?walk=0.3");
+      await page.goto("/#/visit?walk=0.3");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("3");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
@@ -1373,7 +1365,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("walk=0.4 shows feet and minute hint", async ({ page }) => {
-      await page.goto("/#/parking?walk=0.4");
+      await page.goto("/#/visit?walk=0.4");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("4");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
@@ -1382,7 +1374,7 @@ test.describe("Parking map (#/parking)", () => {
     });
 
     test("walk=0 hydrates slider minimum — no distance", async ({ page }) => {
-      await page.goto("/#/parking?walk=0");
+      await page.goto("/#/visit?walk=0");
       await waitForParkingData(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("0");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
@@ -1405,7 +1397,7 @@ test.describe("Parking map (#/parking)", () => {
         });
       }
 
-      await page.goto("/#/parking?finish=acrisure-amphitheater&walk=1.5");
+      await page.goto("/#/visit/acrisure-amphitheater?walk=1.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("15");
@@ -1431,7 +1423,7 @@ test.describe("Parking map (#/parking)", () => {
       page,
     }) => {
       await page.goto(
-        "/#/parking?finish=acrisure-amphitheater&start=public-lot~42.961773~-85.670616&walk=1",
+        "/#/visit/acrisure-amphitheater?park=public-lot~42.961773~-85.670616&walk=1",
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1478,7 +1470,7 @@ test.describe("Parking map (#/parking)", () => {
     }) => {
       /** Same lot as “straight parking→venue walk” — stays eligible under default filters. */
       const acrisureLot = "public-lot~42.961773~-85.670616";
-      await page.goto("/#/parking?finish=acrisure-amphitheater&walk=1");
+      await page.goto("/#/visit/acrisure-amphitheater?walk=1");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -1506,7 +1498,7 @@ test.describe("Parking map (#/parking)", () => {
       expect(noDigitTextInPins).toBe(true);
 
       await page.goto(
-        `/#/parking?finish=acrisure-amphitheater&walk=1&start=${encodeURIComponent(acrisureLot)}`,
+        `/#/visit/acrisure-amphitheater?walk=1&park=${encodeURIComponent(acrisureLot)}`,
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1546,7 +1538,7 @@ test.describe("Parking map (#/parking)", () => {
     test("walk=0 omits walk and DASH trip overlays (free-only lot + finish)", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=acrisure-amphitheater&pay=0&walk=0");
+      await page.goto("/#/visit/acrisure-amphitheater?pay=0&walk=0");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
@@ -1577,7 +1569,7 @@ test.describe("Parking map (#/parking)", () => {
   }) => {
     const cherrySpot = "public-garage~42.960041~-85.669489";
     await page.goto(
-      `/#/parking?pay=50&walk=0.5&finish=van-andel-arena&start=${encodeURIComponent(cherrySpot)}`,
+      `/#/visit/van-andel-arena?pay=50&walk=0.5&park=${encodeURIComponent(cherrySpot)}`,
     );
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
@@ -1609,9 +1601,7 @@ test.describe("Parking map (#/parking)", () => {
   });
 
   test("reset clears URL and destination", async ({ page }) => {
-    await page.goto(
-      "/#/parking?finish=van-andel-arena&location=public-garage&walk=0.5",
-    );
+    await page.goto("/#/visit/van-andel-arena?location=public-garage&walk=0.5");
     await waitForParkingData(page);
 
     await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
@@ -1621,7 +1611,7 @@ test.describe("Parking map (#/parking)", () => {
     await expect(page.locator("#parkingResetBtn")).toBeVisible();
 
     await page.locator("#parkingResetBtn").click();
-    await expect(page).toHaveURL(/#\/parking$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/#\/visit$/, { timeout: 15_000 });
     await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("50");
     await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
       "Any price",
@@ -1639,7 +1629,7 @@ test.describe("Parking map (#/parking)", () => {
   });
 
   test("refits map view when a category filter changes", async ({ page }) => {
-    await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
+    await page.goto("/#/visit/van-andel-arena?walk=0.5");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
@@ -1674,7 +1664,7 @@ test.describe("Parking map (#/parking)", () => {
   test("refits when private-lot filter is turned off (tighter bbox can zoom in)", async ({
     page,
   }) => {
-    await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
+    await page.goto("/#/visit/van-andel-arena?walk=0.5");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
@@ -1706,53 +1696,53 @@ test.describe("Parking map (#/parking)", () => {
     );
   });
 
-  test.describe("Auto recommendation without start= in URL", () => {
-    test("evening slider does not add start when finish is selected", async ({
+  test.describe("Auto recommendation without park= in URL", () => {
+    test("evening slider does not add park when destination is selected", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
       await page.evaluate(() => {
         const el = document.getElementById("parkingMaxEveningSlider");
         el.value = "35";
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
     });
 
-    test("walk slider does not add start when finish is selected", async ({
+    test("walk slider does not add park when destination is selected", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
       await page.evaluate(() => {
         const el = document.getElementById("parkingMaxWalkSlider");
         el.value = "9";
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
     });
 
-    test("destination select does not add start when choosing finish", async ({
+    test("destination select does not add park when choosing destination", async ({
       page,
     }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/visit");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
       await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
-      await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
     });
 
-    test("does not auto-pick a start pin until a destination is chosen", async ({
+    test("does not auto-pick a parking pin until a destination is chosen", async ({
       page,
     }) => {
-      await page.goto("/#/parking");
+      await page.goto("/#/visit");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
@@ -1762,8 +1752,8 @@ test.describe("Parking map (#/parking)", () => {
       expect(before).toBeUndefined();
 
       await page.selectOption("#parkingDestinationSelect", "van-andel-arena");
-      await expect(page).toHaveURL(/[?&]finish=van-andel-arena(?:&|$)/);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).toHaveURL(/#\/visit\/van-andel-arena/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
 
       await expect
         .poll(
@@ -1776,17 +1766,17 @@ test.describe("Parking map (#/parking)", () => {
         .toMatch(/^(public-garage|public-lot|private-garage|private-lot)~/);
     });
 
-    test("category filter omits start=; effective pick matches enabled categories", async ({
+    test("category filter omits park=; effective pick matches enabled categories", async ({
       page,
     }) => {
-      await page.goto("/#/parking?finish=van-andel-arena&walk=0.5");
+      await page.goto("/#/visit/van-andel-arena?walk=0.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await page
         .locator('#parkingFilterBar [data-parking-category="private-lot"]')
         .click();
       await expect(page).toHaveURL(/[?&]location=/);
-      await expect(page).not.toHaveURL(/[?&]start=/);
+      await expect(page).not.toHaveURL(/[?&]park=/);
 
       const { pickCategory, locationCats } = await page.evaluate(() => {
         const eff = globalThis.__getParkingEffectiveStartSpotIdForTest?.();
@@ -1815,7 +1805,7 @@ test.describe("Parking map (#/parking)", () => {
   test("parking circles paint in overlap order (purple above orange)", async ({
     page,
   }) => {
-    await page.goto("/#/parking");
+    await page.goto("/#/visit");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
@@ -1884,26 +1874,26 @@ test.describe("Parking map (#/parking)", () => {
 
 /**
  * Path to the static app shell before the hash (pair with `use.baseURL` in playwright.config.js).
- * Example: `"/"` → `http://localhost:8080/#/parking`.
+ * Example: `"/"` → `http://localhost:8080/#/visit`.
  */
 const DEFAULT_APP_PAGE = "/";
 
 /**
- * `#/parking` layout snapshots: **`{device}-{n}-{variant}.png`** (e.g. **`desktop-1-blank.png`**).
+ * `#/visit` layout snapshots: **`{device}-{n}-{variant}.png`** (e.g. **`desktop-1-blank.png`**).
  * Hash paths are under `${DEFAULT_APP_PAGE}#/…`.
  */
 const PARKING_SNAPSHOT_CASES = [
-  { n: "1", variant: "blank", hashPath: "parking" },
+  { n: "1", variant: "blank", hashPath: "visit" },
   {
     n: "2",
     variant: "finish",
-    hashPath: "parking?finish=acrisure-amphitheater&walk=0.5",
+    hashPath: "visit/acrisure-amphitheater?walk=0.5",
   },
   {
     n: "3",
     variant: "start",
     hashPath:
-      "parking?finish=acrisure-amphitheater&walk=0.5&start=private-lot~42.972319~-85.682491",
+      "visit/acrisure-amphitheater?walk=0.5&park=private-lot~42.972319~-85.682491",
   },
 ];
 
@@ -1913,7 +1903,7 @@ const PARKING_SNAPSHOT_VIEWPORTS = [
   { name: "desktop", width: 1440, height: 900 },
 ];
 
-/** Fixed layout captures for `#/parking` via Playwright snapshot compare (`snapshotPathTemplate` in playwright.config.js). */
+/** Fixed layout captures for `#/visit` via Playwright snapshot compare (`snapshotPathTemplate` in playwright.config.js). */
 async function assertParkingViewportScreenshot(
   page,
   { hashPath, snapshotName, width, height },

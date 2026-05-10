@@ -19,7 +19,7 @@ snapshots: install
 
 .PHONY: dev
 dev: install
-	npx --yes nodemon --ext js,mjs,json,html,css --watch . --exec "clear; make all; echo"
+	npx --yes nodemon --ext js,mjs,json,html,css --watch . --exec "clear; make all; printf '\n🚀\n\n'"
 
 .PHONY: run
 run:

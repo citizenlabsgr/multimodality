@@ -17,6 +17,7 @@ import {
   hideParkingView,
   isParkingRoute,
   parseTotalSpacesFromAvailability,
+  prepareParkingShellVisibility,
   renderParkingView,
 } from "../parking/parking.mjs";
 import { resolveParkingRoutePace } from "../parking/parking-route-planning.mjs";
@@ -26,7 +27,7 @@ function visitWalkMinutesPerMile() {
 }
 
 /**
- * Visit planner (#/visit), modes explainer (#/modes), data explorer (#/data), parking map (#/parking).
+ * Visit planner (#/planner), modes explainer (#/modes), data explorer (#/data), parking map (#/visit).
  * Entry point: `src/main.mjs`.
  */
 
@@ -221,18 +222,18 @@ function getDestinationSlug(destinationName) {
 // Base path for the current destination (hash-based); no slug when no destination selected
 function getDestinationPath() {
   if (!state || !state.destination || state.destination.trim() === "") {
-    return "/visit";
+    return "/planner";
   }
-  return "/visit/" + getDestinationSlug(state.destination);
+  return "/planner/" + getDestinationSlug(state.destination);
 }
 
-// Get destination name from hash path (e.g. #/visit/acrisure-amphitheater -> "Acrisure Amphitheater")
+// Get destination name from hash path (e.g. #/planner/acrisure-amphitheater -> "Acrisure Amphitheater")
 function getDestinationFromHashPath() {
   const hash = window.location.hash.slice(1);
-  if (!hash.startsWith("/visit/")) return null;
+  if (!hash.startsWith("/planner/")) return null;
   const pathPart =
     hash.indexOf("?") !== -1 ? hash.slice(0, hash.indexOf("?")) : hash;
-  const slug = pathPart.slice("/visit/".length).replace(/\/$/, "");
+  const slug = pathPart.slice("/planner/".length).replace(/\/$/, "");
   if (!slug) return null;
   const destinations = appData?.destinations;
   if (Array.isArray(destinations)) {
@@ -254,6 +255,47 @@ function isModesRoute() {
   const pathPart =
     hash.indexOf("?") >= 0 ? hash.slice(0, hash.indexOf("?")) : hash;
   return pathPart === "/modes" || pathPart === "/modes/";
+}
+
+/** Multimodal strategy planner: #/planner or #/planner/<destination-slug>. */
+function isPlannerRoute() {
+  const hash = window.location.hash.slice(1);
+  const pathPart =
+    hash.indexOf("?") >= 0 ? hash.slice(0, hash.indexOf("?")) : hash;
+  return (
+    pathPart === "/planner" ||
+    pathPart === "/planner/" ||
+    pathPart.startsWith("/planner/")
+  );
+}
+
+/**
+ * Rewrite legacy `#/parking?…` to `#/visit[/slug]?…` (venue in path; `start` → `park`).
+ * Runs on load and on each hashchange before routing.
+ */
+function migrateLegacyParkingRouteHash() {
+  const raw = window.location.hash.slice(1);
+  if (!raw) return;
+  const qIdx = raw.indexOf("?");
+  const path = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+  if (path !== "/parking" && path !== "/parking/") return;
+  const query = qIdx >= 0 ? raw.slice(qIdx + 1) : "";
+  const params = new URLSearchParams(query);
+  const finish =
+    params.get("finish") ||
+    params.get("venue") ||
+    params.get("destination") ||
+    params.get("dest");
+  for (const k of ["finish", "venue", "destination", "dest"]) params.delete(k);
+  if (params.has("start") && !params.has("park")) {
+    params.set("park", params.get("start"));
+    params.delete("start");
+  }
+  const q = params.toString();
+  const seg =
+    finish && String(finish).trim() !== "" ? `/${String(finish).trim()}` : "";
+  const next = q ? `/visit${seg}?${q}` : `/visit${seg}`;
+  if (raw !== next) window.location.hash = next;
 }
 
 const MODES_PAGE_PARKING_KEYS = [
@@ -1918,7 +1960,7 @@ function hideDataView() {
   document.querySelector("main")?.classList.remove("data-view-active");
 }
 
-// Parse URL fragment (format: #/visit/van-andel-arena?modes=drive,transit&day=monday&time=1800&people=2)
+// Parse URL fragment (format: #/planner/van-andel-arena?modes=drive,transit&day=monday&time=1800&people=2)
 function parseFragment() {
   const hash = window.location.hash.slice(1); // Remove the #
   if (!hash) return {};
@@ -2141,6 +2183,7 @@ function toggleMode(mode) {
 
 // Handle browser back/forward navigation
 window.addEventListener("hashchange", () => {
+  migrateLegacyParkingRouteHash();
   if (isParkingRoute()) {
     hideModesView();
     renderParkingView();
@@ -2160,6 +2203,7 @@ window.addEventListener("hashchange", () => {
 
   // Don't process hashchange if state isn't initialized yet (e.g., during page load)
   if (!state) return;
+  if (!isPlannerRoute()) return;
 
   const destFromHash = getDestinationFromHashPath();
   if (destFromHash !== null && destFromHash !== state.destination) {
@@ -4994,24 +5038,32 @@ function registerPlannerDebugExports() {
 
 // Initialize application
 async function init() {
+  migrateLegacyParkingRouteHash();
   // Migrate old hash format to new format with destination path (don't overwrite yet if no hash - read params first)
-  const initialHash = window.location.hash.slice(1); // Remove the #
-  const defaultPath = "/visit";
+  let initialHash = window.location.hash.slice(1); // Remove the #
+  if (!initialHash) {
+    window.location.hash = "#/visit";
+    initialHash = window.location.hash.slice(1);
+  }
+  const defaultPath = "/planner";
   if (
     initialHash &&
+    !initialHash.startsWith("/planner") &&
     !initialHash.startsWith("/visit") &&
     !initialHash.startsWith("/data") &&
-    !initialHash.startsWith("/modes") &&
-    !initialHash.startsWith("/parking")
+    !initialHash.startsWith("/modes")
   ) {
-    // If hash exists but doesn't start with /visit or /data, migrate it
+    // If hash exists but doesn't start with a known route, migrate it
     if (initialHash.includes("=")) {
       window.location.hash = defaultPath + "?" + initialHash;
     } else {
       window.location.hash = defaultPath;
     }
   }
-  // If no hash, set default after we've read params (see end of init) so we don't overwrite a hash that appears later
+
+  if (isParkingRoute()) {
+    prepareParkingShellVisibility();
+  }
 
   // Load data first
   await loadData();
@@ -5187,11 +5239,6 @@ async function init() {
   renderResults();
   // Final pass so reset button is correct after card expand/collapse and render
   updateMinimizeButtonState();
-
-  // Set default hash only when there was no hash at load (so we didn't overwrite URL params like time=700)
-  if (!initialHash) {
-    window.location.hash = "#/parking";
-  }
 
   if (isDataRoute()) {
     renderDataView();

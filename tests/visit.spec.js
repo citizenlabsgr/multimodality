@@ -20,19 +20,19 @@ function resultsIncludePaidStructuredParking(text) {
 
 test.describe("URL Fragment Permutations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     // Wait for the page to load and initialize
     await page.waitForSelector("#preferencesSection");
   });
 
   test("should parse single mode", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?modes=drive");
+    await page.goto("/#/planner/van-andel-arena?modes=drive");
     await page.waitForTimeout(500); // Wait for fragment parsing
     expect(await page.evaluate(() => window.state.modes)).toEqual(["drive"]);
   });
 
   test("should parse multiple modes", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?modes=drive,transit");
+    await page.goto("/#/planner/van-andel-arena?modes=drive,transit");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.modes)).toEqual([
       "drive",
@@ -42,7 +42,7 @@ test.describe("URL Fragment Permutations", () => {
 
   test("should parse all valid modes", async ({ page }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive,rideshare,transit,micromobility,shuttle,bike",
+      "/#/planner/van-andel-arena?modes=drive,rideshare,transit,micromobility,shuttle,bike",
     );
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.modes)).toEqual([
@@ -56,7 +56,7 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should ignore invalid modes", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?modes=drive,invalid,transit");
+    await page.goto("/#/planner/van-andel-arena?modes=drive,invalid,transit");
     await page.waitForTimeout(500);
     const modes = await page.evaluate(() => window.state.modes);
     expect(modes).toContain("drive");
@@ -65,41 +65,41 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should parse time in 3-digit format (HMM)", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?time=830"); // 8:30 PM
+    await page.goto("/#/planner/van-andel-arena?time=830"); // 8:30 PM
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.time)).toBe("20:30");
     expect(await page.locator("#timeSelect")).toHaveValue("20:30");
   });
 
   test("should parse time in 4-digit format (HHMM)", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?time=1000"); // 10:00 PM
+    await page.goto("/#/planner/van-andel-arena?time=1000"); // 10:00 PM
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.time)).toBe("22:00");
     expect(await page.locator("#timeSelect")).toHaveValue("22:00");
   });
 
   test("should parse time 8:30 PM (830)", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?time=830");
+    await page.goto("/#/planner/van-andel-arena?time=830");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.time)).toBe("20:30");
   });
 
   test("should parse day parameter", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?day=monday");
+    await page.goto("/#/planner/van-andel-arena?day=monday");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.day)).toBe("monday");
     expect(await page.locator("#daySelect")).toHaveValue("monday");
   });
 
   test("should parse people parameter", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?people=3");
+    await page.goto("/#/planner/van-andel-arena?people=3");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.people)).toBe(3);
     expect(await page.locator("#peopleCount")).toHaveText("3");
   });
 
   test("should parse people within valid range (1-6)", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?people=4");
+    await page.goto("/#/planner/van-andel-arena?people=4");
     await page.waitForTimeout(500);
     const people = await page.evaluate(() => window.state.people);
     expect(people).toBeGreaterThanOrEqual(1);
@@ -107,14 +107,14 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should ignore people outside valid range", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?people=10");
+    await page.goto("/#/planner/van-andel-arena?people=10");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.people)).toBe(6); // Clamped to max
   });
 
   test("should parse combined parameters", async ({ page }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?modes=bike,shuttle&day=friday&time=530&people=2",
+      "/#/planner/van-andel-arena?modes=bike,shuttle&day=friday&time=530&people=2",
     );
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.modes)).toEqual([
@@ -127,7 +127,7 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should handle empty modes parameter", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?modes=");
+    await page.goto("/#/planner/van-andel-arena?modes=");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.modes)).toEqual([]);
   });
@@ -135,7 +135,7 @@ test.describe("URL Fragment Permutations", () => {
   test("should default to drive, rideshare, and shuttle when modes omitted", async ({
     page,
   }) => {
-    await page.goto("/#/visit/van-andel-arena?day=monday&time=600");
+    await page.goto("/#/planner/van-andel-arena?day=monday&time=600");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.modes)).toEqual([
       "drive",
@@ -145,7 +145,7 @@ test.describe("URL Fragment Permutations", () => {
   });
 
   test("should handle URL-encoded parameters", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?day=next%20week&time=700");
+    await page.goto("/#/planner/van-andel-arena?day=next%20week&time=700");
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => window.state.day)).toBe("next week");
     expect(await page.evaluate(() => window.state.time)).toBe("19:00");
@@ -165,7 +165,7 @@ test.describe("URL Fragment Permutations", () => {
     await page.waitForTimeout(300);
 
     const url = page.url();
-    expect(url).toContain("#/visit/van-andel-arena");
+    expect(url).toContain("#/planner/van-andel-arena");
     expect(url).toContain("transit");
     expect(url).toMatch(/modes=[^&]*transit/);
   });
@@ -177,7 +177,7 @@ test.describe("URL Fragment Permutations", () => {
 
     const url = page.url();
     // No destination selected yet, so path is /visit with query params
-    expect(url).toContain("#/visit");
+    expect(url).toContain("#/planner");
     expect(url).toContain("time=500"); // 5:00 PM in URL format
   });
 
@@ -197,23 +197,23 @@ test.describe("URL Fragment Permutations", () => {
     await page.waitForTimeout(300);
 
     const url = page.url();
-    expect(url).toContain("#/visit/van-andel-arena");
+    expect(url).toContain("#/planner/van-andel-arena");
     expect(url).toContain("modes=drive,transit");
   });
 
   test("should handle time conversion edge cases", async ({ page }) => {
     // Test 5:00 PM (500)
-    await page.goto("/#/visit/van-andel-arena?time=500");
+    await page.goto("/#/planner/van-andel-arena?time=500");
     await page.waitForTimeout(500);
     await expect(page.locator("#timeSelect")).toHaveValue("17:00");
 
     // Test 9:30 PM (930)
-    await page.goto("/#/visit/van-andel-arena?time=930");
+    await page.goto("/#/planner/van-andel-arena?time=930");
     await page.waitForTimeout(500);
     await expect(page.locator("#timeSelect")).toHaveValue("21:30");
 
     // Test 10:00 PM (1000)
-    await page.goto("/#/visit/van-andel-arena?time=1000");
+    await page.goto("/#/planner/van-andel-arena?time=1000");
     await page.waitForTimeout(500);
     await expect(page.locator("#timeSelect")).toHaveValue("22:00");
   });
@@ -221,14 +221,14 @@ test.describe("URL Fragment Permutations", () => {
 
 test.describe("Visit page strategy cards gating", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
-  test("shows no strategy cards on #/visit until destination, day, time, and a mode", async ({
+  test("shows no strategy cards on #/planner until destination, day, time, and a mode", async ({
     page,
   }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForTimeout(500);
 
     await expect(page.locator("#results")).toBeEmpty();
@@ -241,12 +241,12 @@ test.describe("Visit page strategy cards gating", () => {
   test("shows no cards when destination and modes are set but day or time is missing", async ({
     page,
   }) => {
-    await page.goto("/#/visit/van-andel-arena?modes=drive");
+    await page.goto("/#/planner/van-andel-arena?modes=drive");
     await page.waitForTimeout(500);
 
     await expect(page.locator("#results")).toBeEmpty();
 
-    await page.goto("/#/visit/van-andel-arena?modes=drive&day=monday");
+    await page.goto("/#/planner/van-andel-arena?modes=drive&day=monday");
     await page.waitForTimeout(500);
     await expect(page.locator("#results")).toBeEmpty();
   });
@@ -254,7 +254,7 @@ test.describe("Visit page strategy cards gating", () => {
   test("shows strategy cards when destination, day, time, and at least one mode are set", async ({
     page,
   }) => {
-    await page.goto("/#/visit/van-andel-arena?day=monday&time=600");
+    await page.goto("/#/planner/van-andel-arena?day=monday&time=600");
     await page.waitForTimeout(500);
 
     await expect(page.locator("#results")).not.toBeEmpty();
@@ -266,7 +266,7 @@ test.describe("Visit page strategy cards gating", () => {
   test("shows no cards when modes are explicitly empty even with destination, day, and time", async ({
     page,
   }) => {
-    await page.goto("/#/visit/van-andel-arena?modes=&day=monday&time=600");
+    await page.goto("/#/planner/van-andel-arena?modes=&day=monday&time=600");
     await page.waitForTimeout(500);
 
     await expect(page.locator("#results")).toBeEmpty();
@@ -275,7 +275,7 @@ test.describe("Visit page strategy cards gating", () => {
 
 test.describe("Empty recommendation pool (generic red fallback)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -283,7 +283,7 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=saturday&time=700&modes=transit&walk=0.01&pay=20",
+      "/#/planner/van-andel-arena?day=saturday&time=700&modes=transit&walk=0.01&pay=20",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -299,7 +299,7 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=drive&walk=1&pay=40",
+      "/#/planner/acrisure-amphitheater?day=saturday&time=700&modes=drive&walk=1&pay=40",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -312,7 +312,7 @@ test.describe("Empty recommendation pool (generic red fallback)", () => {
 
 test.describe("Transit-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await page.waitForFunction(
       () =>
@@ -325,7 +325,7 @@ test.describe("Transit-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=saturday&time=700&modes=transit&walk=0.5&pay=10",
+      "/#/planner/van-andel-arena?day=saturday&time=700&modes=transit&walk=0.5&pay=10",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -351,7 +351,7 @@ test.describe("Transit-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?modes=transit&day=saturday&time=600&walk=1&pay=20",
+      "/#/planner/acrisure-amphitheater?modes=transit&day=saturday&time=600&walk=1&pay=20",
     );
     await page.waitForFunction(() => window.state?.destination);
 
@@ -372,7 +372,7 @@ test.describe("Transit-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=saturday&time=600&modes=drive,transit&pay=20",
+      "/#/planner/acrisure-amphitheater?day=saturday&time=600&modes=drive,transit&pay=20",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(600);
@@ -385,7 +385,7 @@ test.describe("Transit-only recommendations", () => {
 
 test.describe("Strategy card summaries (collapsed)", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -393,7 +393,7 @@ test.describe("Strategy card summaries (collapsed)", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=saturday&time=700&modes=drive&walk=1&pay=20",
+      "/#/planner/van-andel-arena?day=saturday&time=700&modes=drive&walk=1&pay=20",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -412,7 +412,7 @@ test.describe("Strategy card summaries (collapsed)", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40",
+      "/#/planner/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -430,7 +430,7 @@ test.describe("Strategy card summaries (collapsed)", () => {
 
 test.describe("Rideshare round-trip budget", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -438,7 +438,7 @@ test.describe("Rideshare round-trip budget", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=tuesday&time=700&modes=rideshare&pay=15",
+      "/#/planner/van-andel-arena?day=tuesday&time=700&modes=rideshare&pay=15",
     );
     await page.waitForTimeout(500);
 
@@ -452,7 +452,7 @@ test.describe("Rideshare round-trip budget", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=tuesday&time=700&modes=rideshare&pay=20",
+      "/#/planner/van-andel-arena?day=tuesday&time=700&modes=rideshare&pay=20",
     );
     await page.waitForTimeout(500);
 
@@ -465,7 +465,7 @@ test.describe("Rideshare round-trip budget", () => {
 
 test.describe("Bike-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -473,7 +473,7 @@ test.describe("Bike-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=bike&walk=0",
+      "/#/planner/acrisure-amphitheater?day=saturday&time=700&modes=bike&walk=0",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -488,7 +488,7 @@ test.describe("Bike-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=bike&walk=0.1",
+      "/#/planner/acrisure-amphitheater?day=saturday&time=700&modes=bike&walk=0.1",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -503,7 +503,7 @@ test.describe("Bike-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=bike",
+      "/#/planner/acrisure-amphitheater?day=friday&time=700&modes=bike",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -529,7 +529,7 @@ test.describe("Bike-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=saturday&time=700&modes=bike",
+      "/#/planner/van-andel-arena?day=saturday&time=700&modes=bike",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -552,7 +552,7 @@ test.describe("Bike-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=bike",
+      "/#/planner/acrisure-amphitheater?day=friday&time=700&modes=bike",
     );
     await page.waitForSelector("#preferencesSection");
     await page.waitForTimeout(400);
@@ -565,7 +565,7 @@ test.describe("Bike-only recommendations", () => {
 
 test.describe("Micromobility-only recommendations", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -573,7 +573,7 @@ test.describe("Micromobility-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40",
+      "/#/planner/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -612,7 +612,7 @@ test.describe("Micromobility-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40&option=1",
+      "/#/planner/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=40&option=1",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -640,7 +640,7 @@ test.describe("Micromobility-only recommendations", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=0",
+      "/#/planner/acrisure-amphitheater?day=friday&time=700&modes=micromobility&pay=0",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -658,14 +658,14 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   const resultsParams = "modes=drive&day=monday&time=600&walk=0.5&pay=10";
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
   test("should parse option=1 and expand first strategy steps", async ({
     page,
   }) => {
-    await page.goto(`/#/visit/van-andel-arena?${resultsParams}&option=1`);
+    await page.goto(`/#/planner/van-andel-arena?${resultsParams}&option=1`);
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
 
@@ -680,7 +680,7 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   test("should parse option=1,2 and expand both strategy steps", async ({
     page,
   }) => {
-    await page.goto(`/#/visit/van-andel-arena?${resultsParams}&option=1,2`);
+    await page.goto(`/#/planner/van-andel-arena?${resultsParams}&option=1,2`);
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
 
@@ -692,7 +692,7 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   test("should use literal comma in option param (not %2C)", async ({
     page,
   }) => {
-    await page.goto(`/#/visit/van-andel-arena?${resultsParams}`);
+    await page.goto(`/#/planner/van-andel-arena?${resultsParams}`);
     await page.waitForSelector("#results");
     await page.waitForTimeout(300);
 
@@ -708,7 +708,7 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   test("should update fragment with option=1,2 when expanding both strategies", async ({
     page,
   }) => {
-    await page.goto(`/#/visit/van-andel-arena?${resultsParams}`);
+    await page.goto(`/#/planner/van-andel-arena?${resultsParams}`);
     await page.waitForSelector("#results");
     await page.waitForTimeout(300);
 
@@ -728,7 +728,9 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   });
 
   test("should ignore invalid option values", async ({ page }) => {
-    await page.goto(`/#/visit/van-andel-arena?${resultsParams}&option=1,foo,2`);
+    await page.goto(
+      `/#/planner/van-andel-arena?${resultsParams}&option=1,foo,2`,
+    );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
 
@@ -740,7 +742,7 @@ test.describe("Option fragment (strategy steps expanded)", () => {
   test("should restore expanded state when navigating with option in URL", async ({
     page,
   }) => {
-    await page.goto(`/#/visit/van-andel-arena?${resultsParams}&option=1`);
+    await page.goto(`/#/planner/van-andel-arena?${resultsParams}&option=1`);
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
 
@@ -756,7 +758,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
   const handCraftedParams = "modes=drive&day=monday&time=600&walk=0.5&pay=30";
 
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -764,7 +766,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     page,
   }) => {
     await page.goto(
-      `/#/visit/acrisure-amphitheater?${handCraftedParams}&option=1`,
+      `/#/planner/acrisure-amphitheater?${handCraftedParams}&option=1`,
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -790,7 +792,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     page,
   }) => {
     await page.goto(
-      `/#/visit/acrisure-amphitheater?${handCraftedParams}&option=2`,
+      `/#/planner/acrisure-amphitheater?${handCraftedParams}&option=2`,
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -808,7 +810,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     page,
   }) => {
     await page.goto(
-      `/#/visit/acrisure-amphitheater?${handCraftedParams}&option=1,2`,
+      `/#/planner/acrisure-amphitheater?${handCraftedParams}&option=1,2`,
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -826,7 +828,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     const baseParams = "modes=rideshare,drive&day=monday&time=600&walk=0.5";
 
     // With pay=39, effective cost $40 exceeds budget — rideshare blue card must not show
-    await page.goto(`/#/visit/acrisure-amphitheater?${baseParams}&pay=39`);
+    await page.goto(`/#/planner/acrisure-amphitheater?${baseParams}&pay=39`);
     await page.waitForSelector("#results");
     await expect(async () => {
       const state = await page.evaluate(() => window.state);
@@ -837,7 +839,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
     await expect(page.locator("#results")).not.toContainText("Book a Ride");
 
     // With pay=40, effective cost $40 fits budget — rideshare blue card must show (fresh load so init applies fragment)
-    await page.goto(`/#/visit/acrisure-amphitheater?${baseParams}&pay=40`);
+    await page.goto(`/#/planner/acrisure-amphitheater?${baseParams}&pay=40`);
     await page.waitForSelector("#results");
     await expect(async () => {
       const state = await page.evaluate(() => window.state);
@@ -852,7 +854,7 @@ test.describe("Option fragment with hand-crafted recommendations", () => {
 
 test.describe("Parking Enforcement Logic", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
   });
 
@@ -860,7 +862,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     // Test Monday at 12:00 PM (noon) - should be enforced
-    await page.goto("/#/visit/van-andel-arena?day=monday&time=1200");
+    await page.goto("/#/planner/van-andel-arena?day=monday&time=1200");
     await page.waitForTimeout(500);
     const isEnforced = await page.evaluate(() => {
       return window.isParkingEnforced("monday", "12:00");
@@ -870,7 +872,7 @@ test.describe("Parking Enforcement Logic", () => {
 
   test("should NOT enforce parking on weekday after 7pm", async ({ page }) => {
     // Test Tuesday at 7:30 PM - should NOT be enforced
-    await page.goto("/#/visit/van-andel-arena?day=tuesday&time=730");
+    await page.goto("/#/planner/van-andel-arena?day=tuesday&time=730");
     await page.waitForTimeout(500);
     const isEnforced = await page.evaluate(() => {
       return window.isParkingEnforced("tuesday", "19:30");
@@ -880,7 +882,7 @@ test.describe("Parking Enforcement Logic", () => {
 
   test("should NOT enforce parking on weekday before 8am", async ({ page }) => {
     // Test Wednesday at 7:30 AM - should NOT be enforced
-    await page.goto("/#/visit/van-andel-arena?day=wednesday&time=0730");
+    await page.goto("/#/planner/van-andel-arena?day=wednesday&time=0730");
     await page.waitForTimeout(500);
     const isEnforced = await page.evaluate(() => {
       return window.isParkingEnforced("wednesday", "07:30");
@@ -890,7 +892,7 @@ test.describe("Parking Enforcement Logic", () => {
 
   test("should NOT enforce parking on weekends", async ({ page }) => {
     // Test Saturday at 2:00 PM - should NOT be enforced
-    await page.goto("/#/visit/van-andel-arena?day=saturday&time=200");
+    await page.goto("/#/planner/van-andel-arena?day=saturday&time=200");
     await page.waitForTimeout(500);
     const isEnforced = await page.evaluate(() => {
       return window.isParkingEnforced("saturday", "14:00");
@@ -903,7 +905,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Tuesday at 7:30 PM
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=tuesday&time=730&walk=0.5&pay=10",
+      "/#/planner/van-andel-arena?modes=drive&day=tuesday&time=730&walk=0.5&pay=10",
     );
     await page.waitForTimeout(500);
 
@@ -917,7 +919,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, willing to pay $5 (low budget), willing to walk 0.5 miles, arriving Saturday at 6:00 PM
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=saturday&time=600&walk=0.5&pay=5",
+      "/#/planner/van-andel-arena?modes=drive&day=saturday&time=600&walk=0.5&pay=5",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(1000); // Give extra time for state initialization and rendering
@@ -937,7 +939,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Monday at 6:00 PM
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=monday&time=600&walk=0.5&pay=10",
+      "/#/planner/van-andel-arena?modes=drive&day=monday&time=600&walk=0.5&pay=10",
     );
     await page.waitForTimeout(500);
 
@@ -950,7 +952,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Monday at 6:00 PM (still enforced)
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=monday&time=600&walk=0.5&pay=10",
+      "/#/planner/van-andel-arena?modes=drive&day=monday&time=600&walk=0.5&pay=10",
     );
     await page.waitForTimeout(500);
 
@@ -963,7 +965,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, unwilling to pay ($0), willing to walk 0.5 miles, arriving Monday at 6:00 PM (during enforcement 8am-7pm)
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=monday&time=600&walk=0.5&pay=0",
+      "/#/planner/van-andel-arena?modes=drive&day=monday&time=600&walk=0.5&pay=0",
     );
     // Wait for results to render
     const results = page.locator("#results");
@@ -992,7 +994,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Regression: walk > 0.5 must not suppress drive noCost while meters are enforced (no free-street card then).
     await page.goto(
-      "/#/visit/van-andel-arena?day=friday&time=600&modes=drive&walk=1.5&pay=0",
+      "/#/planner/van-andel-arena?day=friday&time=600&modes=drive&walk=1.5&pay=0",
     );
     const results = page.locator("#results");
     await results.waitFor();
@@ -1020,7 +1022,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Regression: city data mixes a low hourly "rate" with high event prices; $5 must not match $2–$50+ garages.
     await page.goto(
-      "/#/visit/van-andel-arena?day=friday&time=600&modes=drive,rideshare,shuttle&pay=5",
+      "/#/planner/van-andel-arena?day=friday&time=600&modes=drive,rideshare,shuttle&pay=5",
     );
     const results = page.locator("#results");
     await results.waitFor();
@@ -1047,7 +1049,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/acrisure-amphitheater?day=saturday&time=700&modes=drive,shuttle&walk=0.5&pay=25",
+      "/#/planner/acrisure-amphitheater?day=saturday&time=700&modes=drive,shuttle&walk=0.5&pay=25",
     );
     const results = page.locator("#results");
     await results.waitFor();
@@ -1065,7 +1067,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?day=friday&time=600&modes=drive,rideshare,shuttle&pay=15",
+      "/#/planner/van-andel-arena?day=friday&time=600&modes=drive,rideshare,shuttle&pay=15",
     );
     const results = page.locator("#results");
     await results.waitFor();
@@ -1092,7 +1094,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, unwilling to pay ($0), willing to walk 0.5 miles, arriving Tuesday at 7:30 PM (after enforcement ends)
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=tuesday&time=730&walk=0.5&pay=0",
+      "/#/planner/van-andel-arena?modes=drive&day=tuesday&time=730&walk=0.5&pay=0",
     );
     // Wait for results to be rendered
     await page.waitForSelector("#results");
@@ -1113,7 +1115,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, unwilling to pay ($0), willing to walk 0.5 miles, arriving Saturday at 2:00 PM (weekend, not enforced)
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=saturday&time=200&walk=0.5&pay=0",
+      "/#/planner/van-andel-arena?modes=drive&day=saturday&time=200&walk=0.5&pay=0",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(1000); // Give extra time for state initialization and rendering
@@ -1132,7 +1134,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=monday&time=600&walk=0.8&pay=3",
+      "/#/planner/van-andel-arena?modes=drive&day=monday&time=600&walk=0.8&pay=3",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(1000); // Give extra time for state initialization and rendering
@@ -1153,7 +1155,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Tuesday at 7:30 PM (after enforcement ends)
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=tuesday&time=730&walk=0.5&pay=10",
+      "/#/planner/van-andel-arena?modes=drive&day=tuesday&time=730&walk=0.5&pay=10",
     );
     await page.waitForTimeout(500);
 
@@ -1167,7 +1169,7 @@ test.describe("Parking Enforcement Logic", () => {
   }) => {
     // Set up: drive mode, willing to pay $10, willing to walk 0.5 miles, arriving Saturday at 2:00 PM (weekend, not enforced)
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=saturday&time=200&walk=0.5&pay=10",
+      "/#/planner/van-andel-arena?modes=drive&day=saturday&time=200&walk=0.5&pay=10",
     );
     await page.waitForTimeout(500);
 
@@ -1177,7 +1179,7 @@ test.describe("Parking Enforcement Logic", () => {
   });
 
   test("should use isParkingEnforced function correctly", async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForTimeout(500);
 
     // Test the function directly using the exposed function
@@ -1206,13 +1208,13 @@ test.describe("Parking Enforcement Logic", () => {
 
   test("should show clear button when only time is set", async ({ page }) => {
     // Load page first, then set hash so hashchange handler runs (init may run before hash is available)
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#whereWhenContent", { state: "attached" });
     await page.waitForTimeout(300);
 
     // Set only time in URL (7:00 PM = 19:00; URL format 700 = 7:00 PM)
     await page.evaluate(() => {
-      window.location.hash = "#/visit/van-andel-arena?time=700";
+      window.location.hash = "#/planner/van-andel-arena?time=700";
     });
     await page.waitForTimeout(300);
 
@@ -1239,7 +1241,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     // Start with a clean page (no fragment)
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#whereWhenContent", { state: "attached" });
     await page.waitForTimeout(300);
 
@@ -1260,7 +1262,7 @@ test.describe("Parking Enforcement Logic", () => {
     page,
   }) => {
     // Start with a clean page
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#whereWhenContent", { state: "attached" });
     await page.waitForTimeout(300);
 
@@ -1326,7 +1328,7 @@ test.describe("Parking Enforcement Logic", () => {
     // User budget: $2, which is insufficient
     // No free street parking available within 0.5 miles
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=friday&time=600&pay=2&walk=0.5",
+      "/#/planner/van-andel-arena?modes=drive&day=friday&time=600&pay=2&walk=0.5",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -1356,7 +1358,7 @@ test.describe("Parking Enforcement Logic", () => {
     // Test: Friday at 6:00 PM (18:00), budget is $9, walk distance is 0.2 miles
     // Surface lots require at least 0.5 miles walking willingness; with a short walk budget, garages/meters win
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive&day=friday&time=600&walk=0.2&pay=9",
+      "/#/planner/van-andel-arena?modes=drive&day=friday&time=600&walk=0.2&pay=9",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(1000); // Give extra time for state initialization and rendering
@@ -1394,7 +1396,7 @@ test.describe("Parking Enforcement Logic", () => {
     // Test: Wednesday at 6:00 PM (18:00), both rideshare and drive selected, walk=0, pay=20
     // Should recommend rideshare (prioritized over drive-only)
     await page.goto(
-      "/#/visit/van-andel-arena?day=wednesday&time=600&modes=rideshare,drive&walk=0&pay=20",
+      "/#/planner/van-andel-arena?day=wednesday&time=600&modes=rideshare,drive&walk=0&pay=20",
     );
     await page.waitForSelector("#results");
     await page.waitForTimeout(500);
@@ -1432,7 +1434,7 @@ test.describe("Parking Enforcement Logic", () => {
     // Test: Wednesday at 6:00 PM (18:00), drive+transit+rideshare selected, walk=0, pay=25
     // Drive+transit requires walk > 0, so should fall back to rideshare
     await page.goto(
-      "/#/visit/van-andel-arena?day=wednesday&time=600&modes=drive,rideshare,transit&walk=0&pay=25",
+      "/#/planner/van-andel-arena?day=wednesday&time=600&modes=drive,rideshare,transit&walk=0&pay=25",
     );
     await page.waitForSelector("#preferencesSection");
     await page.waitForTimeout(1500);
@@ -1469,7 +1471,7 @@ test.describe("Modes explain modal", () => {
   test("opens from Explain modes button, shows mode maps, closes with Escape", async ({
     page,
   }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await page.getByRole("button", { name: "Explain modes" }).click();
     await page.waitForTimeout(800);
@@ -1496,7 +1498,7 @@ test.describe("Modes explain modal", () => {
 
 test.describe("Modes route", () => {
   test("should show mode explainers and maps at #/modes", async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await page.goto("/#/modes");
     await page.waitForTimeout(600);
@@ -1528,7 +1530,7 @@ test.describe("Modes route", () => {
 
 test.describe("Park & DASH data-driven copy", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/#/visit");
+    await page.goto("/#/planner");
     await page.waitForSelector("#preferencesSection");
     await page.waitForFunction(
       () =>
@@ -1585,7 +1587,7 @@ test.describe("Park & DASH data-driven copy", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/van-andel-arena?modes=drive,shuttle&day=friday&time=600&walk=1&pay=12",
+      "/#/planner/van-andel-arena?modes=drive,shuttle&day=friday&time=600&walk=1&pay=12",
     );
     await page.waitForSelector("#preferencesSection");
     await page.waitForFunction(() => window.state?.destination);

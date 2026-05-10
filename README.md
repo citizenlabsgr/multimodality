@@ -2,6 +2,6 @@
 
 The current prototypes include:
 
-- [Transit Strategies](https://plangr.com/#/visit)
-- [DASH-aware Parking](https://plangr.com/#/parking)
+- [DASH-aware Parking](https://plangr.com/#/visit)
+- [Transit Strategies](https://plangr.com/#/planner)
 - [Raw Parking Data](https://plangr.com/#/data/parking)
