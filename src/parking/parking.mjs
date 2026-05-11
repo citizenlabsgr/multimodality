@@ -2179,6 +2179,17 @@ function parkingRoutePromptIconSvg(destinationChosen) {
     : parkingRouteDestinationTapPromptIconSvg();
 }
 
+/** Route panel — no matching pins; stroke uses `currentColor` with `.parking-route-instructions-error`. */
+function parkingRouteErrorIconSvg() {
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">` +
+    `<circle cx="12" cy="12" r="10"/>` +
+    `<path d="M12 8v4"/>` +
+    `<path d="M12 16h.01"/>` +
+    `</svg>`
+  );
+}
+
 /** Empty, em dash, or OSM **Unknown** — not a real place name for UI copy. */
 function parkingSpotNameIsPlaceholder(name) {
   const raw = name != null ? String(name).trim() : "";
@@ -3134,14 +3145,11 @@ function syncParkingRouteInstructionsPanel() {
     return;
   }
 
-  if (!Number.isFinite(walkCap) || walkCap <= 0) {
-    body.innerHTML = routeNextHtml(
-      `Move <strong class="font-semibold text-slate-800">And then walk</strong> above zero so we can show walking distance from parking to DASH.`,
-      true,
-    );
-    setParkingRouteUnverifiedNoteVisible(true);
-    return;
-  }
+  /**
+   * **`walk=0`** / slider **No distance** ⇒ {@link resolvedParkingWalkCapMiles} is **0** — do not stop here.
+   * Pin filtering uses ~100 ft to DASH for markers; with no pins the empty-state message below applies (e.g.
+   * `#/visit/…?walk=0`).
+   */
 
   const rawStartId = normalizeParkingSpotIdFromHashRaw();
   const committedId = getParkingSpotIdForHash();
@@ -3152,6 +3160,15 @@ function syncParkingRouteInstructionsPanel() {
   }
 
   if (!committedId) {
+    if (getAllParkingSpotMarkers().length === 0) {
+      body.innerHTML =
+        `<p class="parking-route-instructions-placeholder parking-route-instructions-error parking-route-instructions-prompt" role="alert">` +
+        `<span class="parking-route-prompt-icon" aria-hidden="true">${parkingRouteErrorIconSvg()}</span>` +
+        `<span class="parking-route-prompt-msg">No parking suggestions match your current filters.</span>` +
+        `</p>`;
+      setParkingRouteUnverifiedNoteVisible(true);
+      return;
+    }
     body.innerHTML = routeNextHtml(
       `Tap a parking location, then <strong class="font-semibold text-slate-800">Plan to park here</strong> to set where you'll leave your car.`,
       true,

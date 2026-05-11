@@ -45,6 +45,10 @@ main.parking-map-active {
   font-size: 0.8125rem;
 }
 
+.parking-route-instructions-error {
+  color: rgb(159 18 57);
+}
+
 .parking-route-instructions-prompt {
   display: flex;
   align-items: flex-start;
