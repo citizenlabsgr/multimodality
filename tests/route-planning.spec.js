@@ -5,7 +5,7 @@ import {
   FALLBACK_PARKING_WALK_MINUTES_PER_MILE,
   FALLBACK_PARKING_DASH_MILES_PER_HOUR,
   FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES,
-} from "../src/parking/parking-route-planning.mjs";
+} from "../src/visit/route-planning.mjs";
 
 test.describe("Parking route planning", () => {
   test("defaults match ~2.5 mph walk, 12 mph DASH, and boarding wait", () => {

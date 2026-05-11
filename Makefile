@@ -15,7 +15,7 @@ test: install
 	npx playwright test
 
 snapshots: install
-	npx playwright test tests/parking.spec.js --grep "@snapshot"
+	npx playwright test --grep "@snapshot"
 
 .PHONY: dev
 dev: install

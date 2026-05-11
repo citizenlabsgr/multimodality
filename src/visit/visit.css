@@ -293,7 +293,7 @@ path.parking-estimated-walk-line-path {
   }
 }
 
-/* Trip-only DASH segment (`#/visit` multimodal) — flowing dashes; period = sum of dasharray pair (sync `parking.mjs`). */
+/* Trip-only DASH segment (`#/visit` multimodal) — flowing dashes; period = sum of dasharray pair (sync `visit.mjs`). */
 @keyframes parking-dash-trip-flow {
   to {
     stroke-dashoffset: -32;
@@ -315,7 +315,7 @@ path.parking-dash-trip-segment-path {
 
 /*
  * Phones: no document scroll on `#/visit` — chrome, route band, and footer stay put; map column shrinks.
- * Class is toggled in `parking.mjs` (`html` beats `body` utility specificity via descendant selector).
+ * Class is toggled in `visit.mjs` (`html` beats `body` utility specificity via descendant selector).
  */
 @media (max-width: 767.98px) {
   html.parking-visit-viewport-lock {

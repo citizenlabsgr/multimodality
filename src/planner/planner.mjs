@@ -22,8 +22,8 @@ import {
   parseTotalSpacesFromAvailability,
   prepareParkingShellVisibility,
   renderParkingView,
-} from "../parking/parking.mjs";
-import { resolveParkingRoutePace } from "../parking/parking-route-planning.mjs";
+} from "../visit/visit.mjs";
+import { resolveParkingRoutePace } from "../visit/route-planning.mjs";
 
 function visitWalkMinutesPerMile() {
   return resolveParkingRoutePace(appData?.parkingRoutePace).walkMinutesPerMile;
@@ -43,7 +43,7 @@ function visitWalkMinutesFromMiles(distanceMi) {
 }
 
 /**
- * Visit planner (#/planner), modes explainer (#/modes), data explorer (#/data), parking map (#/visit).
+ * Visit planner (#/planner), modes explainer (#/modes), data explorer (#/data), and routing to the parking map (#/visit, owned by `src/visit/visit.mjs`).
  * Entry point: `src/main.mjs`.
  */
 

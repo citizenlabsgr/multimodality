@@ -9,7 +9,7 @@ import {
 import {
   compareParkingWalkVersusDashMinutes,
   resolveParkingRoutePace,
-} from "./parking-route-planning.mjs";
+} from "./route-planning.mjs";
 import {
   circleStyleForParkingCategoryKey,
   hexToRgba,
@@ -638,7 +638,7 @@ export function isParkingRoute() {
   );
 }
 
-/** Same downtown filter as `src/visit/planner.mjs` / `#/data/routes`. */
+/** Same downtown filter as `src/planner/planner.mjs` / `#/data/routes`. */
 const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
 const DATA_ROUTES_CITY_CENTER_LON = -85.66806;
 const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
@@ -658,7 +658,7 @@ const PARKING_WALK_OVERLAY_HALO_WEIGHT = 8;
 const PARKING_WALK_OVERLAY_FG_WEIGHT = 5;
 
 /**
- * DASH shuttle foreground dash pattern — period **32** (`20+12`) → sync `parking.css`.
+ * DASH shuttle foreground dash pattern — period **32** (`20+12`) → sync `visit.css`.
  * Halo is solid white (no dashes) underneath.
  */
 const PARKING_DASH_TRIP_SHUTTLE_DASH_ARRAY = "20 12";

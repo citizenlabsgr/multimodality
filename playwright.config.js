@@ -7,7 +7,7 @@ module.exports = defineConfig({
   retries: 2,
   /** Mismatched screenshots are rewritten and the test passes; commit PNG diffs in git to review. */
   updateSnapshots: "changed",
-  snapshotPathTemplate: "{testDir}/snapshots/parking/{arg}{ext}",
+  snapshotPathTemplate: "{testDir}/snapshots/visit/{arg}{ext}",
   expect: {
     toHaveScreenshot: {
       animations: "disabled",
