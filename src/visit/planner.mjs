@@ -47,7 +47,7 @@ function visitWalkMinutesFromMiles(distanceMi) {
  * Entry point: `src/main.mjs`.
  */
 
-// Same icons/labels as the visit page mode buttons (index.html)
+// Same symbols/labels as the visit page mode buttons (index.html)
 const MODE_DISPLAY_LABELS = {
   drive: "🚗 Drive",
   rideshare: "🚕 Uber/Lyft",
