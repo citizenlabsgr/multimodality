@@ -1496,12 +1496,12 @@ test.describe("Parking map (#/visit)", () => {
 
     /**
      * Regression: far venues used to list pins that only satisfied “walk to DASH” while the winning
-     * multimodal route showed a long alight→venue leg over the cap (`#/visit/silva?walk=0.2`).
+     * multimodal route showed a long alight→venue leg over the cap (`#/visit/the-big-room?walk=0.2`).
      */
-    test("Silva + tight walk: every listed pin satisfies multimodal walk-leg cap", async ({
+    test("The Big Room + tight walk: every listed pin satisfies multimodal walk-leg cap", async ({
       page,
     }) => {
-      await page.goto("/#/visit/silva?walk=0.2");
+      await page.goto("/#/visit/the-big-room?walk=0.2");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -1509,7 +1509,7 @@ test.describe("Parking map (#/visit)", () => {
         const fn = globalThis.__parkingSpotWalkLegsWithinCapForTest;
         const markers = globalThis.__getAllParkingSpotMarkersForTest?.();
         const dest = window.appData?.destinations?.find(
-          (d) => d.slug === "silva",
+          (d) => d.slug === "the-big-room",
         );
         const dLat = dest?.latitude ?? dest?.location?.latitude;
         const dLng = dest?.longitude ?? dest?.location?.longitude;

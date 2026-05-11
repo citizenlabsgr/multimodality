@@ -25,8 +25,8 @@
       }
     },
     {
-      "name": "Silva",
-      "slug": "silva",
+      "name": "The Big Room (Silva)",
+      "slug": "the-big-room",
       "location": {
         "latitude": 42.97974,
         "longitude": -85.67051
@@ -38,6 +38,14 @@
       "location": {
         "latitude": 42.9599,
         "longitude": -85.67365
+      }
+    },
+    {
+      "name": "The Pyramid Scheme",
+      "slug": "the-pyramid-scheme",
+      "location": {
+        "latitude": 42.96125,
+        "longitude": -85.66904
       }
     },
     {

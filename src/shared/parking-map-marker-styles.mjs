@@ -9,8 +9,8 @@ export const PARKING_SPOT_STYLE_PUBLIC_GARAGE = {
   fillOpacity: 0.76,
 };
 export const PARKING_SPOT_STYLE_PUBLIC_LOT = {
-  color: "#1e40af",
-  fillColor: "#60a5fa",
+  color: "#155e75",
+  fillColor: "#67e8f9",
   fillOpacity: 0.75,
 };
 export const PARKING_SPOT_STYLE_PRIVATE_GARAGE = {
@@ -33,17 +33,17 @@ export const PARKING_SPOT_STYLE_MICROMOBILITY_LIME = {
   fillOpacity: 0.82,
 };
 
-/** `#/data/parking` meters — blue (distinct from public-lot sky blue). */
+/** `#/data/parking` meters — blue (distinct from public-lot cyan/teal). */
 export const PARKING_DATA_VIEW_STYLE_METERS = {
   color: "#1e3a8a",
   fillColor: "#2563eb",
   fillOpacity: 0.8,
 };
 
-/** `#/data/parking` bike racks — emerald (distinct from Lime #00DD00). */
+/** `#/data/parking` bike racks — pink (distinct from Lime green and drive blues/teals). */
 export const PARKING_DATA_VIEW_STYLE_RACKS = {
-  color: "#047857",
-  fillColor: "#34d399",
+  color: "#be185d",
+  fillColor: "#f9a8d4",
   fillOpacity: 0.78,
 };
 
