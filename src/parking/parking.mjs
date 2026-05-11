@@ -733,9 +733,48 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+/** Inline icon for route links that open Maps or another app (matches {@link parkingRouteStepMapsLinkHtml}). */
+function parkingRouteStepLinkIconSvg() {
+  return (
+    '<svg class="parking-route-step-link-icon-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">' +
+    '<path fill-rule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clip-rule="evenodd" />' +
+    '<path fill-rule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 9.056a.75.75 0 001.06 1.06z" clip-rule="evenodd" />' +
+    "</svg>"
+  );
+}
+
+/**
+ * Route panel anchor: label + external/open icon; underline wraps both (see `.parking-route-step-link-content`).
+ * @param {string} extraAnchorClasses — optional extra classes on the `<a>` (e.g. `parking-route-step-detail`).
+ */
+function parkingRouteStepMapsLinkHtml(
+  href,
+  labelEscaped,
+  ariaLabel,
+  extraAnchorClasses,
+) {
+  const extra =
+    typeof extraAnchorClasses === "string" && extraAnchorClasses.trim() !== ""
+      ? ` ${extraAnchorClasses.trim()}`
+      : "";
+  return (
+    `<a href="${escapeHtml(href)}" class="parking-route-step-maps-link${extra}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(ariaLabel)}">` +
+    `<span class="parking-route-step-link-content">` +
+    `<span class="parking-route-step-link-label">${labelEscaped}</span>` +
+    `<span class="parking-route-step-link-icon" aria-hidden="true">${parkingRouteStepLinkIconSvg()}</span>` +
+    `</span></a>`
+  );
+}
+
 /** "DASH shuttle" in the route wait step -> Transit app (Grand Rapids). */
 function parkingRouteDashShuttleTransitAppAnchorHtml() {
-  return `<a href="${escapeHtml(PARKING_TRANSIT_APP_GRAND_RAPIDS_URL)}" class="parking-route-transit-app-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml("Free DASH shuttle in the Transit app for Grand Rapids")}">DASH shuttle</a>`;
+  return (
+    `<a href="${escapeHtml(PARKING_TRANSIT_APP_GRAND_RAPIDS_URL)}" class="parking-route-transit-app-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml("Free DASH shuttle in the Transit app for Grand Rapids")}">` +
+    `<span class="parking-route-step-link-content">` +
+    `<span class="parking-route-step-link-label">DASH shuttle</span>` +
+    `<span class="parking-route-step-link-icon" aria-hidden="true">${parkingRouteStepLinkIconSvg()}</span>` +
+    `</span></a>`
+  );
 }
 
 /** Google Maps deep link: pin at **lat/lng**, or text search from **addressFallback** if coords invalid. */
@@ -2976,7 +3015,7 @@ function syncParkingStartFinishWalkLine(map) {
 
 /**
  * Red finish pin for the selected destination.
- * **`4`** when the walk overlay uses DASH (park → board → exit → venue); **`2`** when the trip is
+ * **`4`** when the walk overlay uses DASH (park → board → ride → venue); **`2`** when the trip is
  * park + walk to venue only (1 → 2). Pass **`""`** for selected venue without {@link parkingTripStepNumbersHashReady}.
  */
 function parkingDestinationMarkerIcon(L, glyph) {
@@ -3336,23 +3375,20 @@ function syncParkingRouteInstructionsPanel() {
     getAllParkingSpotMarkers().find((m) => m.spotId === committedId) ??
     parkingSpotRowFallback(committedId, start);
   const parkLabel = parkingSpotResolvedDisplayLabel(spot, "this location");
-  const addrRaw = typeof spot.address === "string" ? spot.address.trim() : "";
-  const mapsHref = parkingGoogleMapsHref(start.lat, start.lng, addrRaw);
-  const parkAddressInline =
-    addrRaw !== "" && mapsHref !== ""
-      ? ` <a href="${escapeHtml(mapsHref)}" class="parking-route-step-detail parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`Open ${addrRaw} in Google Maps`)}">(${escapeHtml(addrRaw)})</a>`
-      : addrRaw !== ""
-        ? ` <span class="parking-route-step-detail">(${escapeHtml(addrRaw)})</span>`
-        : "";
+  const mapsHref = parkingGoogleMapsHref(start.lat, start.lng, "");
   const parkLabelAria =
     parkLabel === "this location"
       ? "Open this parking spot in Google Maps"
       : `Open ${parkLabel} in Google Maps`;
   const parkLabelHtml =
     mapsHref !== ""
-      ? `<a href="${escapeHtml(mapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(parkLabelAria)}">${escapeHtml(parkLabel)}</a>`
+      ? parkingRouteStepMapsLinkHtml(
+          mapsHref,
+          escapeHtml(parkLabel),
+          parkLabelAria,
+        )
       : escapeHtml(parkLabel);
-  const parkMainHtml = `<strong>Park</strong> at ${parkLabelHtml}${parkAddressInline}`;
+  const parkMainHtml = `<strong>Park</strong> at ${parkLabelHtml}`;
 
   const venueMapsHref = parkingGoogleMapsHref(
     destLl[0],
@@ -3365,7 +3401,11 @@ function syncParkingRouteInstructionsPanel() {
       : `Open ${destName} in Google Maps`;
   const venueNameHtml =
     venueMapsHref !== ""
-      ? `<a href="${escapeHtml(venueMapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(venueLinkAria)}">${escapeHtml(destName)}</a>`
+      ? parkingRouteStepMapsLinkHtml(
+          venueMapsHref,
+          escapeHtml(destName),
+          venueLinkAria,
+        )
       : escapeHtml(destName);
 
   const multimodal = tryParkingDashMultimodalPath(
@@ -3406,7 +3446,11 @@ function syncParkingRouteInstructionsPanel() {
     );
     const boardLabelHtml =
       boardMapsHref !== ""
-        ? `<a href="${escapeHtml(boardMapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`Open ${boardDisplay} in Google Maps`)}">${escapeHtml(boardDisplay)}</a>`
+        ? parkingRouteStepMapsLinkHtml(
+            boardMapsHref,
+            escapeHtml(boardDisplay),
+            `Open ${boardDisplay} in Google Maps`,
+          )
         : escapeHtml(boardDisplay);
     const alightRaw =
       typeof multimodal.alightStop.label === "string"
@@ -3420,7 +3464,11 @@ function syncParkingRouteInstructionsPanel() {
     );
     const alightLabelHtml =
       alightMapsHref !== ""
-        ? `<a href="${escapeHtml(alightMapsHref)}" class="parking-route-step-maps-link" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(`Open ${alightDisplay} in Google Maps`)}">${escapeHtml(alightDisplay)}</a>`
+        ? parkingRouteStepMapsLinkHtml(
+            alightMapsHref,
+            escapeHtml(alightDisplay),
+            `Open ${alightDisplay} in Google Maps`,
+          )
         : escapeHtml(alightDisplay);
     const boardLabelPlain = escapeHtml(boardDisplay);
     const alightLabelPlain = escapeHtml(alightDisplay);
@@ -3443,7 +3491,7 @@ function syncParkingRouteInstructionsPanel() {
     if (sameTripStop) {
       steps.push(
         parkingRouteStepLi(
-          `<strong>Board</strong> DASH at ${boardLabelPlain} and <strong>exit</strong> at the same stop`,
+          `<strong>Board</strong> DASH at ${boardLabelPlain}, same stop`,
           onboardM ? [onboardM] : [],
           "dash",
         ),
@@ -3451,7 +3499,7 @@ function syncParkingRouteInstructionsPanel() {
     } else {
       steps.push(
         parkingRouteStepLi(
-          `<strong>Board</strong> DASH, then <strong>ride</strong> to ${alightLabelPlain} and <strong>exit</strong>`,
+          `<strong>Ride</strong> to ${alightLabelPlain}`,
           onboardM ? [onboardM] : [],
           "dash",
         ),

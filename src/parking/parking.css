@@ -221,15 +221,39 @@ main.parking-map-active {
 
 a.parking-route-step-maps-link,
 a.parking-route-transit-app-link {
-  text-decoration: underline;
-  text-decoration-color: rgb(148 163 184);
-  text-underline-offset: 2px;
+  text-decoration: none;
+}
+
+a.parking-route-step-maps-link .parking-route-step-link-content,
+a.parking-route-transit-app-link .parking-route-step-link-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+  /* Border spans full flex row (text + gap + icon); text-decoration skips gaps under inline-flex in some engines. */
+  border-bottom: 1px solid rgb(148 163 184);
+  padding-bottom: 1px;
 }
 
 a.parking-route-step-maps-link:hover,
 a.parking-route-transit-app-link:hover {
   color: rgb(71 85 105);
-  text-decoration-color: rgb(100 116 139);
+}
+
+a.parking-route-step-maps-link:hover .parking-route-step-link-content,
+a.parking-route-transit-app-link:hover .parking-route-step-link-content {
+  border-bottom-color: rgb(100 116 139);
+}
+
+.parking-route-step-link-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  line-height: 0;
+}
+
+.parking-route-step-link-icon-svg {
+  width: 0.92em;
+  height: 0.92em;
+  display: block;
 }
 
 a.parking-route-step-maps-link:focus-visible,
