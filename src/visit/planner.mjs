@@ -314,6 +314,47 @@ function migrateLegacyParkingRouteHash() {
   if (raw !== next) window.location.hash = next;
 }
 
+/** `#/planner`, `#/visit`, `#/data`, `#/modes`, or legacy `#/parking` — not `#/visitFoo`. */
+function isKnownAppRoutePath(pathPart) {
+  if (!pathPart || pathPart === "/") return false;
+  return (
+    pathPart === "/planner" ||
+    pathPart.startsWith("/planner/") ||
+    pathPart === "/visit" ||
+    pathPart === "/visit/" ||
+    pathPart.startsWith("/visit/") ||
+    pathPart === "/data" ||
+    pathPart.startsWith("/data/") ||
+    pathPart === "/modes" ||
+    pathPart.startsWith("/modes/") ||
+    pathPart === "/parking" ||
+    pathPart === "/parking/"
+  );
+}
+
+/**
+ * Unknown paths (e.g. `#/foobar`) → `#/visit`, preserving query (`#/foobar?walk=0.5` → `#/visit?walk=0.5`).
+ * Legacy params-only hashes (`modes=drive`) → `#/visit?modes=drive`.
+ */
+function normalizeUnknownHashRoute() {
+  const raw = window.location.hash.slice(1);
+  if (!raw) return;
+
+  const qIdx = raw.indexOf("?");
+  const pathPart = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+  const query = qIdx >= 0 ? raw.slice(qIdx + 1) : "";
+
+  if (isKnownAppRoutePath(pathPart)) return;
+
+  // Legacy: hash was only query params (no path), e.g. #modes=drive
+  if (!pathPart.startsWith("/") && raw.includes("=")) {
+    window.location.hash = `#/visit?${raw}`;
+    return;
+  }
+
+  window.location.hash = query ? `#/visit?${query}` : "#/visit";
+}
+
 const MODES_PAGE_PARKING_KEYS = [
   "garages",
   "lots",
@@ -2200,6 +2241,7 @@ function toggleMode(mode) {
 // Handle browser back/forward navigation
 window.addEventListener("hashchange", () => {
   migrateLegacyParkingRouteHash();
+  normalizeUnknownHashRoute();
   if (isParkingRoute()) {
     hideModesView();
     renderParkingView();
@@ -5088,26 +5130,11 @@ function registerPlannerDebugExports() {
 // Initialize application
 async function init() {
   migrateLegacyParkingRouteHash();
-  // Migrate old hash format to new format with destination path (don't overwrite yet if no hash - read params first)
+  normalizeUnknownHashRoute();
   let initialHash = window.location.hash.slice(1); // Remove the #
   if (!initialHash) {
     window.location.hash = "#/visit";
     initialHash = window.location.hash.slice(1);
-  }
-  const defaultPath = "/planner";
-  if (
-    initialHash &&
-    !initialHash.startsWith("/planner") &&
-    !initialHash.startsWith("/visit") &&
-    !initialHash.startsWith("/data") &&
-    !initialHash.startsWith("/modes")
-  ) {
-    // If hash exists but doesn't start with a known route, migrate it
-    if (initialHash.includes("=")) {
-      window.location.hash = defaultPath + "?" + initialHash;
-    } else {
-      window.location.hash = defaultPath;
-    }
   }
 
   if (isParkingRoute()) {

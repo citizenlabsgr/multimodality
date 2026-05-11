@@ -141,25 +141,38 @@ function parkingInstructionDashOnboardMetrics(multimodal) {
 }
 
 /**
- * One route step: main instruction (left) and optional time badge(s) (right).
+ * One route step: main instruction (left) and optional badge(s) (right).
  * @param {string} mainHtml
- * @param {string[]} metricLines — plain text / escaped snippets (already safe HTML)
- * @param {'walk' | 'wait' | 'dash' | undefined} badgeVariant — colors the badge(s); omit when no metrics
+ * @param {string[]} metricLines — plain text / escaped snippets (already safe HTML); ignored for **`drive`** unless non-empty (custom label)
+ * @param {'drive' | 'walk' | 'wait' | 'dash' | undefined} badgeVariant — **`drive`** = green “15+ min drive” chip for park step; walk/wait/dash for metrics
  */
 function parkingRouteStepLi(mainHtml, metricLines, badgeVariant) {
   const lines = Array.isArray(metricLines)
     ? metricLines.filter((s) => typeof s === "string" && s.trim() !== "")
     : [];
-  const variant =
+  const isDrive = badgeVariant === "drive";
+  let variant = null;
+  if (isDrive) {
+    variant = "drive";
+  } else if (
     lines.length > 0 &&
     (badgeVariant === "walk" ||
       badgeVariant === "wait" ||
       badgeVariant === "dash")
-      ? badgeVariant
-      : null;
+  ) {
+    variant = badgeVariant;
+  }
+  const badgeLines =
+    variant === "drive"
+      ? lines.length > 0
+        ? lines
+        : ["15+ min drive"]
+      : lines;
+  const metricsAria =
+    variant === "drive" ? "Route step" : "Time and distance estimates";
   const metrics =
-    lines.length > 0 && variant
-      ? `<span class="parking-route-step-metrics" aria-label="Time and distance estimates">${lines
+    variant && badgeLines.length > 0
+      ? `<span class="parking-route-step-metrics" aria-label="${metricsAria}">${badgeLines
           .map(
             (line) =>
               `<span class="parking-route-step-badge parking-route-step-badge--${variant}">${line}</span>`,
@@ -3185,7 +3198,7 @@ function syncParkingRouteInstructionsPanel() {
       ) < 2e-5;
 
     const steps = [];
-    steps.push(parkingRouteStepLi(parkMainHtml, []));
+    steps.push(parkingRouteStepLi(parkMainHtml, [], "drive"));
     const w1m = parkingInstructionWalkEstimateMetrics(multimodal.walk1Mi);
     const w2m = parkingInstructionWalkEstimateMetrics(multimodal.walk2Mi);
     const waitM = parkingInstructionDashWaitMetrics(multimodal);
@@ -3268,7 +3281,7 @@ function syncParkingRouteInstructionsPanel() {
   const doorMi = gridWalkMiles(start.lat, start.lng, destLl[0], destLl[1]);
   const doorMetrics = parkingInstructionWalkEstimateMetrics(doorMi);
   const steps = [
-    parkingRouteStepLi(parkMainHtml, []),
+    parkingRouteStepLi(parkMainHtml, [], "drive"),
     parkingRouteStepLi(
       `<strong>Walk</strong> to ${venueNameHtml}`,
       doorMetrics ? [doorMetrics] : [],
