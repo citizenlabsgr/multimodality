@@ -201,9 +201,9 @@ main.parking-map-active {
 }
 
 .parking-route-step-badge--wait {
-  color: rgb(113 63 18);
-  background-color: rgb(254 243 199);
-  border-color: rgb(252 211 77);
+  color: rgb(51 65 85);
+  background-color: rgb(241 245 249);
+  border-color: rgb(203 213 225);
 }
 
 /* DASH trip / shuttle — same family as `PARKING_DASH_TRIP_STOP_FILL` */

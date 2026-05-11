@@ -3239,12 +3239,29 @@ function fitParkingMapToAllContent(map) {
     return;
   }
 
-  /** `park=` committed: frame chosen parking + venue for trip context. */
+  /**
+   * `park=` committed: frame chosen parking + venue for trip context. When the trip uses DASH
+   * (multimodal overlay present), also include the **whole shuttle leg** (board → alight along the
+   * loop) so the trip steps fit on screen — the loop may bow well outside the park↔venue chord.
+   */
   if (destLl && startPt) {
-    map.fitBounds(
-      L.latLngBounds([[startPt.lat, startPt.lng], destLl]),
-      fitOpts,
+    const tripBounds = [[startPt.lat, startPt.lng], destLl];
+    const mm = tryParkingDashMultimodalPath(
+      startPt.lat,
+      startPt.lng,
+      destLl[0],
+      destLl[1],
+      resolvedParkingWalkCapMiles(),
     );
+    if (mm) {
+      tripBounds.push([mm.boardStop.lat, mm.boardStop.lng]);
+      tripBounds.push([mm.alightStop.lat, mm.alightStop.lng]);
+      for (const pt of mm.shuttle) {
+        if (Array.isArray(pt) && pt.length >= 2)
+          tripBounds.push([pt[0], pt[1]]);
+      }
+    }
+    map.fitBounds(L.latLngBounds(tripBounds), fitOpts);
     return;
   }
 
@@ -3354,7 +3371,7 @@ function syncParkingRouteInstructionsPanel() {
       return;
     }
     body.innerHTML = routeNextHtml(
-      `Tap a parking location, then <strong class="font-semibold text-slate-800">Plan to park here</strong> to set where you'll leave your car.`,
+      `Choose where you <strong class="font-semibold text-slate-800">plan to park</strong> by clicking on one of the locations, which match your current filters.`,
       true,
     );
     setParkingRouteUnverifiedNoteVisible(true);
@@ -3362,14 +3379,6 @@ function syncParkingRouteInstructionsPanel() {
   }
 
   const start = parseParkingSpotIdToken(committedId);
-  if (!start) {
-    body.innerHTML = routeNextHtml(
-      `Pick a parking spot and tap <strong class="font-semibold text-slate-800">Plan to park here</strong> again.`,
-      true,
-    );
-    setParkingRouteUnverifiedNoteVisible(true);
-    return;
-  }
 
   const spot =
     getAllParkingSpotMarkers().find((m) => m.spotId === committedId) ??
