@@ -1,5 +1,19 @@
 /* Visit planner (#/planner): mode buttons, sliders, selects */
 
+@media (max-width: 639px) {
+  /* More vertical air between mode rows on phones */
+  .planner-mode-btn-grid {
+    row-gap: 0.75rem;
+  }
+
+  /* Native dropdown lists: wider line spacing where browsers honor it (e.g. Android) */
+  #destinationSelect option,
+  #daySelect option,
+  #timeSelect option {
+    padding-block: 0.4em;
+  }
+}
+
 #preferencesSectionControls.disabled {
   opacity: 0.5;
   pointer-events: none;
@@ -60,6 +74,20 @@
 /* When the destination select has no value selected, make the displayed text gray */
 #destinationSelect.placeholder {
   color: rgb(148 163 184); /* slate-400 */
+}
+
+/* Touch/mouse: drop the default ring that lingers after picking (mobile Safari/Chrome). */
+#destinationSelect:focus:not(:focus-visible) {
+  outline: none;
+  box-shadow: none;
+}
+/* Keyboard: keep a clear focus indicator */
+#destinationSelect:focus-visible {
+  outline: 2px solid rgb(59 130 246);
+  outline-offset: 2px;
+}
+#destinationSelect {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Prevent layout shift when reset button appears/disappears */
