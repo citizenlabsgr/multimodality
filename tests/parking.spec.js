@@ -900,11 +900,15 @@ test.describe("Parking map (#/visit)", () => {
       }
     });
 
-    /** 601 Ottawa Lot — prose free-evening tier in `data/parking/public/lots.json`. */
+    /**
+     * 601 Ottawa Lot — prose free-evening tier in `data/parking/public/lots.json`.
+     * Use **`walk=1.5`** so door-to-door grid miles to GLC stay within the cap; default **0.5** mi excludes
+     * this north lot while still listing closer ramps (see Acrisure **`walk=0.5`** regression test).
+     */
     test("GLC Live + finite pay can recommend farthest multimodal free lot (601 Ottawa)", async ({
       page,
     }) => {
-      await page.goto("/#/visit/glc-live-at-20-monroe?pay=5");
+      await page.goto("/#/visit/glc-live-at-20-monroe?pay=5&walk=1.5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
@@ -1324,7 +1328,7 @@ test.describe("Parking map (#/visit)", () => {
       );
     });
 
-    test("slider at max keeps pay omitted (default any price)", async ({
+    test("after pay is in the URL, sliding to default any price keeps pay=50", async ({
       page,
     }) => {
       await page.goto("/#/visit?pay=25");
@@ -1335,8 +1339,7 @@ test.describe("Parking map (#/visit)", () => {
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).toHaveURL(/#\/visit(?:\?|$)/);
-      await expect(page).not.toHaveURL(/[?&]pay=/);
+      await expect(page).toHaveURL(/[?&]pay=50(?:&|$)/);
     });
   });
 
@@ -1348,6 +1351,20 @@ test.describe("Parking map (#/visit)", () => {
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
         "0.5 mi (~12 min)",
       );
+    });
+
+    test("after walk is in the URL, sliding to default 0.5 mi keeps walk=0.5", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit?walk=0.4");
+      await waitForParkingData(page);
+      await page.evaluate(() => {
+        const el = document.getElementById("parkingMaxWalkSlider");
+        el.value = "5";
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+      await expect(page).toHaveURL(/[?&]walk=0\.5(?:&|$)/);
     });
 
     test("hydrates maximum walk distance 1.5 mi", async ({ page }) => {
@@ -1428,6 +1445,81 @@ test.describe("Parking map (#/visit)", () => {
 
       expect(generousWalkCount).toBeGreaterThan(0);
       expect(walkZeroCount).toBeLessThan(generousWalkCount);
+    });
+
+    /**
+     * Regression: far venues used to list pins that only satisfied “walk to DASH” while the winning
+     * multimodal route showed a long alight→venue leg over the cap (`#/visit/silva?walk=0.2`).
+     */
+    test("Silva + tight walk: every listed pin satisfies multimodal walk-leg cap", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/silva?walk=0.2");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const fn = globalThis.__parkingSpotWalkLegsWithinCapForTest;
+        const markers = globalThis.__getAllParkingSpotMarkersForTest?.();
+        const dest = window.appData?.destinations?.find(
+          (d) => d.slug === "silva",
+        );
+        const dLat = dest?.latitude ?? dest?.location?.latitude;
+        const dLng = dest?.longitude ?? dest?.location?.longitude;
+        if (
+          typeof fn !== "function" ||
+          !Array.isArray(markers) ||
+          typeof dLat !== "number" ||
+          typeof dLng !== "number"
+        ) {
+          return { ok: false, reason: "setup", n: 0, bad: 0 };
+        }
+        const cap = 0.2;
+        let bad = 0;
+        for (const m of markers) {
+          if (!fn(m.lat, m.lng, dLat, dLng, cap)) bad += 1;
+        }
+        return { ok: bad === 0, bad, n: markers.length };
+      });
+
+      expect(r.ok, JSON.stringify(r)).toBe(true);
+      expect(r.n, JSON.stringify(r)).toBeGreaterThan(0);
+    });
+
+    /** Winning trip (DASH or door-only): every walk segment must fit **`walk`** (regression: `#/visit/acrisure-amphitheater?walk=0.5`). */
+    test("Acrisure walk=0.5: every listed pin fits displayed walks within cap", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/acrisure-amphitheater?walk=0.5");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const fn = globalThis.__parkingSpotWalkLegsWithinCapForTest;
+        const markers = globalThis.__getAllParkingSpotMarkersForTest?.();
+        const dest = window.appData?.destinations?.find(
+          (d) => d.slug === "acrisure-amphitheater",
+        );
+        const dLat = dest?.latitude ?? dest?.location?.latitude;
+        const dLng = dest?.longitude ?? dest?.location?.longitude;
+        if (
+          typeof fn !== "function" ||
+          !Array.isArray(markers) ||
+          typeof dLat !== "number" ||
+          typeof dLng !== "number"
+        ) {
+          return { ok: false, reason: "setup", n: 0, bad: 0 };
+        }
+        const cap = 0.5;
+        let bad = 0;
+        for (const m of markers) {
+          if (!fn(m.lat, m.lng, dLat, dLng, cap)) bad += 1;
+        }
+        return { ok: bad === 0, bad, n: markers.length };
+      });
+
+      expect(r.ok, JSON.stringify(r)).toBe(true);
+      expect(r.n, JSON.stringify(r)).toBeGreaterThan(0);
     });
   });
 

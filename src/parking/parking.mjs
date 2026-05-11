@@ -914,6 +914,19 @@ function getParkingRouteSearchParams() {
   return new URLSearchParams(hash.slice(qIdx + 1));
 }
 
+/** After `pay` / `walk` appear in the hash once, keep spelling them at default values until reset (see {@link buildParkingHashFromState}). */
+function getParkingStickyPayWalkFromCurrentHash() {
+  const params = getParkingRouteSearchParams();
+  return {
+    pay:
+      params.has(PARKING_PAY_QUERY_KEY) ||
+      params.has(PARKING_PAY_QUERY_KEY_LEGACY),
+    walk:
+      params.has(PARKING_WALK_QUERY_KEY) ||
+      params.has(PARKING_WALK_QUERY_KEY_LEGACY),
+  };
+}
+
 /**
  * `null` = no `location` (or legacy `cats`) param → show all categories.
  * `Set` (possibly empty) = explicit filter from `#/visit?location=public-garage,private-lot`.
@@ -1104,12 +1117,16 @@ function parkingVisitBasePath(destSlug) {
   return "/visit";
 }
 
+/**
+ * @param {{ ignoreStickyPayWalk?: boolean } | undefined} opts — **`ignoreStickyPayWalk: true`** for full chrome reset so `#/visit` drops `pay`/`walk` even after prior explicit params.
+ */
 function buildParkingHashFromState(
   enabledKeys,
   destSlug,
   spotId,
   maxEveningSliderValue,
   maxWalkSliderValue,
+  opts,
 ) {
   const sliderValOnly =
     maxEveningSliderValue === undefined || maxEveningSliderValue === null;
@@ -1122,6 +1139,11 @@ function buildParkingHashFromState(
   const walkIx = walkIxOnly
     ? getParkingMaxWalkSliderValueForHash()
     : snapParkingWalkInternalIndex(maxWalkSliderValue);
+
+  const stickyPw =
+    opts?.ignoreStickyPayWalk === true
+      ? { pay: false, walk: false }
+      : getParkingStickyPayWalkFromCurrentHash();
 
   const allKeys = new Set(PARKING_MAP_ITEM_KEYS);
   const enabled =
@@ -1145,6 +1167,10 @@ function buildParkingHashFromState(
         parts.push(
           `${PARKING_PAY_QUERY_KEY}=${PARKING_MAX_EVENING_SLIDER_CEILING}`,
         );
+      } else if (stickyPw.pay) {
+        parts.push(
+          `${PARKING_PAY_QUERY_KEY}=${PARKING_MAX_EVENING_SLIDER_CEILING}`,
+        );
       }
     } else if (sliderVal !== PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE) {
       parts.push(`${PARKING_PAY_QUERY_KEY}=${Math.round(sliderVal)}`);
@@ -1153,6 +1179,10 @@ function buildParkingHashFromState(
   if (walkIx === 0) {
     parts.push(`${PARKING_WALK_QUERY_KEY}=0`);
   } else if (walkIx !== PARKING_DEFAULT_WALK_SLIDER_INDEX) {
+    parts.push(
+      `${PARKING_WALK_QUERY_KEY}=${formatParkingMaxWalkHashValue(walkIx)}`,
+    );
+  } else if (stickyPw.walk) {
     parts.push(
       `${PARKING_WALK_QUERY_KEY}=${formatParkingMaxWalkHashValue(walkIx)}`,
     );
@@ -1231,6 +1261,7 @@ function resetParkingMapChromeToDefaults() {
     undefined,
     PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE,
     PARKING_DEFAULT_WALK_SLIDER_INDEX,
+    { ignoreStickyPayWalk: true },
   );
   if (window.location.hash === nextHash) {
     const sel = document.getElementById("parkingDestinationSelect");
@@ -1460,11 +1491,10 @@ function getAllParkingSpotMarkers(
   const budgetCap = resolvedParkingEveningBudgetCap(
     eveningSliderValue === undefined ? undefined : eveningSliderValue,
   );
-  const walkCapMiles = effectiveWalkCapMilesForParkingPins(
-    resolvedParkingWalkCapMiles(
-      walkSliderIndex === undefined ? undefined : walkSliderIndex,
-    ),
+  const resolvedWalkRaw = resolvedParkingWalkCapMiles(
+    walkSliderIndex === undefined ? undefined : walkSliderIndex,
   );
+  const walkCapMiles = effectiveWalkCapMilesForParkingPins(resolvedWalkRaw);
   const destLl = getParkingDestinationLatLng();
   const dashStops = getDashStopLatLngsForParkingProximity();
   /**
@@ -1496,12 +1526,26 @@ function getAllParkingSpotMarkers(
       if (!parkingSpotPassesEveningBudget(item.pricing, categoryId, budgetCap))
         continue;
       if (applyWalkCap) {
-        const walkToStopMi = nearestDashStopWalkMiles(lat, lng, dashStops);
-        if (
-          !Number.isFinite(walkToStopMi) ||
-          walkToStopMi > walkCapMiles + 1e-9
-        ) {
-          continue;
+        if (Number.isFinite(resolvedWalkRaw) && resolvedWalkRaw > 0) {
+          if (
+            !parkingSpotEveryDisplayedWalkLegWithinResolvedCap(
+              lat,
+              lng,
+              destLl[0],
+              destLl[1],
+              resolvedWalkRaw,
+            )
+          ) {
+            continue;
+          }
+        } else {
+          const walkToStopMi = nearestDashStopWalkMiles(lat, lng, dashStops);
+          if (
+            !Number.isFinite(walkToStopMi) ||
+            walkToStopMi > walkCapMiles + 1e-9
+          ) {
+            continue;
+          }
         }
       }
       const cost = getParkingMapCostDisplay(item.pricing, categoryId);
@@ -1784,17 +1828,26 @@ if (typeof globalThis !== "undefined") {
     markerUsesDashMultimodalForRecommendationFromPool;
 }
 
+/** Session memo — `appData.busRoutes` is static after load (same object identity for parking sessions). */
+let _parkingDashMapDataMemo = undefined;
+let _parkingDashMapDataMemoReady = false;
+
 /**
  * DASH polylines + stops (same source as modes page shuttle map).
  * @returns {{ points: Array<{lat:number,lng:number,label:string,address:string}>, polylines: Array<{latLngs:number[][], color:string, weight?:number}> }}
  */
 function getParkingDashMapData() {
+  if (_parkingDashMapDataMemoReady) return _parkingDashMapDataMemo;
+  _parkingDashMapDataMemoReady = true;
   const empty = { points: [], polylines: [] };
   const bus = appData?.busRoutes;
   const dashList = Array.isArray(bus?.dash_routes) ? bus.dash_routes : [];
   const legacyList = Array.isArray(bus?.routes) ? bus.routes : [];
   const routes = dashList.length > 0 ? dashList : legacyList;
-  if (routes.length === 0) return empty;
+  if (routes.length === 0) {
+    _parkingDashMapDataMemo = empty;
+    return _parkingDashMapDataMemo;
+  }
 
   const defaultLineColor = "#933145";
   const colorForRoute = (hex, fallbackHex) => {
@@ -1851,7 +1904,8 @@ function getParkingDashMapData() {
       });
     }
   }
-  return { points, polylines };
+  _parkingDashMapDataMemo = { points, polylines };
+  return _parkingDashMapDataMemo;
 }
 
 /**
@@ -1877,18 +1931,29 @@ function nearestDashStopWalkMiles(lat, lng, dashStops) {
   return best;
 }
 
+/** Session memo — loop geometry is static after load (hot path: once per `tryParkingDashMultimodalPath`). */
+let _parkingDashLoopRingGeometryMemo = undefined;
+let _parkingDashLoopRingGeometryMemoReady = false;
+
 /**
  * Closed-loop vertices from the primary DASH shape (first route, first shape), dropping the duplicate closing point.
  * @returns {{ verts: Array<{ lat: number; lng: number }>; segMi: number[]; perimeterMi: number } | null}
  */
 function getParkingDashLoopRingGeometry() {
+  if (_parkingDashLoopRingGeometryMemoReady)
+    return _parkingDashLoopRingGeometryMemo;
+  _parkingDashLoopRingGeometryMemoReady = true;
+
   const bus = appData?.busRoutes;
   const dashList = Array.isArray(bus?.dash_routes) ? bus.dash_routes : [];
   const legacyList = Array.isArray(bus?.routes) ? bus.routes : [];
   const routes = dashList.length > 0 ? dashList : legacyList;
   const r = routes[0];
   const coords = r?.shapes?.[0]?.coordinates;
-  if (!Array.isArray(coords) || coords.length < 3) return null;
+  if (!Array.isArray(coords) || coords.length < 3) {
+    _parkingDashLoopRingGeometryMemo = null;
+    return _parkingDashLoopRingGeometryMemo;
+  }
   const last = coords[coords.length - 1];
   const first = coords[0];
   const ring =
@@ -1903,11 +1968,15 @@ function getParkingDashLoopRingGeometry() {
   const verts = [];
   for (const c of ring) {
     if (typeof c.latitude !== "number" || typeof c.longitude !== "number") {
-      return null;
+      _parkingDashLoopRingGeometryMemo = null;
+      return _parkingDashLoopRingGeometryMemo;
     }
     verts.push({ lat: c.latitude, lng: c.longitude });
   }
-  if (verts.length < 3) return null;
+  if (verts.length < 3) {
+    _parkingDashLoopRingGeometryMemo = null;
+    return _parkingDashLoopRingGeometryMemo;
+  }
   const n = verts.length;
   const segMi = [];
   let perimeterMi = 0;
@@ -1922,7 +1991,8 @@ function getParkingDashLoopRingGeometry() {
     segMi.push(mi);
     perimeterMi += mi;
   }
-  return { verts, segMi, perimeterMi };
+  _parkingDashLoopRingGeometryMemo = { verts, segMi, perimeterMi };
+  return _parkingDashLoopRingGeometryMemo;
 }
 
 /** @param {Array<{ lat: number; lng: number }>} verts */
@@ -2116,6 +2186,55 @@ function tryParkingDashMultimodalPath(
     tooltip:
       "Estimated trip — walk to DASH, shuttle along the route, then walk to the venue (walk legs are approximate, not turn-by-turn).",
   };
+}
+
+/**
+ * Pin list filter when a **destination** is selected and **`walk` &gt; 0**: matches the **route panel** —
+ * every displayed walk segment must be ≤ **`walk`** (resolved miles).
+ *
+ * - **Multimodal** ({@link tryParkingDashMultimodalPath} non-null): **park→stop** and **alight→venue** grid
+ *   walks must both fit the cap.
+ * - **Door-to-door only** (multimodal null): the single **parking→venue** grid walk shown must fit the cap.
+ *
+ * **`walk=0`** uses {@link effectiveWalkCapMilesForParkingPins} outside this helper (strict feet-to-DASH only).
+ *
+ * @param {number} resolvedWalkCapMiles — {@link resolvedParkingWalkCapMiles} raw cap (**not** effective snap for pin radius).
+ */
+function parkingSpotEveryDisplayedWalkLegWithinResolvedCap(
+  lat,
+  lng,
+  destLat,
+  destLng,
+  resolvedWalkCapMiles,
+) {
+  const eps = 1e-9;
+  if (
+    typeof resolvedWalkCapMiles !== "number" ||
+    !Number.isFinite(resolvedWalkCapMiles) ||
+    resolvedWalkCapMiles <= 0
+  ) {
+    return true;
+  }
+  const doorMi = gridWalkMiles(lat, lng, destLat, destLng);
+  const mm = tryParkingDashMultimodalPath(
+    lat,
+    lng,
+    destLat,
+    destLng,
+    resolvedWalkCapMiles,
+  );
+  if (mm) {
+    return (
+      mm.walk1Mi <= resolvedWalkCapMiles + eps &&
+      mm.walk2Mi <= resolvedWalkCapMiles + eps
+    );
+  }
+  return doorMi <= resolvedWalkCapMiles + eps;
+}
+
+if (typeof globalThis !== "undefined") {
+  globalThis.__parkingSpotWalkLegsWithinCapForTest =
+    parkingSpotEveryDisplayedWalkLegWithinResolvedCap;
 }
 
 /** If there are no DASH stops (missing data), keep all parking so the map still loads. */
