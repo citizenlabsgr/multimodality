@@ -38,8 +38,10 @@ export function resolveParkingRoutePace(configObj) {
 
 /**
  * Compare grid-walk door-to-door vs walk + DASH shuttle + walk using the same
- * linear time model as the map overlay (`directMi`, `w1`, `w2`: grid-walk miles, N–S + E–W).
- * When `useDashOverlay` is false, the UI shows a single approximate walk instead.
+ * linear time model as `#/visit` (`directMi`, `w1`, `w2`: grid-walk miles, N–S + E–W).
+ * `useDashOverlay` is true when DASH is strictly faster on that model — used for recommendation
+ * sort; the parking map may still draw a multimodal path when both walk legs fit the user’s cap
+ * even if this flag is false.
  *
  * @param {{
  *   directMi: number;

@@ -1690,8 +1690,9 @@ function filterParkingMarkersExcludeFreeWhenPaidExists(markers) {
 }
 
 /**
- * Whether {@link tryParkingDashMultimodalPath} would draw the DASH multimodal overlay for this spot
- * (same rules as on-map estimated trip — approach walk capped by **`walk`**, alight→venue leg can exceed it).
+ * Whether this spot’s DASH multimodal trip is **faster** than walking door-to-door (same
+ * {@link compareParkingWalkVersusDashMinutes} rule as **`useDashOverlay`** on the path object).
+ * Used for recommendation sort only — pins can still list when DASH is slower but both walk legs fit.
  *
  * @param {{ lat: number; lng: number }} m
  * @param {[number, number]|null} destLl
@@ -1700,19 +1701,23 @@ function filterParkingMarkersExcludeFreeWhenPaidExists(markers) {
 function markerUsesDashMultimodalForRecommendation(m, destLl, walkCapMiles) {
   if (m._usesDashMultimodalCached !== undefined)
     return m._usesDashMultimodalCached;
-  const v =
+  let v = false;
+  if (
     Array.isArray(destLl) &&
     destLl.length >= 2 &&
     typeof walkCapMiles === "number" &&
     Number.isFinite(walkCapMiles) &&
-    walkCapMiles > 0 &&
-    tryParkingDashMultimodalPath(
+    walkCapMiles > 0
+  ) {
+    const mm = tryParkingDashMultimodalPath(
       m.lat,
       m.lng,
       destLl[0],
       destLl[1],
       walkCapMiles,
-    ) != null;
+    );
+    v = mm != null && mm.useDashOverlay === true;
+  }
   m._usesDashMultimodalCached = v;
   return v;
 }
@@ -2086,13 +2091,19 @@ function nearestParkingDashStopFromPoints(lat, lng, dashPoints) {
 }
 
 /**
- * When total time (walk–board + shuttle + walk–venue) is **less** than walking door-to-door
- * (same pace knobs as **`parkingRoutePace`** in `config.json`), the walk **to DASH** fits `walkCapMiles`
- * (same idea as pin filtering: max willingness to reach a stop), and grid-walk parking→venue distance
- * **exceeds** the max-walk cap (otherwise show door-to-door walk only). The alight→venue leg uses the
- * nearest stop to the destination and is **not** capped by `walkCapMiles` (venues off the loop can be
- * farther than that last-mile walk).
- * Otherwise the map keeps a single door-to-door walk segment (walking-only is faster or ties).
+ * Geometry + pace for a park → DASH → venue trip when the user’s max walk is **not** enough for the
+ * full door-to-door grid walk but **is** enough to reach a DASH stop (`w1` ≤ `walkCapMiles`).
+ *
+ * Returns **`null`** when DASH data/geometry is missing, when the approach walk exceeds the cap, or
+ * when door-to-door already fits the cap (caller should show a single walk only).
+ *
+ * **`useDashOverlay`** is true when the linear time model says DASH is strictly faster than walking
+ * door-to-door; callers may use that for ranking. The map and route panel still draw this multimodal
+ * path whenever the object is non-null so listed pins match what is shown.
+ *
+ * The alight→venue leg uses the nearest stop to the destination and is **not** capped by
+ * `walkCapMiles` for geometry (venues off the loop); pin filtering still requires both walk legs ≤ cap.
+ *
  * @param {number} walkCapMiles — must be **> 0** (slider above minimum); **0** / invalid ⇒ no multimodal trip (cannot reach DASH without walking).
  */
 function tryParkingDashMultimodalPath(
@@ -2156,17 +2167,16 @@ function tryParkingDashMultimodalPath(
     iAlight,
   );
 
-  const { useDashOverlay } = compareParkingWalkVersusDashMinutes({
-    directMi,
-    w1,
-    w2,
-    shuttleMi,
-    walkMinutesPerMile: pace.walkMinutesPerMile,
-    dashMilesPerHour: pace.dashMilesPerHour,
-    dashBoardingWaitMinutes: pace.dashBoardingWaitMinutes,
-  });
-
-  if (!useDashOverlay) return null;
+  const { tDirectMin, tDashMin, useDashOverlay } =
+    compareParkingWalkVersusDashMinutes({
+      directMi,
+      w1,
+      w2,
+      shuttleMi,
+      walkMinutesPerMile: pace.walkMinutesPerMile,
+      dashMilesPerHour: pace.dashMilesPerHour,
+      dashBoardingWaitMinutes: pace.dashBoardingWaitMinutes,
+    });
 
   const shuttleRideMinutes = Math.max(
     1,
@@ -2199,18 +2209,19 @@ function tryParkingDashMultimodalPath(
     /** On-board time along the DASH loop (excludes typical wait at the stop). */
     shuttleMinutes: shuttleRideMinutes,
     dashBoardingWaitMinutes: pace.dashBoardingWaitMinutes,
+    tDirectMin,
+    tDashMin,
+    useDashOverlay,
     tooltip:
       "Estimated trip — walk to DASH, shuttle along the route, then walk to the venue (walk legs are approximate, not turn-by-turn).",
   };
 }
 
 /**
- * Pin list filter when a **destination** is selected and **`walk` &gt; 0**: matches the **route panel** —
- * every displayed walk segment must be ≤ **`walk`** (resolved miles).
- *
- * - **Multimodal** ({@link tryParkingDashMultimodalPath} non-null): **park→stop** and **alight→venue** grid
- *   walks must both fit the cap.
- * - **Door-to-door only** (multimodal null): the single **parking→venue** grid walk shown must fit the cap.
+ * Pin list filter when a **destination** is selected and **`walk` &gt; 0**:
+ * the spot is allowed if **either** the door-to-door grid walk fits the cap **or** a DASH trip exists
+ * where **park→stop** and **alight→venue** grid walks both fit (independent of whether DASH is faster
+ * than walking door-to-door).
  *
  * **`walk=0`** uses {@link effectiveWalkCapMilesForParkingPins} outside this helper (strict feet-to-DASH only).
  *
@@ -2232,6 +2243,7 @@ function parkingSpotEveryDisplayedWalkLegWithinResolvedCap(
     return true;
   }
   const doorMi = gridWalkMiles(lat, lng, destLat, destLng);
+  if (doorMi <= resolvedWalkCapMiles + eps) return true;
   const mm = tryParkingDashMultimodalPath(
     lat,
     lng,
@@ -2239,13 +2251,14 @@ function parkingSpotEveryDisplayedWalkLegWithinResolvedCap(
     destLng,
     resolvedWalkCapMiles,
   );
-  if (mm) {
-    return (
-      mm.walk1Mi <= resolvedWalkCapMiles + eps &&
-      mm.walk2Mi <= resolvedWalkCapMiles + eps
-    );
+  if (
+    mm &&
+    mm.walk1Mi <= resolvedWalkCapMiles + eps &&
+    mm.walk2Mi <= resolvedWalkCapMiles + eps
+  ) {
+    return true;
   }
-  return doorMi <= resolvedWalkCapMiles + eps;
+  return false;
 }
 
 if (typeof globalThis !== "undefined") {
@@ -2836,7 +2849,9 @@ function addParkingDashTripStopMarkers(g, L, boardStop, alightStop) {
 }
 
 /**
- * Dashed blue approximate walk (wavy chord) and, when faster than walking direct and within walk caps, DASH leg along the loop.
+ * Dashed blue approximate walk (wavy chord) and, when a multimodal DASH path exists (door-to-door over
+ * the walk cap but approach to DASH within cap), DASH leg along the loop — even if walking direct would
+ * be similar or faster.
  */
 function syncParkingStartFinishWalkLine(map) {
   const L = globalThis.L;
