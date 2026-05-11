@@ -803,6 +803,18 @@ function parkingMapEventPlusHourlySupplement(eventsText, hourlyText) {
 }
 
 /**
+ * Single-tier popup line: keep posted dollar text; prose-only evenings inferred as free → **Free**
+ * (aligned with {@link parkingSpotEveningPriceCeilingOrAbsent} / {@link parkingPriceTextImpliesEveningFree}).
+ */
+function parkingMapCostLineForTierText(tierText) {
+  if (typeof tierText !== "string" || tierText.trim() === "") return "";
+  const t = tierText.trim();
+  if (parseDollarAmountsFromPriceText(t).length > 0) return t;
+  if (parkingPriceTextImpliesEveningFree(t)) return "Free";
+  return t;
+}
+
+/**
  * Cost line for `#/visit` popups: prefers ArcGIS `hourlyRate` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
  * When **`events`** and **`hourlyRate`** are both set (city map), primary line is the **event** charge plus **`hourlyRate`** as a supplement (weekend / hourly context).
  * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
@@ -835,10 +847,14 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
   }
 
   if (hrRaw) {
+    const line = parkingMapCostLineForTierText(hrRaw);
     const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hrRaw);
     return {
-      text: hrRaw,
-      costHourlyHint: parkingCostTextLooksLikeRate(hrRaw) && !alreadyHourly,
+      text: line,
+      costHourlyHint:
+        line !== "Free" &&
+        parkingCostTextLooksLikeRate(hrRaw) &&
+        !alreadyHourly,
     };
   }
   if (pricing.events)
@@ -1566,8 +1582,11 @@ function filterParkingMarkersForRecommendation(markers) {
 }
 
 /**
- * Markers eligible for the muted green auto-pick: prefer known-dollar ceilings; if none, use
- * unknown / ambiguous so private-only filters still get a suggestion.
+ * Markers eligible for the muted green auto-pick: prefer known-dollar ceilings (including **$0**
+ * free); if none, use unknown / ambiguous so private-only filters still get a suggestion.
+ * {@link filterParkingMarkersExcludeFreeWhenPaidExists} drops known-free pins when **some other**
+ * eligible pin has a paid ceiling so ranking prefers farther paid lots (e.g. Acrisure default); when
+ * every qualifying pin is free (tight **`pay`**), free pins stay in the pool (e.g. GLC + **`pay=5`**).
  *
  * @param {Array<{ eveningSortDollars: number }>} markers — already pay / walk / category filtered
  */
@@ -1580,8 +1599,9 @@ function buildParkingRecommendationMarkerPool(markers) {
 }
 
 /**
- * If the user is willing to pay (any-price or finite pay > 0), exclude known-free `$0` markers from
- * the auto-recommendation pool.
+ * When the user is willing to pay and **any** eligible marker has a known paid (**> $0**) ceiling,
+ * exclude known-free **`$0`** markers so auto-pick matches farther paid lots. If only free pins fit the
+ * **`pay`** cap, keep them so low-budget links still get a suggestion.
  *
  * @param {Array<{ eveningSortDollars: number }>} markers
  */
@@ -1590,6 +1610,15 @@ function filterParkingMarkersExcludeFreeWhenPaidExists(markers) {
   const cap = resolvedParkingEveningBudgetCap();
   const userWillingToPay = cap == null || cap > 0;
   if (!userWillingToPay) return markers;
+
+  const hasPaidPin = markers.some(
+    (m) =>
+      typeof m.eveningSortDollars === "number" &&
+      Number.isFinite(m.eveningSortDollars) &&
+      m.eveningSortDollars > 0,
+  );
+  if (!hasPaidPin) return markers;
+
   return markers.filter(
     (m) =>
       !(
@@ -3243,7 +3272,7 @@ function syncParkingRouteInstructionsPanel() {
     );
     steps.push(
       parkingRouteStepLi(
-        `<strong>Wait</strong> for the next free ${parkingRouteDashShuttleTransitAppAnchorHtml()}`,
+        `<strong>Wait</strong> for the free ${parkingRouteDashShuttleTransitAppAnchorHtml()}`,
         waitM ? [waitM] : [],
         "wait",
       ),

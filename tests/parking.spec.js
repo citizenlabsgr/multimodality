@@ -900,36 +900,32 @@ test.describe("Parking map (#/visit)", () => {
       }
     });
 
-    test("if user is willing to pay, auto-recommendation never picks a free lot", async ({
+    /** 601 Ottawa Lot — prose free-evening tier in `data/parking/public/lots.json`. */
+    test("GLC Live + finite pay can recommend farthest multimodal free lot (601 Ottawa)", async ({
       page,
     }) => {
-      await page.goto("/#/visit/van-andel-arena?pay=50&walk=1.5");
+      await page.goto("/#/visit/glc-live-at-20-monroe?pay=5");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
 
-      const r = await page.evaluate(() => {
-        const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const id = globalThis.__chooseBestParkingStartSpotIdForTest();
-        const row = markers.find((m) => m.spotId === id);
-        return {
-          hasKnownFree: markers.some(
-            (m) =>
-              typeof m.eveningSortDollars === "number" &&
-              Number.isFinite(m.eveningSortDollars) &&
-              m.eveningSortDollars === 0,
-          ),
-          chosenKnownDollars:
-            typeof row?.eveningSortDollars === "number" &&
-            Number.isFinite(row.eveningSortDollars),
-          chosenIsFree:
-            typeof row?.eveningSortDollars === "number" &&
-            Number.isFinite(row.eveningSortDollars) &&
-            row.eveningSortDollars === 0,
-        };
-      });
+      const id = await page.evaluate(() =>
+        globalThis.__chooseBestParkingStartSpotIdForTest(),
+      );
+      expect(id).toBe("public-lot~42.974095~-85.670505");
+    });
 
-      expect(r.chosenKnownDollars).toBe(true);
-      if (r.hasKnownFree) expect(r.chosenIsFree).toBe(false);
+    /** Area 8 Lot in `data/parking/public/lots.json`; default walk 0.5 mi, pay omitted (no cap). */
+    test("Acrisure default walk recommends farthest multimodal paid lot (Area 8)", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/acrisure-amphitheater");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const id = await page.evaluate(() =>
+        globalThis.__chooseBestParkingStartSpotIdForTest(),
+      );
+      expect(id).toBe("public-lot~42.969938~-85.681874");
     });
 
     test("Acrisure private-garage and private-lot only still auto-picks when no parseable price", async ({
