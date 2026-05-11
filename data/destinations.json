@@ -17,6 +17,30 @@
       }
     },
     {
+      "name": "GLC Live at 20 Monroe",
+      "slug": "glc-live-at-20-monroe",
+      "location": {
+        "latitude": 42.9635,
+        "longitude": -85.67238
+      }
+    },
+    {
+      "name": "Silva",
+      "slug": "silva",
+      "location": {
+        "latitude": 42.97974,
+        "longitude": -85.67051
+      }
+    },
+    {
+      "name": "The Intersection",
+      "slug": "the-intersection",
+      "location": {
+        "latitude": 42.9599,
+        "longitude": -85.67365
+      }
+    },
+    {
       "name": "Van Andel Arena",
       "slug": "van-andel-arena",
       "location": {
