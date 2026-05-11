@@ -1279,22 +1279,12 @@ function resetParkingMapChromeToDefaults() {
     PARKING_DEFAULT_WALK_SLIDER_INDEX,
     { ignoreStickyPayWalk: true },
   );
-  if (window.location.hash === nextHash) {
-    const sel = document.getElementById("parkingDestinationSelect");
-    if (sel && sel.value !== "") {
-      sel.value = "";
-      syncParkingDestinationSelectAppearance();
-    }
-    syncParkingEveningBudgetSliderFromHash();
-    syncParkingWalkSliderFromHash();
-    buildParkingFilterBar();
-    if (parkingMap) {
-      parkingMap.invalidateSize();
-      syncParkingMapOverlays(parkingMap);
-    }
-    return;
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash.startsWith("#")
+      ? nextHash.slice(1)
+      : nextHash;
   }
-  window.location.hash = nextHash;
+  window.location.reload();
 }
 
 function ensureParkingResetDelegation() {
