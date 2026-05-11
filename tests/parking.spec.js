@@ -75,6 +75,39 @@ test.describe("Parking map (#/visit)", () => {
     );
   });
 
+  test("parking legend help opens modal stacked above the map", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+
+    await page.locator("#parkingLegendHelpBtn").click();
+
+    const modal = page.locator("#parkingLegendModal");
+    await expect(modal).toBeVisible();
+    await expect(modal).toHaveAttribute("aria-hidden", "false");
+    await expect(page.locator("#parkingLegendModalTitle")).toHaveText(
+      /About Plan GR/,
+    );
+
+    const modalReceivesHitAtPanelCenter = await page.evaluate(() => {
+      const panel = document.getElementById("parkingLegendModalPanel");
+      if (!panel) return false;
+      const r = panel.getBoundingClientRect();
+      const el = document.elementFromPoint(
+        r.left + r.width / 2,
+        r.top + r.height / 2,
+      );
+      return el?.closest("#parkingLegendModal") != null;
+    });
+    expect(modalReceivesHitAtPanelCenter).toBe(true);
+
+    await page.locator("#parkingLegendModalClose").click();
+    await expect(modal).toBeHidden();
+    await expect(modal).toHaveAttribute("aria-hidden", "true");
+  });
+
   test("loads parkingRoutePace from config.json into appData", async ({
     page,
   }) => {

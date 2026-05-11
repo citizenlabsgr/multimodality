@@ -27,6 +27,10 @@ body.modes-explain-modal-open {
   overflow: hidden;
 }
 
+body.parking-legend-modal-open {
+  overflow: hidden;
+}
+
 #dataView pre {
   font-size: 0.8125rem;
   max-height: 85vh;

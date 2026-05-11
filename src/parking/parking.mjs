@@ -3530,6 +3530,295 @@ function ensureParkingMap() {
   return parkingMap;
 }
 
+const PARKING_LEGEND_EMPTY_ZOOM = 13;
+const PARKING_LEGEND_MAP_MAX_ZOOM = 15;
+
+/** @type {Record<string, import("leaflet").Map>} */
+const parkingLegendMiniMaps = {};
+
+function disposeParkingLegendMiniMap(containerId) {
+  const m = parkingLegendMiniMaps[containerId];
+  if (!m) return;
+  try {
+    m.remove();
+  } catch {
+    /* ignore */
+  }
+  delete parkingLegendMiniMaps[containerId];
+}
+
+function disposeAllParkingLegendMiniMaps() {
+  for (const id of Object.keys(parkingLegendMiniMaps)) {
+    disposeParkingLegendMiniMap(id);
+  }
+}
+
+/**
+ * Lat/lng for legend maps: same regional pool as `#/visit` pins (within {@link PARKING_MAX_MILES_FROM_DASH_STOP}
+ * of a DASH stop when stop data exists). Ignores evening/walk UI filters so each section shows the full category.
+ * @returns {Array<[number, number]>}
+ */
+function latLngsForParkingLegendCategory(categoryId) {
+  const dk = parkingCategoryDataKey(categoryId);
+  const parking = appData?.parking;
+  const items = dk ? parking?.[dk] : null;
+  if (!Array.isArray(items)) return [];
+  const dashStops = getDashStopLatLngsForParkingProximity();
+  const out = [];
+  for (const item of items) {
+    const lat = item?.location?.latitude ?? item?.latitude;
+    const lng = item?.location?.longitude ?? item?.longitude;
+    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    if (!isParkingWithinDashStopRadius(lat, lng, dashStops)) continue;
+    out.push([lat, lng]);
+  }
+  return out;
+}
+
+function invalidateParkingLegendMiniMapSoon(map) {
+  map.whenReady(() => {
+    requestAnimationFrame(() => {
+      try {
+        map.invalidateSize();
+      } catch {
+        /* ignore */
+      }
+    });
+  });
+}
+
+function parkingLegendFitPaddingOptions() {
+  return { padding: [12, 12], maxZoom: PARKING_LEGEND_MAP_MAX_ZOOM };
+}
+
+function fitParkingLegendCategoryMap(map, categoryId) {
+  const L = globalThis.L;
+  if (!L || !map) return;
+  const pts = latLngsForParkingLegendCategory(categoryId);
+  if (pts.length === 0) {
+    map.setView(MODES_PAGE_EMPTY_MAP_CENTER, PARKING_LEGEND_EMPTY_ZOOM);
+    return;
+  }
+  const bounds = L.latLngBounds([]);
+  for (const ll of pts) {
+    bounds.extend(ll);
+  }
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, parkingLegendFitPaddingOptions());
+  } else {
+    map.setView(MODES_PAGE_EMPTY_MAP_CENTER, PARKING_LEGEND_EMPTY_ZOOM);
+  }
+}
+
+/** Extends `bounds` with every vertex of DASH polylines and every stop (same set as the legend layer). */
+function extendParkingLegendDashBounds(L, bounds) {
+  let hasGeometry = false;
+  const { points, polylines } = getParkingDashMapData();
+  for (const pl of polylines) {
+    const latLngs = pl.latLngs;
+    if (!Array.isArray(latLngs) || latLngs.length < 2) continue;
+    for (const pair of latLngs) {
+      bounds.extend(pair);
+      hasGeometry = true;
+    }
+  }
+  for (const p of points) {
+    bounds.extend([p.lat, p.lng]);
+    hasGeometry = true;
+  }
+  return hasGeometry;
+}
+
+function fitParkingLegendDashMap(map) {
+  const L = globalThis.L;
+  if (!L || !map) return;
+  const bounds = L.latLngBounds([]);
+  const hasGeometry = extendParkingLegendDashBounds(L, bounds);
+  if (hasGeometry && bounds.isValid()) {
+    map.fitBounds(bounds, parkingLegendFitPaddingOptions());
+  } else {
+    map.setView(MODES_PAGE_EMPTY_MAP_CENTER, PARKING_LEGEND_EMPTY_ZOOM);
+  }
+}
+
+function renderParkingLegendCategoryMiniMap(containerId, categoryId) {
+  const L = globalThis.L;
+  const container = document.getElementById(containerId);
+  if (!L || !container) return;
+  disposeParkingLegendMiniMap(containerId);
+
+  const map = L.map(container, {
+    scrollWheelZoom: false,
+    zoomControl: false,
+    dragging: false,
+    attributionControl: false,
+  });
+  parkingLegendMiniMaps[containerId] = map;
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 19,
+  }).addTo(map);
+
+  const pts = latLngsForParkingLegendCategory(categoryId);
+  if (pts.length === 0) {
+    map.setView(MODES_PAGE_EMPTY_MAP_CENTER, PARKING_LEGEND_EMPTY_ZOOM);
+    map.__parkingLegendRefit = () =>
+      fitParkingLegendCategoryMap(map, categoryId);
+    invalidateParkingLegendMiniMapSoon(map);
+    return;
+  }
+
+  const style = circleStyleForParkingCategoryKey(categoryId);
+  const radius = pts.length > 40 ? 4 : pts.length > 18 ? 5 : 6;
+  for (const ll of pts) {
+    L.circleMarker(ll, {
+      ...style,
+      radius,
+      weight: 1,
+      interactive: false,
+    }).addTo(map);
+  }
+  fitParkingLegendCategoryMap(map, categoryId);
+  map.__parkingLegendRefit = () => fitParkingLegendCategoryMap(map, categoryId);
+  invalidateParkingLegendMiniMapSoon(map);
+}
+
+function renderParkingLegendDashMiniMap(containerId) {
+  const L = globalThis.L;
+  const container = document.getElementById(containerId);
+  if (!L || !container) return;
+  disposeParkingLegendMiniMap(containerId);
+
+  const { points, polylines } = getParkingDashMapData();
+  const map = L.map(container, {
+    scrollWheelZoom: false,
+    zoomControl: false,
+    dragging: false,
+    attributionControl: false,
+  });
+  parkingLegendMiniMaps[containerId] = map;
+
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "&copy; OpenStreetMap contributors",
+    maxZoom: 19,
+  }).addTo(map);
+
+  const g = L.layerGroup().addTo(map);
+
+  for (const pl of polylines) {
+    const latLngs = pl.latLngs;
+    if (!Array.isArray(latLngs) || latLngs.length < 2) continue;
+    let color = pl.color;
+    if (
+      typeof color === "string" &&
+      color.length === 6 &&
+      /^[0-9A-Fa-f]+$/.test(color)
+    )
+      color = `#${color}`;
+    if (typeof color !== "string" || !color.startsWith("#")) color = "#933145";
+    L.polyline(latLngs, {
+      color,
+      weight: typeof pl.weight === "number" ? pl.weight : 4,
+      opacity: 0.88,
+      interactive: false,
+    }).addTo(g);
+  }
+
+  for (const p of points) {
+    const fill =
+      typeof p.color === "string" && p.color.startsWith("#")
+        ? p.color
+        : "#933145";
+    L.circleMarker([p.lat, p.lng], {
+      radius: 4,
+      weight: 1,
+      color: darkenCssHex(fill, 0.72),
+      fillColor: fill,
+      fillOpacity: 0.92,
+      interactive: false,
+    }).addTo(g);
+  }
+
+  fitParkingLegendDashMap(map);
+  map.__parkingLegendRefit = () => fitParkingLegendDashMap(map);
+  invalidateParkingLegendMiniMapSoon(map);
+}
+
+function refitParkingLegendMiniMaps() {
+  for (const map of Object.values(parkingLegendMiniMaps)) {
+    if (!map?.invalidateSize) continue;
+    try {
+      map.invalidateSize();
+      if (typeof map.__parkingLegendRefit === "function")
+        map.__parkingLegendRefit();
+    } catch {
+      continue;
+    }
+  }
+}
+
+function openParkingLegendModal() {
+  const modal = document.getElementById("parkingLegendModal");
+  if (!modal || typeof globalThis.L === "undefined") return;
+
+  disposeAllParkingLegendMiniMaps();
+  for (const key of PARKING_MAP_ITEM_KEYS) {
+    renderParkingLegendCategoryMiniMap(`parkingLegendMap-${key}`, key);
+  }
+  renderParkingLegendDashMiniMap("parkingLegendMap-dash");
+
+  modal.classList.remove("hidden");
+  modal.setAttribute("aria-hidden", "false");
+  document.body.classList.add("parking-legend-modal-open");
+
+  requestAnimationFrame(() => {
+    refitParkingLegendMiniMaps();
+    requestAnimationFrame(() => refitParkingLegendMiniMaps());
+  });
+
+  document.getElementById("parkingLegendModalClose")?.focus();
+}
+
+function closeParkingLegendModal() {
+  const modal = document.getElementById("parkingLegendModal");
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+  document.body.classList.remove("parking-legend-modal-open");
+  disposeAllParkingLegendMiniMaps();
+}
+
+let parkingLegendModalDelegated = false;
+
+function ensureParkingLegendModal() {
+  if (parkingLegendModalDelegated) return;
+  parkingLegendModalDelegated = true;
+
+  const modal = document.getElementById("parkingLegendModal");
+  const openBtn = document.getElementById("parkingLegendHelpBtn");
+  const closeBtn = document.getElementById("parkingLegendModalClose");
+
+  openBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openParkingLegendModal();
+  });
+  closeBtn?.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeParkingLegendModal();
+  });
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) closeParkingLegendModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    if (!modal || modal.classList.contains("hidden")) return;
+    closeParkingLegendModal();
+    openBtn?.focus();
+  });
+}
+
 export function renderParkingView() {
   const appView = document.getElementById("appView");
   const dataView = document.getElementById("dataView");
@@ -3546,6 +3835,7 @@ export function renderParkingView() {
   syncParkingWalkSliderFromHash();
   syncParkingHashStripStartWhenWalkZero();
   ensureParkingResetDelegation();
+  ensureParkingLegendModal();
   document.getElementById("parkingMapChrome")?.classList.remove("hidden");
 
   applyParkingRouteLayoutShell();

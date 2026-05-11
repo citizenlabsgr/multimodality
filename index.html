@@ -596,18 +596,20 @@
               >
             </div>
             <div
-              class="flex w-full min-w-0 items-start gap-2"
+              class="flex w-full min-w-0 flex-wrap items-start gap-x-2 gap-y-1"
               role="group"
               aria-labelledby="parkingFilterHeading"
             >
-              <span
-                id="parkingFilterHeading"
-                class="shrink-0 pt-0.5 text-xs font-medium leading-5 text-slate-600"
-                >To park in</span
-              >
+              <div class="flex shrink-0 items-center gap-1 pt-0.5">
+                <span
+                  id="parkingFilterHeading"
+                  class="text-xs font-medium leading-5 text-slate-600"
+                  >To park in</span
+                >
+              </div>
               <div
                 id="parkingFilterBar"
-                class="flex min-w-0 flex-1 flex-nowrap items-center justify-start gap-2 overflow-x-auto pb-0.5 md:gap-x-3"
+                class="flex min-w-0 flex-1 basis-[min(100%,12rem)] flex-nowrap items-center justify-start gap-2 overflow-x-auto pb-0.5 md:gap-x-3"
                 role="toolbar"
                 aria-label="Parking categories"
               ></div>
@@ -639,7 +641,32 @@
             </div>
           </div>
         </div>
-        <div id="parkingAppMap" class="min-h-0 w-full flex-1"></div>
+        <div class="relative min-h-0 flex-1 min-w-0 w-full">
+          <div id="parkingAppMap" class="absolute inset-0 min-h-0 w-full"></div>
+          <button
+            type="button"
+            id="parkingLegendHelpBtn"
+            class="parking-map-control-help"
+            aria-label="Learn about parking categories and DASH"
+            title="Learn about parking categories and DASH"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="parking-map-control-help-icon"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" />
+              <path d="M12 17h.01" />
+            </svg>
+          </button>
+        </div>
         <section
           id="parkingRouteInstructions"
           class="mt-2 flex shrink-0 flex-col rounded-lg border border-slate-200 bg-white px-3 py-2 sm:px-4"
@@ -662,7 +689,7 @@
 
     <div
       id="modesExplainModal"
-      class="hidden fixed inset-0 z-[100] flex items-stretch justify-center bg-slate-900/50 p-2 sm:p-4"
+      class="hidden fixed inset-0 z-[5000] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-2 sm:p-4"
       role="dialog"
       aria-modal="true"
       aria-hidden="true"
@@ -670,7 +697,7 @@
     >
       <div
         id="modesExplainModalPanel"
-        class="flex flex-col w-full max-w-4xl max-h-full min-h-0 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden"
+        class="flex w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl"
       >
         <div
           class="flex items-start justify-between gap-3 p-4 border-b border-slate-200 shrink-0"
@@ -707,13 +734,186 @@
           </button>
         </div>
         <div
-          class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4"
           id="modesExplainModalScroll"
+          class="max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain p-4"
         >
           <div
             id="modesExplainModalSections"
             class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3"
           ></div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="parkingLegendModal"
+      class="hidden fixed inset-0 z-[5000] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-2 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+      aria-labelledby="parkingLegendModalTitle"
+    >
+      <div
+        id="parkingLegendModalPanel"
+        class="flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl sm:max-w-xl"
+      >
+        <div
+          class="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 p-4"
+        >
+          <div class="min-w-0">
+            <h2 id="parkingLegendModalTitle" class="font-semibold text-lg">
+              About Plan GR
+            </h2>
+            <p class="mt-1 text-sm text-slate-600">
+              This app helps you explore alternative parking strategies to plan
+              your visit to one of the large entertainment venues downtown.
+            </p>
+          </div>
+          <button
+            type="button"
+            id="parkingLegendModalClose"
+            class="shrink-0 rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            aria-label="Close"
+          >
+            <svg
+              class="h-6 w-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </div>
+        <div
+          id="parkingLegendModalScroll"
+          class="max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain p-4"
+        >
+          <div class="flex flex-col gap-5">
+            <section
+              class="parking-legend-section rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:flex sm:flex-row sm:items-stretch sm:gap-4"
+              aria-labelledby="parkingLegend-public-garage-title"
+            >
+              <div class="min-w-0 flex-1">
+                <h3
+                  id="parkingLegend-public-garage-title"
+                  class="font-semibold text-slate-900"
+                >
+                  Public Garages
+                </h3>
+                <p class="mt-1 text-sm leading-snug text-slate-600">
+                  These are city-managed structures with multiple levels of
+                  parking. These have affordable rates and many spots can be
+                  reserved in advance.
+                </p>
+              </div>
+              <div
+                id="parkingLegendMap-public-garage"
+                class="parking-legend-mini-map mt-3 h-32 w-full shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 sm:mt-0 sm:w-44"
+                role="img"
+                aria-label="Sample map for public garages"
+              ></div>
+            </section>
+            <section
+              class="parking-legend-section rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:flex sm:flex-row sm:items-stretch sm:gap-4"
+              aria-labelledby="parkingLegend-public-lot-title"
+            >
+              <div class="min-w-0 flex-1">
+                <h3
+                  id="parkingLegend-public-lot-title"
+                  class="font-semibold text-slate-900"
+                >
+                  Public Lots
+                </h3>
+                <p class="mt-1 text-sm leading-snug text-slate-600">
+                  These are city-managed surface lots. They don't have as many
+                  spots as garages, but may be easier to access.
+                </p>
+              </div>
+              <div
+                id="parkingLegendMap-public-lot"
+                class="parking-legend-mini-map mt-3 h-32 w-full shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 sm:mt-0 sm:w-44"
+                role="img"
+                aria-label="Sample map for public lots"
+              ></div>
+            </section>
+            <section
+              class="parking-legend-section rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:flex sm:flex-row sm:items-stretch sm:gap-4"
+              aria-labelledby="parkingLegend-private-garage-title"
+            >
+              <div class="min-w-0 flex-1">
+                <h3
+                  id="parkingLegend-private-garage-title"
+                  class="font-semibold text-slate-900"
+                >
+                  Private Garages
+                </h3>
+                <p class="mt-1 text-sm leading-snug text-slate-600">
+                  These are privately-owned structures with multiple levels of
+                  parking. Costs and hours are not readily available.
+                </p>
+              </div>
+              <div
+                id="parkingLegendMap-private-garage"
+                class="parking-legend-mini-map mt-3 h-32 w-full shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 sm:mt-0 sm:w-44"
+                role="img"
+                aria-label="Sample map for private garages"
+              ></div>
+            </section>
+            <section
+              class="parking-legend-section rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:flex sm:flex-row sm:items-stretch sm:gap-4"
+              aria-labelledby="parkingLegend-private-lot-title"
+            >
+              <div class="min-w-0 flex-1">
+                <h3
+                  id="parkingLegend-private-lot-title"
+                  class="font-semibold text-slate-900"
+                >
+                  Private Lots
+                </h3>
+                <p class="mt-1 text-sm leading-snug text-slate-600">
+                  These are privately-owned surface lots. They often provide
+                  self-service parking but rates are unpredictable.
+                </p>
+              </div>
+              <div
+                id="parkingLegendMap-private-lot"
+                class="parking-legend-mini-map mt-3 h-32 w-full shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 sm:mt-0 sm:w-44"
+                role="img"
+                aria-label="Sample map for private lots"
+              ></div>
+            </section>
+            <section
+              class="parking-legend-section rounded-lg border border-slate-200 bg-slate-50/80 p-3 sm:flex sm:flex-row sm:items-stretch sm:gap-4"
+              aria-labelledby="parkingLegend-dash-title"
+            >
+              <div class="min-w-0 flex-1">
+                <h3
+                  id="parkingLegend-dash-title"
+                  class="font-semibold text-slate-900"
+                >
+                  The Downtown Area Shuttle
+                </h3>
+                <p class="mt-1 text-sm leading-snug text-slate-600">
+                  The DASH is a free shuttle that operates in a clockwise loop.
+                  It reduces walking distances and provides access to more
+                  parking options.
+                </p>
+              </div>
+              <div
+                id="parkingLegendMap-dash"
+                class="parking-legend-mini-map mt-3 h-32 w-full shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-100 sm:mt-0 sm:w-44"
+                role="img"
+                aria-label="DASH route map"
+              ></div>
+            </section>
+          </div>
         </div>
       </div>
     </div>
