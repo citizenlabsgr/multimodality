@@ -340,7 +340,7 @@ test.describe("Parking map (#/visit)", () => {
 
   test.describe("Selected parking spot (park query)", () => {
     /** Cherry Commerce Ramp in `data/parking/public/garages.json` (public garage). */
-    const cherrySpot = "public-garage~42.960041~-85.669489";
+    const cherrySpot = "public-garage:42.960041,-85.669489";
 
     async function closeParkingMapPopups(page) {
       await page.evaluate(() => {
@@ -373,18 +373,32 @@ test.describe("Parking map (#/visit)", () => {
       });
     }
 
-    /** Opens the parking circle for `spotId` (category + 6dp lat/lng, same as the app). */
+    /** Opens the parking circle for `spotId` (`category:lat,lng` or legacy `category~lat~lng`). */
     async function openParkingCirclePopupForSpot(page, spotId) {
       await closeParkingMapPopups(page);
-      const parts = spotId.split("~");
-      const categoryKey = parts[0];
-      const lat = Number(parts[1]);
-      const lng = Number(parts[2]);
-      if (
-        parts.length !== 3 ||
-        !Number.isFinite(lat) ||
-        !Number.isFinite(lng)
-      ) {
+      let categoryKey;
+      let lat;
+      let lng;
+      const colon = spotId.indexOf(":");
+      if (colon > 0) {
+        categoryKey = spotId.slice(0, colon);
+        const rest = spotId.slice(colon + 1);
+        const comma = rest.indexOf(",");
+        if (comma <= 0) {
+          throw new Error(`invalid spotId for popup: ${spotId}`);
+        }
+        lat = Number(rest.slice(0, comma));
+        lng = Number(rest.slice(comma + 1));
+      } else {
+        const parts = spotId.split("~");
+        categoryKey = parts[0];
+        lat = Number(parts[1]);
+        lng = Number(parts[2]);
+        if (parts.length !== 3) {
+          throw new Error(`invalid spotId for popup: ${spotId}`);
+        }
+      }
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
         throw new Error(`invalid spotId for popup: ${spotId}`);
       }
       const wantLat = lat.toFixed(6);
@@ -427,7 +441,7 @@ test.describe("Parking map (#/visit)", () => {
     test("park param hydrates and shows green pick marker", async ({
       page,
     }) => {
-      await page.goto(`/#/visit?pay=50&park=${encodeURIComponent(cherrySpot)}`);
+      await page.goto(`/#/visit?pay=50&park=${cherrySpot}`);
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page).toHaveURL(/[?&]park=/);
@@ -444,7 +458,7 @@ test.describe("Parking map (#/visit)", () => {
 
     test("reset clears park from the URL", async ({ page }) => {
       await page.goto(
-        `/#/visit/van-andel-arena?pay=50&walk=0.5&park=${encodeURIComponent(cherrySpot)}`,
+        `/#/visit/van-andel-arena?pay=50&walk=0.5&park=${cherrySpot}`,
       );
       await waitForParkingData(page);
       await expect(page).toHaveURL(/[?&]park=/);
@@ -492,7 +506,7 @@ test.describe("Parking map (#/visit)", () => {
     test("parking popup shows selected button when park is in the URL", async ({
       page,
     }) => {
-      await page.goto(`/#/visit?pay=50&park=${encodeURIComponent(cherrySpot)}`);
+      await page.goto(`/#/visit?pay=50&park=${cherrySpot}`);
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
       await expect(page).toHaveURL(/[?&]park=/);
@@ -523,9 +537,7 @@ test.describe("Parking map (#/visit)", () => {
     test("legacy destination and spot params still hydrate", async ({
       page,
     }) => {
-      await page.goto(
-        `/#/visit/van-andel-arena?pay=50&spot=${encodeURIComponent(cherrySpot)}`,
-      );
+      await page.goto(`/#/visit/van-andel-arena?pay=50&spot=${cherrySpot}`);
       await waitForParkingData(page);
       await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
         "van-andel-arena",
@@ -553,13 +565,13 @@ test.describe("Parking map (#/visit)", () => {
     });
 
     /** OSM private lot in `data/parking/private/lots.json`. */
-    const acrisurePrivateLotSpot = "private-lot~42.980445~-85.671441";
+    const acrisurePrivateLotSpot = "private-lot:42.980445,-85.671441";
 
     test("setting walk slider to zero clears park and hides green pick marker", async ({
       page,
     }) => {
       await page.goto(
-        `/#/visit/acrisure-amphitheater?walk=1&park=${encodeURIComponent(acrisurePrivateLotSpot)}`,
+        `/#/visit/acrisure-amphitheater?walk=1&park=${acrisurePrivateLotSpot}`,
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -598,7 +610,7 @@ test.describe("Parking map (#/visit)", () => {
 
     test("walk=0 in URL drops stale park on load", async ({ page }) => {
       await page.goto(
-        `/#/visit/acrisure-amphitheater?walk=0&park=${encodeURIComponent(acrisurePrivateLotSpot)}`,
+        `/#/visit/acrisure-amphitheater?walk=0&park=${acrisurePrivateLotSpot}`,
       );
       await waitForParkingData(page);
       await expect(page).not.toHaveURL(/park=/);
@@ -948,7 +960,7 @@ test.describe("Parking map (#/visit)", () => {
       const id = await page.evaluate(() =>
         globalThis.__chooseBestParkingStartSpotIdForTest(),
       );
-      expect(id).toBe("public-lot~42.974095~-85.670505");
+      expect(id).toBe("public-lot:42.974095,-85.670505");
     });
 
     /** Area 8 Lot in `data/parking/public/lots.json`; default walk 0.5 mi, pay omitted (no cap). */
@@ -962,7 +974,7 @@ test.describe("Parking map (#/visit)", () => {
       const id = await page.evaluate(() =>
         globalThis.__chooseBestParkingStartSpotIdForTest(),
       );
-      expect(id).toBe("public-lot~42.969938~-85.681874");
+      expect(id).toBe("public-lot:42.969938,-85.681874");
     });
 
     test("Acrisure private-garage and private-lot only still auto-picks when no parseable price", async ({
@@ -994,7 +1006,7 @@ test.describe("Parking map (#/visit)", () => {
 
   test.describe("Evening price cap (pay)", () => {
     /** Cherry Commerce Ramp — evening $51 in `data/parking/public/garages.json`. */
-    const cherryCoords = "public-garage~42.960041~-85.669489";
+    const cherryCoords = "public-garage:42.960041,-85.669489";
 
     test("hydrates slider and label from pay in the URL", async ({ page }) => {
       await page.goto("/#/visit?pay=25");
@@ -1006,9 +1018,11 @@ test.describe("Parking map (#/visit)", () => {
       await waitForParkingLeafletMap(page);
       const hasCherry = await page.evaluate(
         ({ cherryCoords }) => {
-          const want = cherryCoords.split("~");
-          const lat = Number(want[1]);
-          const lng = Number(want[2]);
+          const colon = cherryCoords.indexOf(":");
+          const rest = cherryCoords.slice(colon + 1);
+          const comma = rest.indexOf(",");
+          const lat = Number(rest.slice(0, comma));
+          const lng = Number(rest.slice(comma + 1));
           if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
           const g = globalThis.__parkingSpotsLayerForTest;
           if (!g?.eachLayer) return false;
@@ -1561,7 +1575,7 @@ test.describe("Parking map (#/visit)", () => {
       page,
     }) => {
       await page.goto(
-        "/#/visit/acrisure-amphitheater?park=public-lot~42.961773~-85.670616&walk=1",
+        "/#/visit/acrisure-amphitheater?park=public-lot:42.961773,-85.670616&walk=1",
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1607,7 +1621,7 @@ test.describe("Parking map (#/visit)", () => {
       page,
     }) => {
       /** Same lot as “straight parking→venue walk” — stays eligible under default filters. */
-      const acrisureLot = "public-lot~42.961773~-85.670616";
+      const acrisureLot = "public-lot:42.961773,-85.670616";
       await page.goto("/#/visit/acrisure-amphitheater?walk=1");
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1636,7 +1650,7 @@ test.describe("Parking map (#/visit)", () => {
       expect(noDigitTextInPins).toBe(true);
 
       await page.goto(
-        `/#/visit/acrisure-amphitheater?walk=1&park=${encodeURIComponent(acrisureLot)}`,
+        `/#/visit/acrisure-amphitheater?walk=1&park=${acrisureLot}`,
       );
       await waitForParkingData(page);
       await waitForParkingLeafletMap(page);
@@ -1705,9 +1719,9 @@ test.describe("Parking map (#/visit)", () => {
   test("fits map bounds to start and finish when both are set", async ({
     page,
   }) => {
-    const cherrySpot = "public-garage~42.960041~-85.669489";
+    const cherrySpot = "public-garage:42.960041,-85.669489";
     await page.goto(
-      `/#/visit/van-andel-arena?pay=50&walk=0.5&park=${encodeURIComponent(cherrySpot)}`,
+      `/#/visit/van-andel-arena?pay=50&walk=0.5&park=${cherrySpot}`,
     );
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
@@ -1770,7 +1784,7 @@ test.describe("Parking map (#/visit)", () => {
     page,
   }) => {
     await page.goto(
-      "/#/visit/devos-performance-hall?walk=0.4&park=public-lot~42.969938~-85.681874",
+      "/#/visit/devos-performance-hall?walk=0.4&park=public-lot:42.969938,-85.681874",
     );
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
@@ -1920,7 +1934,7 @@ test.describe("Parking map (#/visit)", () => {
             ),
           { timeout: 10000 },
         )
-        .toMatch(/^(public-garage|public-lot|private-garage|private-lot)~/);
+        .toMatch(/^(public-garage|public-lot|private-garage|private-lot):/);
     });
 
     test("category filter omits park=; effective pick matches enabled categories", async ({
@@ -1948,7 +1962,12 @@ test.describe("Parking map (#/visit)", () => {
           .split(",")
           .map((s) => s.trim())
           .filter(Boolean);
-        const cat = typeof eff === "string" ? eff.split("~")[0] : "";
+        const cat =
+          typeof eff === "string"
+            ? eff.includes(":")
+              ? eff.slice(0, eff.indexOf(":"))
+              : eff.split("~")[0]
+            : "";
         return { pickCategory: cat, locationCats };
       });
       expect(pickCategory).toMatch(
@@ -2050,7 +2069,7 @@ const PARKING_SNAPSHOT_CASES = [
     n: "3",
     variant: "start",
     hashPath:
-      "visit/acrisure-amphitheater?walk=0.5&park=private-lot~42.972319~-85.682491",
+      "visit/acrisure-amphitheater?walk=0.5&park=private-lot:42.972319,-85.682491",
   },
 ];
 

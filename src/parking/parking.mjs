@@ -952,7 +952,7 @@ function parseParkingCatsFromHash() {
 /** Query param for chosen venue (destination slug) when not using the `/visit/<slug>` path. Legacy: `venue`, `destination`, `dest`. */
 const PARKING_FINISH_QUERY_KEY = "finish";
 
-/** Query param for selected parking pin on `#/visit` (`category~lat~lng`, 6dp). Legacy: `start`, `spot`. */
+/** Query param for selected parking pin on `#/visit` (`category:lat,lng`, 6dp). Legacy tilde form + legacy `start`, `spot`. */
 const PARKING_PARK_QUERY_KEY = "park";
 
 function parseParkingRoutePathSlug() {
@@ -990,6 +990,7 @@ function parseParkingDestSlugFromHash() {
 
 /**
  * Stable id for a parking circle (category + coordinates to 6 decimals).
+ * Canonical form: `category:lat,lng` (comma between lat/lng). Legacy: `category~lat~lng`.
  * @param {string} categoryKey
  * @param {number} lat
  * @param {number} lng
@@ -1004,7 +1005,7 @@ function encodeParkingSpotId(categoryKey, lat, lng) {
     !Number.isFinite(lng)
   )
     return "";
-  return `${categoryKey}~${lat.toFixed(6)}~${lng.toFixed(6)}`;
+  return `${categoryKey}:${lat.toFixed(6)},${lng.toFixed(6)}`;
 }
 
 /**
@@ -1014,6 +1015,22 @@ function encodeParkingSpotId(categoryKey, lat, lng) {
 function parseParkingSpotIdToken(raw) {
   const s = String(raw ?? "").trim();
   if (!s) return null;
+
+  const colon = s.indexOf(":");
+  if (colon > 0) {
+    const cat = s.slice(0, colon);
+    const rest = s.slice(colon + 1);
+    const comma = rest.indexOf(",");
+    if (comma <= 0 || comma >= rest.length - 1) return null;
+    const la = rest.slice(0, comma);
+    const lo = rest.slice(comma + 1);
+    if (!PARKING_MAP_ITEM_KEYS.includes(cat)) return null;
+    const lat = Number(la);
+    const lng = Number(lo);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+    return { categoryKey: cat, lat, lng };
+  }
+
   const parts = s.split("~");
   if (parts.length !== 3) return null;
   const [cat, la, lo] = parts;
@@ -1200,8 +1217,7 @@ function buildParkingHashFromState(
         spotNorm = n;
     }
   }
-  if (spotNorm)
-    parts.push(`${PARKING_PARK_QUERY_KEY}=${encodeURIComponent(spotNorm)}`);
+  if (spotNorm) parts.push(`${PARKING_PARK_QUERY_KEY}=${spotNorm}`);
   const q = parts.join("&");
   return q ? `#${basePath}?${q}` : `#${basePath}`;
 }
