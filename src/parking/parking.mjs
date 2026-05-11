@@ -145,8 +145,9 @@ function parkingInstructionDashOnboardMetrics(multimodal) {
  * @param {string} mainHtml
  * @param {string[]} metricLines — plain text / escaped snippets (already safe HTML); ignored for **`drive`** unless non-empty (custom label)
  * @param {'drive' | 'walk' | 'wait' | 'dash' | undefined} badgeVariant — **`drive`** = green “15+ min drive” chip for park step; walk/wait/dash for metrics
+ * @param {{ omitListMarker?: boolean } | undefined} opts — **`omitListMarker: true`** skips the visible step index (DASH **Wait** row so the list reads 1, 2, blank, 3, 4).
  */
-function parkingRouteStepLi(mainHtml, metricLines, badgeVariant) {
+function parkingRouteStepLi(mainHtml, metricLines, badgeVariant, opts) {
   const lines = Array.isArray(metricLines)
     ? metricLines.filter((s) => typeof s === "string" && s.trim() !== "")
     : [];
@@ -179,7 +180,11 @@ function parkingRouteStepLi(mainHtml, metricLines, badgeVariant) {
           )
           .join("")}</span>`
       : "";
-  return `<li class="parking-route-step-item"><div class="parking-route-step-row"><span class="parking-route-step-main">${mainHtml}</span>${metrics}</div></li>`;
+  const omitListMarker = opts?.omitListMarker === true;
+  const itemClass =
+    "parking-route-step-item" +
+    (omitListMarker ? " parking-route-step-item--no-list-marker" : "");
+  return `<li class="${itemClass}"><div class="parking-route-step-row"><span class="parking-route-step-main">${mainHtml}</span>${metrics}</div></li>`;
 }
 
 /** Under 1,000 ft: nearest **500** ft; 1,000 ft and up: nearest **1,000** ft. */
@@ -2971,7 +2976,7 @@ function syncParkingStartFinishWalkLine(map) {
 
 /**
  * Red finish pin for the selected destination.
- * **`4`** when the walk overlay uses DASH (1 park → 2 board → 3 exit → 4 venue); **`2`** when the trip is
+ * **`4`** when the walk overlay uses DASH (park → board → exit → venue); **`2`** when the trip is
  * park + walk to venue only (1 → 2). Pass **`""`** for selected venue without {@link parkingTripStepNumbersHashReady}.
  */
 function parkingDestinationMarkerIcon(L, glyph) {
@@ -3432,6 +3437,7 @@ function syncParkingRouteInstructionsPanel() {
         `<strong>Wait</strong> for the free ${parkingRouteDashShuttleTransitAppAnchorHtml()}`,
         waitM ? [waitM] : [],
         "wait",
+        { omitListMarker: true },
       ),
     );
     if (sameTripStop) {

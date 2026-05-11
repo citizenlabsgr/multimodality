@@ -118,14 +118,32 @@ main.parking-map-active {
 
 .parking-route-steps {
   margin: 0;
-  padding-left: 1.35rem;
+  padding-left: 0;
   line-height: 1.45;
-  list-style-type: decimal;
-  list-style-position: outside;
+  list-style: none;
+  counter-reset: parking-route-step;
 }
 
 .parking-route-steps .parking-route-step-item {
-  display: list-item;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.35rem;
+  counter-increment: parking-route-step;
+}
+
+.parking-route-steps .parking-route-step-item::before {
+  flex: 0 0 1.35rem;
+  text-align: right;
+  content: counter(parking-route-step) ". ";
+}
+
+.parking-route-steps .parking-route-step-item--no-list-marker {
+  counter-increment: none;
+}
+
+.parking-route-steps .parking-route-step-item--no-list-marker::before {
+  content: "";
 }
 
 .parking-route-steps .parking-route-step-item + .parking-route-step-item {
@@ -138,6 +156,8 @@ main.parking-map-active {
   align-items: flex-start;
   justify-content: space-between;
   gap: 0.5rem 0.75rem;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .parking-route-step-main {
