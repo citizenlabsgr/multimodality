@@ -1,7 +1,13 @@
-# Multi-Modal Grand Rapids
+# Plan GR
 
-The current prototypes include:
+### 1. Open the map
 
-- [DASH-aware Parking](https://plangr.com/#/visit)
-- [Parking map](https://plangr.com/#/visit)
-- [Raw Parking Data](https://plangr.com/#/data/parking)
+![Map before choosing a venue](tests/snapshots/tablet-1-blank.png)
+
+### 2. Choose a venue
+
+![Venue selected with filters](tests/snapshots/tablet-2-finish.png)
+
+### 3. Plan to park
+
+![Parking selected with route details](tests/snapshots/tablet-3-start.png)
