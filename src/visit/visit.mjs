@@ -1409,9 +1409,9 @@ function syncParkingDestinationSelectAppearance() {
   const empty = sel.value === "";
   if (empty) {
     sel.classList.remove("text-slate-900");
-    sel.classList.add("text-slate-400");
+    sel.classList.add("text-slate-500");
   } else {
-    sel.classList.remove("text-slate-400");
+    sel.classList.remove("text-slate-500");
     sel.classList.add("text-slate-900");
   }
   const chevron = document.getElementById("parkingDestChevron");
@@ -1436,6 +1436,8 @@ function buildParkingDestinationSelect() {
   const none = document.createElement("option");
   none.value = "";
   none.textContent = PARKING_DESTINATION_PLACEHOLDER;
+  none.disabled = true;
+  none.hidden = true;
   sel.appendChild(none);
   for (const d of destinations) {
     const lat = d.latitude ?? d.location?.latitude;

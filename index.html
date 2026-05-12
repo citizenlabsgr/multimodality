@@ -140,7 +140,9 @@
               class="w-full min-w-0 cursor-pointer appearance-none rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-10 text-sm text-slate-900 shadow-sm transition-colors transition-shadow hover:border-slate-400 hover:bg-slate-50 hover:shadow focus:outline-none focus:ring-2 focus:ring-slate-400 sm:pl-4"
               aria-label="Where are you going?"
             >
-              <option value="">Where are you going?</option>
+              <option value="" disabled hidden selected>
+                Where are you going?
+              </option>
             </select>
             <span
               id="parkingDestChevron"
@@ -295,9 +297,9 @@
           ></div>
           <p
             id="parkingRouteUnverifiedDataNote"
-            class="mt-5 text-xs italic leading-snug text-slate-400 sm:mt-6"
+            class="mt-5 text-xs italic leading-snug text-slate-300 sm:mt-6"
           >
-            None of this data has been verified.
+            This data has not been verified. Rates and availability vary.
           </p>
         </section>
       </div>

@@ -1,6 +1,10 @@
 # Plan GR
 
-This app helps you explore alternative parking strategies to plan your visit to one of the large entertainment venues downtown.
+This app helps you explore alternative parking strategies to plan your visit to one of the large entertainment venues downtown. This was inspired by similar projects:
+
+- [Mobile GR Parking Guide](https://www.grandrapidsmi.gov/departments/mobile-gr/parking/venue-parking/acrisure-amphitheater-access-guide/)
+- [Park Mobile Website](https://grandrapidsevents.parkmobile.io/)
+- [Transit Mobile App](https://transitapp.com/en/region/grand-rapids/the-rapid)
 
 ### 1. Pick a destination
 
