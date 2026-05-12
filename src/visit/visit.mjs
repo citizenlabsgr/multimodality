@@ -638,7 +638,7 @@ export function isParkingRoute() {
   );
 }
 
-/** Same downtown filter as `src/planner/planner.mjs` / `#/data/routes`. */
+/** Same downtown filter as `src/bootstrap.mjs` / `#/data/routes`. */
 const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
 const DATA_ROUTES_CITY_CENTER_LON = -85.66806;
 const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
@@ -3582,7 +3582,7 @@ function applyParkingRouteLayoutShell() {
 }
 
 /**
- * Hide the planner and show the parking map shell before data loads (default `#/visit`).
+ * Hide secondary views and show the parking map shell before data loads (default `#/visit`).
  * Map chrome stays hidden until {@link renderParkingView} finishes wiring controls.
  */
 export function prepareParkingShellVisibility() {

@@ -31,33 +31,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "shortcuts": [
-    {
-      "name": "Parking map",
-      "short_name": "Parking",
-      "description": "Find parking near venues and DASH stops",
-      "url": "/#/visit",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    },
-    {
-      "name": "Trip planner",
-      "short_name": "Planner",
-      "description": "Compare multimodal ways to get there",
-      "url": "/#/planner",
-      "icons": [
-        {
-          "src": "icon-192.png",
-          "sizes": "192x192",
-          "type": "image/png"
-        }
-      ]
-    }
   ]
 }

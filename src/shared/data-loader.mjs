@@ -1,5 +1,5 @@
 /**
- * Loads JSON under `data/` (config, destinations, parking, strategies, bus routes).
+ * Loads JSON under `data/` (config, destinations, parking, bus routes).
  * Shared so additional apps in `src/` can reuse the same datasets.
  */
 
@@ -154,25 +154,10 @@ export const FALLBACK_DATA = {
     dashBoardingWaitMinutes: 5,
   },
   destinations: [],
-  recommendations: {},
-  handCraftedRecommendations: {},
   linkTexts: {},
   parking: {},
   busRoutes: null,
 };
-
-/** Official rider app flows (download / open app on mobile). */
-const UBER_APP_PAGE_URL = "https://m.uber.com/go/download";
-const LYFT_APP_PAGE_URL = "https://lyft.com/app";
-
-function attachRideshareAppLinksToBuiltInRecommendations(recs) {
-  const step0 = recs?.rideshare?.default?.steps?.[0];
-  if (!step0 || (Array.isArray(step0.links) && step0.links.length > 0)) return;
-  step0.links = [
-    { href: UBER_APP_PAGE_URL, label: "Uber app →" },
-    { href: LYFT_APP_PAGE_URL, label: "Lyft app →" },
-  ];
-}
 
 export let appData = null;
 
@@ -269,33 +254,6 @@ export async function loadData() {
 
     dedupeOsmParkingNearOfficial(parking);
 
-    const strategyPromises = destinations.map((d) =>
-      fetch(`data/strategies/${d.slug}.json`).then((r) =>
-        r.ok ? r.json().then((data) => ({ slug: d.slug, data })) : null,
-      ),
-    );
-    const strategyResults = await Promise.all(strategyPromises);
-    const handCraftedRecommendations = {};
-    for (const result of strategyResults) {
-      if (result) handCraftedRecommendations[result.slug] = result.data;
-    }
-
-    let builtInModeRecommendations = {};
-    const builtInRes = await fetch("data/builtins.json");
-    if (builtInRes.ok) {
-      try {
-        builtInModeRecommendations = structuredClone(await builtInRes.json());
-      } catch {
-        builtInModeRecommendations = {};
-      }
-    }
-    attachRideshareAppLinksToBuiltInRecommendations(builtInModeRecommendations);
-
-    const recommendations = {};
-    for (const d of destinations) {
-      recommendations[d.slug] = builtInModeRecommendations;
-    }
-
     let busRoutes = null;
     const busRes = await fetch("data/bus/routes.json");
     if (busRes.ok) {
@@ -309,8 +267,6 @@ export async function loadData() {
     appData = {
       ...config,
       destinations,
-      handCraftedRecommendations,
-      recommendations,
       linkTexts: config.linkTexts || {},
       parking,
       busRoutes,

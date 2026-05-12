@@ -16,11 +16,6 @@
     "walk": "walking",
     "shuttle": "DASH"
   },
-  "handCraftedModeLabels": {
-    "drive": "Drive to Parking",
-    "rideshare": "Take Rideshare",
-    "shuttle": "Take DASH Shuttle"
-  },
   "costLabels": {
     "drive": "Willing to pay",
     "rideshare": "Willing to pay",

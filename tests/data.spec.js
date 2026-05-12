@@ -17,8 +17,8 @@ test.describe("Data routes", () => {
   test("should show parking data and dataset dropdown at #/data/parking", async ({
     page,
   }) => {
-    await page.goto("/#/planner");
-    await page.waitForSelector("#preferencesSection");
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
     await page.waitForSelector("#data-parking-dataset", { state: "visible" });
@@ -35,8 +35,8 @@ test.describe("Data routes", () => {
   test("should toggle mode buttons and update URL at #/data/parking", async ({
     page,
   }) => {
-    await page.goto("/#/planner");
-    await page.waitForSelector("#preferencesSection");
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
     await page.waitForSelector("#data-parking-dataset", { state: "visible" });
@@ -64,8 +64,8 @@ test.describe("Data routes", () => {
   test("should change dataset dropdown and update URL at #/data/parking", async ({
     page,
   }) => {
-    await page.goto("/#/planner");
-    await page.waitForSelector("#preferencesSection");
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
     await page.waitForSelector("#data-parking-dataset", { state: "visible" });
@@ -85,21 +85,5 @@ test.describe("Data routes", () => {
       .click();
     await page.waitForTimeout(300);
     await expect(page).toHaveURL(/#\/data\/parking$/);
-  });
-
-  test("should show strategies and destination filters at #/data/strategies", async ({
-    page,
-  }) => {
-    await page.goto("/#/planner");
-    await page.waitForSelector("#preferencesSection");
-    await waitForAppDataLoaded(page);
-    await page.goto("/#/data/strategies");
-    await page.waitForSelector("#dataViewStrategiesFilters", {
-      state: "visible",
-    });
-
-    await expect(page.locator("#dataView")).toBeVisible();
-    await expect(page.locator("#dataViewStrategiesFilters")).toBeVisible();
-    await expect(page.locator("#dataViewMap")).toBeVisible();
   });
 });
