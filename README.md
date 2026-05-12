@@ -1,13 +1,15 @@
 # Plan GR
 
-### 1. Open the map
+This app helps you explore alternative parking strategies to plan your visit to one of the large entertainment venues downtown.
 
-![Map before choosing a venue](tests/snapshots/tablet-1-blank.png)
+### 1. Pick a destination
 
-### 2. Choose a venue
+![Initial map view](tests/snapshots/desktop-1-blank.png)
 
-![Venue selected with filters](tests/snapshots/tablet-2-finish.png)
+### 2. Compare parking options
 
-### 3. Plan to park
+![Destination chosen](tests/snapshots/desktop-2-finish.png)
 
-![Parking selected with route details](tests/snapshots/tablet-3-start.png)
+### 3. Review your plan
+
+![Parking spot chosen](tests/snapshots/desktop-3-start.png)
