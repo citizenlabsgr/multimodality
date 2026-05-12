@@ -1893,6 +1893,10 @@ let _parkingDashMapDataMemoReady = false;
  */
 function getParkingDashMapData() {
   if (_parkingDashMapDataMemoReady) return _parkingDashMapDataMemo;
+  // Bare URL → `#/visit` runs before `loadData()`; `hashchange` may call this with `appData` still null.
+  if (!appData) {
+    return { points: [], polylines: [] };
+  }
   _parkingDashMapDataMemoReady = true;
   const empty = { points: [], polylines: [] };
   const bus = appData?.busRoutes;
@@ -1997,6 +2001,9 @@ let _parkingDashLoopRingGeometryMemoReady = false;
 function getParkingDashLoopRingGeometry() {
   if (_parkingDashLoopRingGeometryMemoReady)
     return _parkingDashLoopRingGeometryMemo;
+  if (!appData) {
+    return null;
+  }
   _parkingDashLoopRingGeometryMemoReady = true;
 
   const bus = appData?.busRoutes;

@@ -20,6 +20,22 @@ test.describe("Parking map (#/visit)", () => {
     );
   }
 
+  test("bare / redirects to #/visit and still renders DASH routes", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page).toHaveURL(/#\/visit$/);
+    await waitForParkingData(page);
+    await expect(page.locator("#parkingAppMap")).toHaveClass(
+      /leaflet-container/,
+      { timeout: 15000 },
+    );
+    const pathCount = await page
+      .locator("#parkingAppMap .leaflet-overlay-pane path")
+      .count();
+    expect(pathCount).toBeGreaterThan(15);
+  });
+
   test("shows Leaflet map with DASH routes and parking spots", async ({
     page,
   }) => {
