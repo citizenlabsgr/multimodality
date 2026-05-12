@@ -1,5 +1,5 @@
 /**
- * App entry: parking map (#/visit) is the main app; planner (#/planner), modes (#/modes), data (#/data) are secondary. Bare URL → #/visit.
- * Additional front-ends can import `src/shared/data-loader.mjs` for the same datasets.
+ * App entry: parking map (#/visit), data explorer (#/data), modes (#/modes).
+ * Bare URL → #/visit. Additional front-ends can import `src/shared/data-loader.mjs`.
  */
-import "./planner/planner.mjs";
+import "./bootstrap.mjs";
