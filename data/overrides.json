@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "category": "private-lot",
+    "latitude": 42.957409,
+    "longitude": -85.675092,
+    "name": "Founders Brewing Company",
+    "pricing": {
+      "events": "$30"
+    }
+  }
+]
