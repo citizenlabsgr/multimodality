@@ -383,6 +383,11 @@ function singularizeParkingCategoryLabel(label) {
   return raw;
 }
 
+/**
+ * Dollar amounts for evening-cap and recommendation scoring. Picks up every **`$n`** token plus
+ * **ArcGIS-style** **`$16.00-25.00`** (one dollar sign, bare high end) so ranges contribute **both**
+ * endpoints; callers use **Math.max** for worst-case filtering.
+ */
 function parseDollarAmountsFromPriceText(text) {
   if (typeof text !== "string" || text.trim() === "") return [];
   const nums = [];
@@ -391,6 +396,13 @@ function parseDollarAmountsFromPriceText(text) {
   while ((m = re.exec(text)) !== null) {
     const n = Number.parseFloat(m[1]);
     if (Number.isFinite(n)) nums.push(n);
+  }
+  const singleDollarRange = /\$(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\b/g;
+  while ((m = singleDollarRange.exec(text)) !== null) {
+    const a = Number.parseFloat(m[1]);
+    const b = Number.parseFloat(m[2]);
+    if (Number.isFinite(a)) nums.push(a);
+    if (Number.isFinite(b)) nums.push(b);
   }
   return nums;
 }
@@ -469,6 +481,7 @@ function pickEveningTierStringForCap(pricing, categoryKey) {
  * (still shown unless pay is free-only). **`0`** means inferred free evenings/weekends.
  * Hourly-style copy (e.g. **$5 per hour**) or values taken from the **`pricing.hourly`** JSON field use
  * the largest parseable dollar × **{@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}** (assumes **6 hours** for the cap).
+ * Posted ranges (**`$12-$15`** or **`$16.00-25.00`**) use the **high** dollar via {@link parseDollarAmountsFromPriceText}.
  */
 function parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey) {
   if (!pricing || typeof pricing !== "object")
@@ -1799,6 +1812,39 @@ function markerUsesDashMultimodalForRecommendationFromPool(m) {
 }
 
 /**
+ * Lower = preferred when sorting **public** (city) drive parking before **private** (OSM) — garages and
+ * lots share the same tier so distance / DASH / price rules still pick among public options.
+ */
+function parkingCategoryRecommendationBiasRank(categoryKey) {
+  const k = typeof categoryKey === "string" ? categoryKey : "";
+  if (k === "public-garage" || k === "public-lot") return 0;
+  if (k === "private-garage" || k === "private-lot") return 1;
+  return 2;
+}
+
+/** Stable fine ordering on full ties after public-vs-private split (garage before lot within each side). */
+function parkingGarageLotFineRankForTie(categoryKey) {
+  const k = typeof categoryKey === "string" ? categoryKey : "";
+  if (k === "public-garage") return 0;
+  if (k === "public-lot") return 1;
+  if (k === "private-garage") return 2;
+  if (k === "private-lot") return 3;
+  return 4;
+}
+
+/**
+ * Final tie-break for {@link compareParkingMarkersForRecommendation}: **public-garage** → **public-lot** →
+ * **private-garage** → **private-lot**, then **`spotId`** (only reached when higher-order keys tie).
+ * @returns {number}
+ */
+function compareParkingMarkersCategoryPreference(a, b) {
+  const ra = parkingGarageLotFineRankForTie(a?.categoryKey);
+  const rb = parkingGarageLotFineRankForTie(b?.categoryKey);
+  if (ra !== rb) return ra - rb;
+  return String(a.spotId).localeCompare(String(b.spotId));
+}
+
+/**
  * Sort key for auto-recommended parking follows **`AGENTS.md`**:
  *
  * - **Short** max walk (≤ **0.5** mi): prefer spots whose estimated trip **uses DASH** (multimodal overlay)
@@ -1808,6 +1854,8 @@ function markerUsesDashMultimodalForRecommendationFromPool(m) {
  * - **Generous** max walk (&gt; **0.5** mi): **farther** grid-walk miles from the venue first (paid lots away from
  *   the entrance), **then** longest walk to nearest DASH among ties (use approach distance), then paid-tier rank,
  *   then dollars (still paid / within walk-to-stop cap).
+ * - **Category** (primary): all **public** (`public-garage` / `public-lot`) before **private** OSM pins, then
+ *   distance / DASH / price keys within each tier.
  *
  * Eligibility (pay + walk + category toggles) is already applied by {@link getAllParkingSpotMarkers}.
  *
@@ -1816,11 +1864,15 @@ function markerUsesDashMultimodalForRecommendationFromPool(m) {
 function compareParkingMarkersForRecommendation(a, b) {
   const destLl = getParkingDestinationLatLng();
   if (!destLl) {
-    return String(a.spotId).localeCompare(String(b.spotId));
+    return compareParkingMarkersCategoryPreference(a, b);
   }
 
   const da = gridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
   const db = gridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
+
+  const catA = parkingCategoryRecommendationBiasRank(a.categoryKey);
+  const catB = parkingCategoryRecommendationBiasRank(b.categoryKey);
+  if (catA !== catB) return catA - catB;
 
   const walkCap = resolvedParkingWalkCapMiles();
   const shortWalk =
@@ -1842,30 +1894,30 @@ function compareParkingMarkersForRecommendation(a, b) {
       if (Math.abs(da - db) > 1e-9) return db - da;
       if (dashStops.length === 0) {
         if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
-        return String(a.spotId).localeCompare(String(b.spotId));
+        return compareParkingMarkersCategoryPreference(a, b);
       }
       if (Math.abs(wda - wdb) > 1e-9) return wdb - wda;
       const rankA = parkingMarkerPaidTierRank(a.eveningSortDollars);
       const rankB = parkingMarkerPaidTierRank(b.eveningSortDollars);
       if (rankA !== rankB) return rankB - rankA;
       if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
-      return String(a.spotId).localeCompare(String(b.spotId));
+      return compareParkingMarkersCategoryPreference(a, b);
     }
 
     if (Math.abs(da - db) > 1e-9) return da - db;
     if (dashStops.length === 0) {
       if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
-      return String(a.spotId).localeCompare(String(b.spotId));
+      return compareParkingMarkersCategoryPreference(a, b);
     }
     if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
     if (Math.abs(wda - wdb) > 1e-9) return wdb - wda;
-    return String(a.spotId).localeCompare(String(b.spotId));
+    return compareParkingMarkersCategoryPreference(a, b);
   }
 
   if (dashStops.length === 0) {
     if (Math.abs(da - db) > 1e-9) return da - db;
     if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
-    return String(a.spotId).localeCompare(String(b.spotId));
+    return compareParkingMarkersCategoryPreference(a, b);
   }
 
   const wda = nearestDashStopWalkMiles(a.lat, a.lng, dashStops);
@@ -1877,7 +1929,7 @@ function compareParkingMarkersForRecommendation(a, b) {
   const rankB = parkingMarkerPaidTierRank(b.eveningSortDollars);
   if (rankA !== rankB) return rankB - rankA;
   if (Math.abs(scoreA - scoreB) > 1e-9) return scoreB - scoreA;
-  return String(a.spotId).localeCompare(String(b.spotId));
+  return compareParkingMarkersCategoryPreference(a, b);
 }
 
 /**

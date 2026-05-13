@@ -754,6 +754,69 @@ test.describe("Parking map (#/visit)", () => {
       expect(r.matchesSort).toBe(true);
     });
 
+    test("DeVos pay=45 walk=0.5 recommends a public garage before a private garage", async ({
+      page,
+    }) => {
+      await page.goto(
+        "/#/visit/devos-performance-hall?pay=45&walk=0.5&location=public-garage,private-garage",
+      );
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const id = globalThis.__chooseBestParkingStartSpotIdForTest?.();
+        const markers = globalThis.__getAllParkingSpotMarkersForTest?.() || [];
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
+        const best = pool.find((m) => m.spotId === id);
+        return {
+          id,
+          category: best?.categoryKey,
+          poolHasPublicGarage: pool.some(
+            (m) => m.categoryKey === "public-garage",
+          ),
+          poolHasPrivateGarage: pool.some(
+            (m) => m.categoryKey === "private-garage",
+          ),
+        };
+      });
+
+      expect(r.poolHasPublicGarage).toBe(true);
+      expect(r.poolHasPrivateGarage).toBe(true);
+      expect(r.id, JSON.stringify(r)).toMatch(/^public-garage:/);
+      expect(r.category).toBe("public-garage");
+    });
+
+    test("DeVos pay=45 walk=0.5 (all categories) picks city public while any public pin is eligible", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/devos-performance-hall?pay=45&walk=0.5");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const id = globalThis.__chooseBestParkingStartSpotIdForTest?.();
+        const markers = globalThis.__getAllParkingSpotMarkersForTest?.() || [];
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
+        return {
+          id,
+          poolHasPublic: pool.some(
+            (m) =>
+              m.categoryKey === "public-garage" ||
+              m.categoryKey === "public-lot",
+          ),
+        };
+      });
+
+      expect(r.poolHasPublic).toBe(true);
+      expect(r.id, JSON.stringify(r)).toMatch(/^public-/);
+    });
+
     test("Acrisure default walk (0.5 mi) recommends farthest multimodal-DASH paid pin when eligible", async ({
       page,
     }) => {
