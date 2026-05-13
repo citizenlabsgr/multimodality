@@ -1285,6 +1285,113 @@ test.describe("Parking map (#/visit)", () => {
       );
     });
 
+    test("hourly-only pricing assumes six hours for max-evening pay cap", async ({
+      page,
+    }) => {
+      const hourlyOnlyCoords = { lat: 42.960151, lng: -85.669399 };
+      await page.goto(
+        "/#/visit/van-andel-arena?pay=25&location=private-lot&walk=0.5",
+      );
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      await page.evaluate(
+        ({ hourlyOnlyCoords }) => {
+          const lots = window.appData?.parking?.osmLots;
+          if (!Array.isArray(lots)) return;
+          const exists = lots.some((x) => {
+            const lat = x?.location?.latitude;
+            const lng = x?.location?.longitude;
+            return (
+              typeof lat === "number" &&
+              typeof lng === "number" &&
+              lat.toFixed(6) === hourlyOnlyCoords.lat.toFixed(6) &&
+              lng.toFixed(6) === hourlyOnlyCoords.lng.toFixed(6)
+            );
+          });
+          if (exists) return;
+          lots.push({
+            name: "Six-hour hourly cap test lot",
+            location: {
+              latitude: hourlyOnlyCoords.lat,
+              longitude: hourlyOnlyCoords.lng,
+            },
+            pricing: { hourly: "$4.99" },
+          });
+        },
+        { hourlyOnlyCoords },
+      );
+      await page.evaluate(() => {
+        document
+          .getElementById("parkingMaxEveningSlider")
+          ?.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+
+      const markerPresentAt25 = await page.evaluate(
+        ({ hourlyOnlyCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
+              if (
+                m.options?.parkingCategoryKey === "private-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
+              ) {
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === hourlyOnlyCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === hourlyOnlyCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
+              }
+            });
+          });
+          return found;
+        },
+        { hourlyOnlyCoords },
+      );
+      expect(markerPresentAt25).toBe(false);
+
+      await page.evaluate(() => {
+        window.location.hash =
+          "#/visit/van-andel-arena?pay=35&location=private-lot&walk=0.5";
+      });
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await page.waitForFunction(
+        ({ hourlyOnlyCoords }) => {
+          const g = globalThis.__parkingSpotsLayerForTest;
+          if (!g?.eachLayer) return false;
+          let found = false;
+          g.eachLayer((group) => {
+            if (!group?.eachLayer) return;
+            group.eachLayer((m) => {
+              if (
+                m.options?.parkingCategoryKey === "private-lot" &&
+                m.options?.parkingSpotPopupLayer &&
+                typeof m.getLatLng === "function"
+              ) {
+                const ll = m.getLatLng();
+                if (
+                  ll.lat.toFixed(6) === hourlyOnlyCoords.lat.toFixed(6) &&
+                  ll.lng.toFixed(6) === hourlyOnlyCoords.lng.toFixed(6)
+                ) {
+                  found = true;
+                }
+              }
+            });
+          });
+          return found;
+        },
+        { hourlyOnlyCoords },
+        { timeout: 15000 },
+      );
+    });
+
     test("unknown-price private OSM lots are hidden while pay is capped", async ({
       page,
     }) => {

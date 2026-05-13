@@ -691,6 +691,25 @@ let dataMap = null;
 let dataMapMarkersLayer = null;
 let dataMapPolylinesLayer = null;
 
+function openDataMapParkingPopupMatchingPin(pinRaw) {
+  const pinId = pinRaw != null ? String(pinRaw).trim() : "";
+  if (!pinId || !dataMap || !dataMapMarkersLayer) return;
+  requestAnimationFrame(() => {
+    let found = null;
+    dataMapMarkersLayer.eachLayer((layer) => {
+      if (layer._dataParkingPinId === pinId) found = layer;
+    });
+    if (found) {
+      found.openPopup();
+      try {
+        dataMap.panTo(found.getLatLng());
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+}
+
 function getPointsFromData(data, path) {
   const points = [];
   if (!data) return points;
@@ -831,6 +850,11 @@ function updateDataViewMap(points, options) {
       });
     }
     const marker = L.marker([p.lat, p.lng], markerOptions);
+    if (p.parkingDatasetKey) marker._parkingDatasetKey = p.parkingDatasetKey;
+    if (isParking && p.parkingDatasetKey) {
+      marker._dataParkingPinId =
+        buildDataParkingVisitPinUrlId(p.parkingDatasetKey, p.lat, p.lng) || "";
+    }
     if (isDestination) marker._originalLatLng = L.latLng(p.lat, p.lng);
     if (isStrategyStep || isParking)
       marker._originalLatLng = L.latLng(p.lat, p.lng);
@@ -948,6 +972,16 @@ function updateDataViewMap(points, options) {
             2,
           );
         }
+        const dsKey = this._parkingDatasetKey;
+        const pop =
+          typeof this.getPopup === "function" ? this.getPopup() : null;
+        const popupOpen =
+          pop && typeof pop.isOpen === "function" ? pop.isOpen() : false;
+        if (dsKey && popupOpen) {
+          const nextId = buildDataParkingVisitPinUrlId(dsKey, ll.lat, ll.lng);
+          this._dataParkingPinId = nextId || "";
+          if (nextId) replaceDataParkingHistoricalHash(nextId);
+        }
         const orig = this._originalLatLng;
         if (orig && copyBtn) {
           const tol = 1e-6;
@@ -961,6 +995,13 @@ function updateDataViewMap(points, options) {
             copyBtn.classList.add("hidden");
           }
         }
+      });
+      marker.on("popupopen", () => {
+        const id = marker._dataParkingPinId;
+        if (id) replaceDataParkingHistoricalHash(id);
+      });
+      marker.on("popupclose", () => {
+        if (marker._dataParkingPinId) replaceDataParkingHistoricalHash(null);
       });
       marker.bindPopup(div);
     } else if (isStrategyStep) {
@@ -1648,6 +1689,7 @@ function renderDataView() {
       }
     });
     updateDataViewMap(allParkingPoints);
+    openDataMapParkingPopupMatchingPin(params.pin);
 
     dataViewIndex.classList.add("hidden");
     dataViewDetail.classList.add("hidden");
@@ -1717,6 +1759,9 @@ function renderDataView() {
     points = getPointsFromData(data, path);
   }
   updateDataViewMap(points);
+  if (path.startsWith("parking/")) {
+    openDataMapParkingPopupMatchingPin(parseFragment().pin);
+  }
 }
 
 function hideDataView() {
@@ -1767,6 +1812,53 @@ function parseFragment() {
   });
   return params;
 }
+
+function replaceDataParkingHistoricalHash(nextPin) {
+  const path = getDataRoutePath();
+  if (path !== "parking" && !path.startsWith("parking/")) return;
+  const f = parseFragment();
+  const q = [];
+  if (path === "parking") {
+    if (f.dataset != null && String(f.dataset).trim() !== "")
+      q.push(`dataset=${encodeURIComponent(String(f.dataset).trim())}`);
+    if (f.modes != null && String(f.modes).trim() !== "")
+      q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
+  } else if (f.modes != null && String(f.modes).trim() !== "") {
+    q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
+  }
+  const pinStr = nextPin != null ? String(nextPin).trim() : "";
+  if (pinStr) q.push(`pin=${pinStr}`);
+  const base = path === "parking" ? "#/data/parking" : "#/data/" + path;
+  const next = base + (q.length ? "?" + q.join("&") : "");
+  if (window.location.hash !== next) history.replaceState(null, "", next);
+}
+
+/** `appData.parking` key → `#/visit` `location=` / `park=` category id. */
+const DATA_VIEW_PARKING_KEY_TO_VISIT_CATEGORY = {
+  garages: "public-garage",
+  lots: "public-lot",
+  osmGarages: "private-garage",
+  osmLots: "private-lot",
+};
+
+/** Same shape as `#/visit` `park=` / overrides: `private-garage:42.958306,-85.676288` (6 dp). */
+function buildDataParkingVisitPinUrlId(datasetKey, lat, lng) {
+  const visitCat =
+    typeof datasetKey === "string"
+      ? DATA_VIEW_PARKING_KEY_TO_VISIT_CATEGORY[datasetKey]
+      : undefined;
+  if (
+    !visitCat ||
+    typeof lat !== "number" ||
+    typeof lng !== "number" ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng)
+  ) {
+    return "";
+  }
+  return `${visitCat}:${lat.toFixed(6)},${lng.toFixed(6)}`;
+}
+
 function getModeLabel(mode) {
   return appData?.modeLabels[mode] || mode;
 }

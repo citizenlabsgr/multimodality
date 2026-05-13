@@ -427,6 +427,14 @@ function parkingPriceTextImpliesEveningFree(text) {
   return false;
 }
 
+/** Tier text reads as an hourly dollar rate (evening filter multiplies by {@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}). */
+const PARKING_EVENING_HOURLY_ASSUMED_HOURS = 6;
+
+function parkingTierTextLooksLikeHourlyDollarRate(text) {
+  if (typeof text !== "string" || !text.trim()) return false;
+  return /\b(per\s+hour|\/hr|hourly)\b/i.test(text);
+}
+
 function pickEveningTierStringForCap(pricing, categoryKey) {
   const isPublic =
     categoryKey === "public-garage" || categoryKey === "public-lot";
@@ -459,6 +467,8 @@ function pickEveningTierStringForCap(pricing, categoryKey) {
  * Worst-case posted dollars for evening-style pricing (used vs max-evening filter).
  * **`null`** means no pricing tier fields at all (true unknown). **`-1`** means prose without dollars
  * (still shown unless pay is free-only). **`0`** means inferred free evenings/weekends.
+ * Hourly-style copy (e.g. **$5 per hour**) or values taken from the **`pricing.hourly`** JSON field use
+ * the largest parseable dollar × **{@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}** (assumes **6 hours** for the cap).
  */
 function parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey) {
   if (!pricing || typeof pricing !== "object")
@@ -467,14 +477,36 @@ function parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey) {
     return PARKING_EVENING_PRICE_ABSENT;
 
   const tier = pickEveningTierStringForCap(pricing, categoryKey);
-  if (!tier) return PARKING_EVENING_PRICE_ABSENT;
+  const hourlyTierRaw =
+    typeof pricing.hourly === "string" ? pricing.hourly.trim() : "";
 
-  const nums = parseDollarAmountsFromPriceText(tier);
-  if (nums.length > 0) return Math.max(...nums);
+  const ceilingFromParsedTierText = (text, hourlyJsonSemantics) => {
+    const nums = parseDollarAmountsFromPriceText(text);
+    if (nums.length === 0) return null;
+    const base = Math.max(...nums);
+    const multiply =
+      hourlyJsonSemantics === true ||
+      parkingTierTextLooksLikeHourlyDollarRate(text);
+    if (multiply) return base * PARKING_EVENING_HOURLY_ASSUMED_HOURS;
+    return base;
+  };
 
-  if (parkingPriceTextImpliesEveningFree(tier)) return 0;
+  if (tier) {
+    if (parkingPriceTextImpliesEveningFree(tier)) return 0;
+    const tierFromHourlyField = hourlyTierRaw !== "" && tier === hourlyTierRaw;
+    const c = ceilingFromParsedTierText(tier, tierFromHourlyField);
+    if (c != null) return c;
+    return PARKING_EVENING_PRICE_AMBIGUOUS_PROSE;
+  }
 
-  return PARKING_EVENING_PRICE_AMBIGUOUS_PROSE;
+  if (hourlyTierRaw) {
+    if (parkingPriceTextImpliesEveningFree(hourlyTierRaw)) return 0;
+    const c = ceilingFromParsedTierText(hourlyTierRaw, true);
+    if (c != null) return c;
+    return PARKING_EVENING_PRICE_AMBIGUOUS_PROSE;
+  }
+
+  return PARKING_EVENING_PRICE_ABSENT;
 }
 
 function parkingSpotPassesEveningBudget(

@@ -100,6 +100,8 @@ const PARKING_OVERRIDE_DEFAULT_MATCH_MILES = 0.0002;
 /**
  * Merge manual rows from `data/overrides.json` (a JSON array) into loaded parking arrays
  * (after fetch filters and official/OSM dedupe). Unmatched entries log a console warning.
+ * Each object may include **`note`** (string) for editors only — it is not copied onto pins or shown in the app.
+ * **`hidden`: true** removes the matched pin from the merged dataset (no `#/visit` / `#/data` marker).
  * @param {object} parking — merged `appData.parking` buckets
  * @param {unknown[] | null} list
  */
@@ -173,6 +175,11 @@ function applyParkingDataOverrides(parking, list) {
         lng,
         "(try matchToleranceMiles)",
       );
+      continue;
+    }
+
+    if (ov.hidden === true) {
+      arr.splice(idx, 1);
       continue;
     }
 

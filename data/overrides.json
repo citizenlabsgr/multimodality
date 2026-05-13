@@ -6,6 +6,67 @@
     "name": "Founders Brewing Company",
     "pricing": {
       "events": "$30"
-    }
+    },
+    "note": "Pricing source was a Mug Club email."
+  },
+  {
+    "category": "private-garage",
+    "latitude": 42.958306,
+    "longitude": -85.676288,
+    "name": "234 Market",
+    "pricing": {
+      "events": "$20"
+    },
+    "note": "Pricing source was Google Street View."
+  },
+  {
+    "category": "private-garage",
+    "latitude": 42.960161,
+    "longitude": -85.671661,
+    "name": "Studio Park(ing) Ramp",
+    "pricing": {
+      "evening": "$30",
+      "events": "$30"
+    },
+    "note": "https://www.ellisparking.com/lot/5ce824946c4886000485d40c"
+  },
+  {
+    "category": "private-garage",
+    "latitude": 42.971286,
+    "longitude": -85.676727,
+    "name": "River House",
+    "pricing": {
+      "evening": "$17",
+      "events": "$17"
+    },
+    "note": "Pricing source was Google Street View."
+  },
+  {
+    "category": "private-lot",
+    "latitude": 42.97078,
+    "longitude": -85.68031,
+    "name": "Bridge Street Parking (AirGarage)",
+    "pricing": {
+      "hourly": "$4.99",
+      "daily": "$15"
+    },
+    "note": "https://www.airgarage.com/location/bridge-street-parking-grand-rapids-mi"
+  },
+  {
+    "category": "private-lot",
+    "latitude": 42.970247,
+    "longitude": -85.679696,
+    "name": "Red Lion Lot",
+    "pricing": {
+      "daytime": "$15 day"
+    },
+    "note": "https://www.airgarage.com/location/red-lion-lot-grand-rapids-mi"
+  },
+  {
+    "category": "private-lot",
+    "latitude": 42.949392,
+    "longitude": -85.670424,
+    "hidden": true,
+    "note": "This is a fire station."
   }
 ]
