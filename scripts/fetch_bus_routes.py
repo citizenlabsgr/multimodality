@@ -11,6 +11,12 @@ Routes are split into:
   * rapid_routes — other The Rapid bus lines (same GTFS route_type) that serve
     downtown by stop location and/or pass through downtown on a shape polyline.
 
+For each DASH route, shapes and stops may include optional GTFS-derived tags when
+the feed lists an **Acrisure Amphitheater** stop: ``dash_pattern`` on each shape
+(``event`` vs ``regular``) and ``dash_patterns`` on each exported stop (which
+service patterns use that stop). The visit page uses these when a destination
+sets ``useDashEventRoute`` in ``data/destinations.json``.
+
 Dataset (full agency feed; we filter geographically and by mode):
   http://connect.ridetherapid.org/InfoPoint/gtfs-zip.ashx
 
@@ -96,12 +102,62 @@ def is_bus_route(row: dict[str, str]) -> bool:
         return False
 
 
+def amphitheater_sentinel_stop_ids(
+    stop_ids: set[str], stops_by_id: dict[str, dict[str, str]]
+) -> set[str]:
+    """GTFS stop_ids whose stop_name indicates the amphitheater event detour."""
+    found: set[str] = set()
+    for sid in stop_ids:
+        s = stops_by_id.get(sid)
+        if not s:
+            continue
+        name = (s.get("stop_name") or "").lower()
+        if "acrisure" in name and "amphitheater" in name:
+            found.add(sid)
+    return found
+
+
+def dash_pattern_enrichment(
+    route_ids: set[str],
+    shapes_seen_per_route: dict[str, list[str]],
+    shape_stops_by_route_shape: dict[tuple[str, str], set[str]],
+    stop_ids_by_route: dict[str, set[str]],
+    stops_by_id: dict[str, dict[str, str]],
+) -> tuple[dict[tuple[str, str], str], dict[tuple[str, str], list[str]]]:
+    """(route_id, shape_id) -> 'event'|'regular'; (route_id, stop_id) -> sorted pattern tags."""
+    shape_pat: dict[tuple[str, str], str] = {}
+    stop_pat: dict[tuple[str, str], list[str]] = {}
+    for rid in route_ids:
+        all_stops = stop_ids_by_route.get(rid, set())
+        sentinels = amphitheater_sentinel_stop_ids(all_stops, stops_by_id)
+        if not sentinels:
+            continue
+        shape_ids = shapes_seen_per_route.get(rid, [])
+        for shp in shape_ids:
+            ss = shape_stops_by_route_shape.get((rid, shp), set())
+            shape_pat[(rid, shp)] = "event" if (ss & sentinels) else "regular"
+        for sid in all_stops:
+            tags: set[str] = set()
+            for shp in shape_ids:
+                if sid not in shape_stops_by_route_shape.get((rid, shp), set()):
+                    continue
+                p = shape_pat.get((rid, shp))
+                if p:
+                    tags.add(p)
+            if tags:
+                stop_pat[(rid, sid)] = sorted(tags)
+    return shape_pat, stop_pat
+
+
 def build_route_outputs(
     route_rows: list[dict[str, str]],
     shapes_seen_per_route: dict[str, list[str]],
     shape_points: dict[str, list[tuple[int, float, float]]],
     stops_by_id: dict[str, dict[str, str]],
     stop_ids_by_route: dict[str, set[str]],
+    *,
+    shape_dash_patterns: dict[tuple[str, str], str] | None = None,
+    stop_dash_patterns: dict[tuple[str, str], list[str]] | None = None,
 ) -> list[dict]:
     out: list[dict] = []
     for r in sorted(route_rows, key=lambda x: (x.get("route_sort_order") or "", x["route_id"])):
@@ -112,7 +168,12 @@ def build_route_outputs(
             pts.sort(key=lambda x: x[0])
             coords = [{"latitude": la, "longitude": lo} for _, la, lo in pts]
             if coords:
-                shapes_out.append({"shape_id": shape_id, "coordinates": coords})
+                entry: dict = {"shape_id": shape_id, "coordinates": coords}
+                if shape_dash_patterns:
+                    pat = shape_dash_patterns.get((rid, shape_id))
+                    if pat:
+                        entry["dash_pattern"] = pat
+                shapes_out.append(entry)
 
         stops_out = []
         for stop_id in sorted(stop_ids_by_route.get(rid, ())):
@@ -129,14 +190,17 @@ def build_route_outputs(
                 > STOP_MAX_MILES_FROM_CITY_CENTER
             ):
                 continue
-            stops_out.append(
-                {
-                    "stop_id": stop_id,
-                    "name": (s.get("stop_name") or "").strip() or stop_id,
-                    "latitude": lat,
-                    "longitude": lon,
-                }
-            )
+            stop_entry: dict = {
+                "stop_id": stop_id,
+                "name": (s.get("stop_name") or "").strip() or stop_id,
+                "latitude": lat,
+                "longitude": lon,
+            }
+            if stop_dash_patterns:
+                pats = stop_dash_patterns.get((rid, stop_id))
+                if pats:
+                    stop_entry["dash_patterns"] = pats
+            stops_out.append(stop_entry)
 
         out.append(
             {
@@ -205,6 +269,7 @@ def main() -> int:
 
     trips = [t for t in iter_dict_rows_from_zip(z, "trips.txt") if t.get("route_id") in bus_route_ids]
     trip_to_route: dict[str, str] = {}
+    trip_id_to_shape: dict[str, str] = {}
     shapes_seen_per_route: dict[str, list[str]] = defaultdict(list)
     shape_order: dict[str, set[str]] = defaultdict(set)
 
@@ -213,6 +278,7 @@ def main() -> int:
         tid = (t.get("trip_id") or "").strip()
         if tid:
             trip_to_route[tid] = rid
+            trip_id_to_shape[tid] = (t.get("shape_id") or "").strip()
         shp = (t.get("shape_id") or "").strip()
         if shp and shp not in shape_order[rid]:
             shapes_seen_per_route[rid].append(shp)
@@ -261,6 +327,19 @@ def main() -> int:
         if sid:
             stop_ids_by_route[rid].add(sid)
 
+    shape_stops_by_route_shape: dict[tuple[str, str], set[str]] = defaultdict(set)
+    for row in iter_dict_rows_from_zip(z, "stop_times.txt"):
+        tid = (row.get("trip_id") or "").strip()
+        rid = trip_to_route.get(tid)
+        if rid is None or rid not in eligible_route_ids:
+            continue
+        shp = trip_id_to_shape.get(tid, "").strip()
+        if not shp:
+            continue
+        sid = (row.get("stop_id") or "").strip()
+        if sid:
+            shape_stops_by_route_shape[(rid, shp)].add(sid)
+
     shape_points: dict[str, list[tuple[int, float, float]]] = defaultdict(list)
     needed_shape_ids = set()
     for rid in eligible_route_ids:
@@ -284,6 +363,15 @@ def main() -> int:
     dash_rows = [r for r in downtown_rows if is_dash_route(r)]
     rapid_rows = [r for r in downtown_rows if not is_dash_route(r)]
 
+    dash_route_ids = {r["route_id"] for r in dash_rows}
+    dash_shape_pat, dash_stop_pat = dash_pattern_enrichment(
+        dash_route_ids,
+        shapes_seen_per_route,
+        shape_stops_by_route_shape,
+        stop_ids_by_route,
+        stops_by_id,
+    )
+
     shapes_out_map = dict(shapes_seen_per_route)
     dash_out = build_route_outputs(
         dash_rows,
@@ -291,6 +379,8 @@ def main() -> int:
         shape_points,
         stops_by_id,
         stop_ids_by_route,
+        shape_dash_patterns=dash_shape_pat,
+        stop_dash_patterns=dash_stop_pat,
     )
     rapid_out = build_route_outputs(
         rapid_rows,
@@ -319,6 +409,10 @@ def main() -> int:
             "stop_filter_note": (
                 f"Stops listed per route are within {STOP_MAX_MILES_FROM_CITY_CENTER:g} mi "
                 "of downtown center (polylines are not clipped)."
+            ),
+            "dash_event_pattern_note": (
+                "DASH routes may include dash_pattern on shapes and dash_patterns on stops "
+                "when GTFS lists an Acrisure Amphitheater stop (event detour vs regular loop)."
             ),
         },
         "dash_routes": dash_out,

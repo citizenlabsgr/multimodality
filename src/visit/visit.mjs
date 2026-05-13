@@ -671,6 +671,12 @@ const DATA_ROUTES_CITY_CENTER_LAT = 42.96333;
 const DATA_ROUTES_CITY_CENTER_LON = -85.66806;
 const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
 
+/**
+ * When first/last GTFS shape vertices differ numerically but lie within this chain distance, treat the
+ * DASH polyline as a closed loop (The Rapid event-route shapes often end ~10 ft from the start).
+ */
+const PARKING_DASH_SHAPE_CLOSURE_GAP_MI = 0.02;
+
 /** `#/visit` — hide parking pins farther than this from any shown DASH stop. */
 const PARKING_MAX_MILES_FROM_DASH_STOP = 0.75;
 
@@ -1913,21 +1919,57 @@ if (typeof globalThis !== "undefined") {
     markerUsesDashMultimodalForRecommendationFromPool;
 }
 
-/** Session memo — `appData.busRoutes` is static after load (same object identity for parking sessions). */
+/** Session memo — `appData.busRoutes` is static after load; key is `event` | `regular` | `all`. */
 let _parkingDashMapDataMemo = undefined;
 let _parkingDashMapDataMemoReady = false;
+let _parkingDashMapDataMemoKey = "";
+
+function parkingDestinationUsesDashEventRoute() {
+  const slug = getParkingDestinationSlugFromSelect();
+  if (!slug || !Array.isArray(appData?.destinations)) return false;
+  const d = appData.destinations.find((x) => x.slug === slug);
+  return Boolean(d?.useDashEventRoute);
+}
+
+/** True when GTFS-derived `dash_pattern` / `dash_patterns` exist on DASH (event vs regular split). */
+function parkingDashEventPatternAvailableInData() {
+  const dashList = Array.isArray(appData?.busRoutes?.dash_routes)
+    ? appData.busRoutes.dash_routes
+    : [];
+  for (const r of dashList) {
+    for (const sh of r.shapes || []) {
+      if (sh.dash_pattern === "event") return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * `event` — Acrisure (or any `useDashEventRoute`) + tagged feed.
+ * `regular` — tagged feed but normal venue: regular loop only (no amphitheater detour on map / estimates).
+ * `all` — legacy union when the feed has no event/regular tags.
+ */
+function getParkingEffectiveDashDataKey() {
+  if (!parkingDashEventPatternAvailableInData()) return "all";
+  if (parkingDestinationUsesDashEventRoute()) return "event";
+  return "regular";
+}
 
 /**
  * DASH polylines + stops (same source as modes page shuttle map).
  * @returns {{ points: Array<{lat:number,lng:number,label:string,address:string}>, polylines: Array<{latLngs:number[][], color:string, weight?:number}> }}
  */
 function getParkingDashMapData() {
-  if (_parkingDashMapDataMemoReady) return _parkingDashMapDataMemo;
   // Bare URL → `#/visit` runs before `loadData()`; `hashchange` may call this with `appData` still null.
   if (!appData) {
     return { points: [], polylines: [] };
   }
+  const cacheKey = getParkingEffectiveDashDataKey();
+  if (_parkingDashMapDataMemoReady && _parkingDashMapDataMemoKey === cacheKey) {
+    return _parkingDashMapDataMemo;
+  }
   _parkingDashMapDataMemoReady = true;
+  _parkingDashMapDataMemoKey = cacheKey;
   const empty = { points: [], polylines: [] };
   const bus = appData?.busRoutes;
   const dashList = Array.isArray(bus?.dash_routes) ? bus.dash_routes : [];
@@ -1961,6 +2003,8 @@ function getParkingDashMapData() {
       .join(" · ");
     const col = colorForRoute(r.route_color, defaultLineColor);
     for (const sh of r.shapes || []) {
+      if (cacheKey === "event" && sh.dash_pattern !== "event") continue;
+      if (cacheKey === "regular" && sh.dash_pattern === "event") continue;
       const coords = sh.coordinates || [];
       const latLngs = [];
       for (const c of coords) {
@@ -1975,6 +2019,19 @@ function getParkingDashMapData() {
     for (const s of r.stops || []) {
       if (typeof s.latitude !== "number" || typeof s.longitude !== "number")
         continue;
+      if (cacheKey === "event") {
+        const pats = s.dash_patterns;
+        if (!Array.isArray(pats) || !pats.includes("event")) continue;
+      } else if (cacheKey === "regular") {
+        const pats = s.dash_patterns;
+        if (
+          Array.isArray(pats) &&
+          pats.length > 0 &&
+          !pats.includes("regular")
+        ) {
+          continue;
+        }
+      }
       if (
         haversineMiles(
           DATA_ROUTES_CITY_CENTER_LAT,
@@ -2020,43 +2077,71 @@ function nearestDashStopWalkMiles(lat, lng, dashStops) {
   return best;
 }
 
-/** Session memo — loop geometry is static after load (hot path: once per `tryParkingDashMultimodalPath`). */
+/** Session memo — loop geometry; invalidated when {@link getParkingEffectiveDashDataKey} changes. */
 let _parkingDashLoopRingGeometryMemo = undefined;
 let _parkingDashLoopRingGeometryMemoReady = false;
+let _parkingDashLoopRingGeometryMemoKey = "";
 
 /**
- * Closed-loop vertices from the primary DASH shape (first route, first shape), dropping the duplicate closing point.
+ * Closed-loop vertices from the primary DASH shape (first route, first matching shape), dropping the duplicate closing point when GTFS closes the ring.
  * @returns {{ verts: Array<{ lat: number; lng: number }>; segMi: number[]; perimeterMi: number } | null}
  */
 function getParkingDashLoopRingGeometry() {
-  if (_parkingDashLoopRingGeometryMemoReady)
-    return _parkingDashLoopRingGeometryMemo;
   if (!appData) {
     return null;
   }
+  const cacheKey = getParkingEffectiveDashDataKey();
+  if (
+    _parkingDashLoopRingGeometryMemoReady &&
+    _parkingDashLoopRingGeometryMemoKey === cacheKey
+  ) {
+    return _parkingDashLoopRingGeometryMemo;
+  }
   _parkingDashLoopRingGeometryMemoReady = true;
+  _parkingDashLoopRingGeometryMemoKey = cacheKey;
 
   const bus = appData?.busRoutes;
   const dashList = Array.isArray(bus?.dash_routes) ? bus.dash_routes : [];
   const legacyList = Array.isArray(bus?.routes) ? bus.routes : [];
   const routes = dashList.length > 0 ? dashList : legacyList;
   const r = routes[0];
-  const coords = r?.shapes?.[0]?.coordinates;
+  const shapes = Array.isArray(r?.shapes) ? r.shapes : [];
+  let coords = null;
+  if (cacheKey === "event") {
+    coords = shapes.find((sh) => sh.dash_pattern === "event")?.coordinates;
+  } else if (cacheKey === "regular") {
+    coords =
+      shapes.find((sh) => sh.dash_pattern === "regular")?.coordinates ??
+      shapes[0]?.coordinates;
+  } else {
+    coords = shapes[0]?.coordinates;
+  }
   if (!Array.isArray(coords) || coords.length < 3) {
     _parkingDashLoopRingGeometryMemo = null;
     return _parkingDashLoopRingGeometryMemo;
   }
   const last = coords[coords.length - 1];
   const first = coords[0];
-  const ring =
+  const latOk =
     typeof first?.latitude === "number" &&
     typeof first?.longitude === "number" &&
     typeof last?.latitude === "number" &&
-    typeof last?.longitude === "number" &&
+    typeof last?.longitude === "number";
+  const explicitClosed =
+    latOk &&
     first.latitude === last.latitude &&
-    first.longitude === last.longitude
-      ? coords.slice(0, -1)
-      : coords.slice();
+    first.longitude === last.longitude;
+  const softClosed =
+    latOk &&
+    !explicitClosed &&
+    haversineMiles(
+      first.latitude,
+      first.longitude,
+      last.latitude,
+      last.longitude,
+    ) <= PARKING_DASH_SHAPE_CLOSURE_GAP_MI;
+  const ring =
+    explicitClosed || softClosed ? coords.slice(0, -1) : coords.slice();
   const verts = [];
   for (const c of ring) {
     if (typeof c.latitude !== "number" || typeof c.longitude !== "number") {
