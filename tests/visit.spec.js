@@ -1077,6 +1077,276 @@ test.describe("Parking map (#/visit)", () => {
       expect(r.markerCount).toBeGreaterThan(0);
       expect(r.chosenId).toBeTruthy();
     });
+
+    test("top suggestions: best matches chooseBest, farthest is max total walk, expensive is max known dollars", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/van-andel-arena?pay=50&walk=1.5");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const markers = globalThis.__getAllParkingSpotMarkersForTest();
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
+        const candidates =
+          globalThis.__chooseTopParkingStartSpotIdsForTest() || [];
+        const best = globalThis.__chooseBestParkingStartSpotIdForTest();
+        if (!pool.length) return { ok: false };
+
+        const displayedDollars =
+          globalThis.__parkingMarkerDisplayedPriceCeilingForTest;
+        const totalWalk =
+          globalThis.__parkingMarkerEstimatedTotalWalkMilesForTest;
+
+        let maxTotalWalkMi = -Infinity;
+        for (const m of pool) {
+          const w = totalWalk(m);
+          if (typeof w !== "number") continue;
+          if (w > maxTotalWalkMi) maxTotalWalkMi = w;
+        }
+        let maxDisplayedDollars = -Infinity;
+        for (const m of pool) {
+          const c = displayedDollars(m);
+          if (typeof c !== "number") continue;
+          if (c > maxDisplayedDollars) maxDisplayedDollars = c;
+        }
+
+        const ids = candidates.map((c) => c.spotId);
+        const roles = candidates.map((c) => c.role);
+        const idRows = ids.map((id) => pool.find((m) => m.spotId === id));
+        const farthestSlotWalkMi = idRows
+          .filter(Boolean)
+          .map((m) => totalWalk(m))
+          .filter((x) => typeof x === "number")
+          .reduce((acc, x) => (x > acc ? x : acc), -Infinity);
+        const expensiveSlotDollars = idRows
+          .filter(Boolean)
+          .map((m) => displayedDollars(m))
+          .filter((x) => typeof x === "number")
+          .reduce((acc, x) => (x > acc ? x : acc), -Infinity);
+
+        return {
+          ok: true,
+          ids,
+          roles,
+          best,
+          uniqueIds: new Set(ids).size === ids.length,
+          maxTotalWalkMi,
+          farthestSlotWalkMi,
+          maxDisplayedDollars,
+          expensiveSlotDollars,
+        };
+      });
+
+      expect(r.ok).toBe(true);
+      expect(r.ids.length).toBeGreaterThan(0);
+      expect(r.ids.length).toBeLessThanOrEqual(3);
+      expect(r.uniqueIds).toBe(true);
+      /** First entry is always the **best** pick (chooseBest), tagged with role **best**. */
+      expect(r.ids[0]).toBe(r.best);
+      expect(r.roles[0]).toBe("best");
+      /** Roles are unique — each pin carries a single role even after dedup collapse. */
+      expect(new Set(r.roles).size).toBe(r.roles.length);
+      /** Some pin in the result reaches the max **total walk miles** available in the pool —
+       *  walk-to-DASH-stop + walk-from-alight-to-venue for multimodal trips, otherwise the
+       *  direct grid walk. The pin with the highest grid-walk-from-venue is **not** automatically
+       *  the farthest anymore (e.g. a lot right on a DASH stop barely makes the user walk). */
+      expect(Math.abs(r.farthestSlotWalkMi - r.maxTotalWalkMi)).toBeLessThan(
+        1e-6,
+      );
+      /** Some pin in the result has the highest *displayed* price ceiling (popup line). */
+      if (Number.isFinite(r.maxDisplayedDollars)) {
+        expect(r.expensiveSlotDollars).toBe(r.maxDisplayedDollars);
+      }
+    });
+
+    test("GLC Live default: $ pin matches highest displayed-popup price", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/glc-live-at-20-monroe");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const candidates =
+          globalThis.__chooseTopParkingStartSpotIdsForTest?.() || [];
+        const expensive = candidates.find((c) => c.role === "expensive");
+        if (!expensive) return { ok: false, reason: "no-expensive-slot" };
+        const markers = globalThis.__getAllParkingSpotMarkersForTest();
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
+        const displayedDollars =
+          globalThis.__parkingMarkerDisplayedPriceCeilingForTest;
+        const expensiveRow = pool.find((m) => m.spotId === expensive.spotId);
+        const expensiveDollars = displayedDollars(expensiveRow);
+        let maxDisplayed = -Infinity;
+        for (const m of pool) {
+          const c = displayedDollars(m);
+          if (typeof c !== "number") continue;
+          if (c > maxDisplayed) maxDisplayed = c;
+        }
+        return {
+          ok: true,
+          expensiveId: expensive.spotId,
+          expensivePrice: expensiveRow?.price,
+          expensiveDollars,
+          maxDisplayed,
+        };
+      });
+
+      expect(r.ok, JSON.stringify(r)).toBe(true);
+      /** McConnell Ionia ($8-9 displayed) used to win because **`evening: "$51"`** drove the rank;
+       *  now the **`$`** pin must reach the highest *displayed* dollar amount. */
+      expect(r.expensiveDollars).toBe(r.maxDisplayed);
+    });
+
+    test("GLC Live default: farthest pin maximizes total foot-miles (DASH legs included)", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/glc-live-at-20-monroe");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const candidates =
+          globalThis.__chooseTopParkingStartSpotIdsForTest?.() || [];
+        const markers = globalThis.__getAllParkingSpotMarkersForTest();
+        const buildPool =
+          globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const pool =
+          typeof buildPool === "function" ? buildPool(markers) : markers;
+        const totalWalk =
+          globalThis.__parkingMarkerEstimatedTotalWalkMilesForTest;
+        const farthest = candidates.find((c) => c.role === "farthest");
+        const farthestRow = pool.find((m) => m.spotId === farthest?.spotId);
+        const farthestWalk = farthestRow ? totalWalk(farthestRow) : null;
+        let maxPoolWalk = -Infinity;
+        let maxPoolWalkId = null;
+        for (const m of pool) {
+          const w = totalWalk(m);
+          if (typeof w !== "number") continue;
+          if (w > maxPoolWalk) {
+            maxPoolWalk = w;
+            maxPoolWalkId = m.spotId;
+          }
+        }
+        return {
+          hasFarthest: Boolean(farthest),
+          farthestSpotId: farthest?.spotId,
+          farthestWalk,
+          maxPoolWalk,
+          maxPoolWalkId,
+        };
+      });
+
+      expect(r.hasFarthest).toBe(true);
+      /** Farthest pin must be the **highest total foot-miles** in the pool — this excludes
+       *  pins like *Red Lion Lot* (high grid-walk but tiny total walk because both endpoints
+       *  sit on DASH stops) and instead surfaces pins that actually require the user to walk
+       *  the most, e.g. *McConnell Ionia Lot* for GLC Live by default. */
+      expect(r.farthestSpotId).toBe(r.maxPoolWalkId);
+      expect(Math.abs(r.farthestWalk - r.maxPoolWalk)).toBeLessThan(1e-6);
+    });
+
+    test("muted-green pins use star/walk/dollar glyphs matching their roles", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/van-andel-arena?pay=50&walk=1.5");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      await expect(page).not.toHaveURL(/[?&]park=/);
+
+      const r = await page.evaluate(() => {
+        const decodeSrc = (src) => {
+          const i = src.indexOf(",");
+          if (i < 0) return "";
+          try {
+            return decodeURIComponent(src.slice(i + 1));
+          } catch {
+            return "";
+          }
+        };
+        let mutedGreenCount = 0;
+        const glyphsSeen = [];
+        let saturatedNumberedGreen = false;
+        for (const img of document.querySelectorAll(
+          "#parkingAppMap .leaflet-marker-pane img",
+        )) {
+          if (!img.src.startsWith("data:image/svg")) continue;
+          const svg = decodeSrc(img.src);
+          if (svg.includes("bbf7d0")) {
+            mutedGreenCount += 1;
+            const m = svg.match(/data-parking-pick-glyph="(best|walk|dollar)"/);
+            if (m) glyphsSeen.push(m[1]);
+          }
+          if (/fill="#16a34a">\d<\/text>/.test(svg))
+            saturatedNumberedGreen = true;
+        }
+        const candidates =
+          globalThis.__chooseTopParkingStartSpotIdsForTest?.() || [];
+        const expectedRoles = candidates.map((c) => c.role);
+        return {
+          mutedGreenCount,
+          glyphsSeen,
+          saturatedNumberedGreen,
+          expectedRoles,
+        };
+      });
+      expect(r.saturatedNumberedGreen).toBe(false);
+      expect(r.mutedGreenCount).toBeGreaterThanOrEqual(1);
+      expect(r.mutedGreenCount).toBeLessThanOrEqual(3);
+      expect(r.mutedGreenCount).toBe(r.expectedRoles.length);
+      /** Map each role tag to the glyph the SVG should carry. */
+      const roleToGlyph = (role) =>
+        role === "best" ? "best" : role === "farthest" ? "walk" : "dollar";
+      expect(r.glyphsSeen.sort()).toEqual(
+        r.expectedRoles.map(roleToGlyph).sort(),
+      );
+    });
+
+    test("committing park= collapses suggestions to the single committed pin", async ({
+      page,
+    }) => {
+      await page.goto(
+        "/#/visit/acrisure-amphitheater?walk=0.5&park=private-lot:42.972319,-85.682491",
+      );
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const decodeSrc = (src) => {
+          const i = src.indexOf(",");
+          if (i < 0) return "";
+          try {
+            return decodeURIComponent(src.slice(i + 1));
+          } catch {
+            return "";
+          }
+        };
+        let mutedGreenCount = 0;
+        let saturatedGreenCount = 0;
+        for (const img of document.querySelectorAll(
+          "#parkingAppMap .leaflet-marker-pane img",
+        )) {
+          if (!img.src.startsWith("data:image/svg")) continue;
+          const svg = decodeSrc(img.src);
+          if (svg.includes("bbf7d0")) mutedGreenCount += 1;
+          if (
+            svg.includes('fill="#16a34a"') &&
+            svg.includes('stroke="#ffffff"')
+          )
+            saturatedGreenCount += 1;
+        }
+        return { mutedGreenCount, saturatedGreenCount };
+      });
+      expect(r.mutedGreenCount).toBe(0);
+      expect(r.saturatedGreenCount).toBe(1);
+    });
   });
 
   test.describe("Evening price cap (pay)", () => {

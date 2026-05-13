@@ -1682,6 +1682,69 @@ function getAllParkingSpotMarkers(
 }
 
 /**
+ * Total walk miles the user is expected to put on their feet for this pin — sum of **walk1**
+ * (park → board stop) **and walk2** (alight stop → venue) when the trip uses DASH, otherwise the
+ * door-to-door grid walk from park to venue. Matches what the route panel + map walk overlay draw
+ * for the pin (see {@link tryParkingDashMultimodalPath}: it returns **`null`** when the direct
+ * walk already fits the cap, in which case a single direct-walk leg is drawn).
+ *
+ * Result is cached on the marker via **`_estimatedTotalWalkMilesCached`** because the multimodal
+ * path call is comparatively expensive (ring geometry / nearest-stop search) and the sort
+ * comparators invoke this per pair.
+ *
+ * Returns **`null`** when no destination is selected (no trip exists to measure).
+ *
+ * @param {{ lat: number; lng: number, _estimatedTotalWalkMilesCached?: number | null }} m
+ * @returns {number | null}
+ */
+function parkingMarkerEstimatedTotalWalkMiles(m) {
+  if (!m) return null;
+  if (m._estimatedTotalWalkMilesCached !== undefined) {
+    return m._estimatedTotalWalkMilesCached;
+  }
+  const destLl = getParkingDestinationLatLng();
+  if (!Array.isArray(destLl) || destLl.length < 2) {
+    m._estimatedTotalWalkMilesCached = null;
+    return null;
+  }
+  const dLat = destLl[0];
+  const dLng = destLl[1];
+  const walkCap = resolvedParkingWalkCapMiles();
+  const mm = tryParkingDashMultimodalPath(m.lat, m.lng, dLat, dLng, walkCap);
+  /** **`mm`** is non-null only when DASH multimodal is the drawn path (direct walk exceeds the
+   *  cap but both DASH walk legs fit) — see {@link tryParkingDashMultimodalPath}. Otherwise the
+   *  pin draws a single direct-walk leg, so total walk = grid-walk distance to venue. */
+  const v = mm
+    ? mm.walk1Mi + mm.walk2Mi
+    : gridWalkMiles(m.lat, m.lng, dLat, dLng);
+  m._estimatedTotalWalkMilesCached = v;
+  return v;
+}
+
+/**
+ * Highest dollar amount appearing in the **displayed popup** price text — what the user perceives
+ * as "more expensive" when comparing pins side by side. Many GR public garages list
+ * `evening: "$51"` (a posted overnight max) but show `events: "$8–9"` in the popup; this returns
+ * **9** for them so the **expensive** suggestion role lines up with the visible price instead of
+ * the hidden evening-cap ceiling. **`null`** when the line has no parseable dollars (placeholder
+ * **`—`** / **`Not listed`**); **`Free`** maps to **0**.
+ *
+ * @param {{ price?: string } | undefined | null} marker — row from {@link getAllParkingSpotMarkers}.
+ * @returns {number | null}
+ */
+function parkingMarkerDisplayedPriceCeiling(marker) {
+  if (!marker) return null;
+  const text = typeof marker.price === "string" ? marker.price.trim() : "";
+  if (!text) return null;
+  const lower = text.toLowerCase();
+  if (lower === "free") return 0;
+  if (text === "—" || lower === "not listed") return null;
+  const nums = parseDollarAmountsFromPriceText(text);
+  if (nums.length === 0) return null;
+  return Math.max(...nums);
+}
+
+/**
  * Higher score = prefer for auto-recommendation — **most expensive** inferred evening/event dollars
  * the user’s **pay** cap still allows (product assumption: pricier spots are typically less crowded at
  * events). Unknown / ambiguous tiers rank below known dollar amounts.
@@ -1951,9 +2014,121 @@ function chooseBestParkingStartSpotId(enabledKeysOverride) {
   return sorted[0].spotId;
 }
 
+/**
+ * Roles a single muted-green suggestion pin can carry. Each pin shows the glyph for the
+ * **highest-priority** role it matches: a **star** for the {@link compareParkingMarkersForRecommendation}
+ * best pick, a **person walking** for the farthest pin within walk + cost filters, and a **dollar
+ * sign** for the most expensive within those same filters.
+ *
+ * Priority order on dedup: **best** > **farthest** > **expensive**.
+ * @typedef {"best" | "farthest" | "expensive"} ParkingRecommendationRole
+ */
+
+/**
+ * Maximum number of muted-green suggestion pins shown when **`park=`** is omitted (one per
+ * {@link ParkingRecommendationRole}). Duplicates collapse so the visible count is between **0** and **3**.
+ */
+const PARKING_RECOMMENDATION_PIN_LIMIT = 3;
+
+/**
+ * Up to {@link PARKING_RECOMMENDATION_PIN_LIMIT} role-tagged candidates for muted-green suggestion
+ * pins. Each candidate already passes the **`pay`** / **`walk`** / category filters from
+ * {@link getAllParkingSpotMarkers}, so "within costs" and "within walking preferences" follow the
+ * current sliders.
+ *
+ * - **best** — {@link compareParkingMarkersForRecommendation} winner (also drives walk-line + route panel).
+ * - **farthest** — top of a "max **total walk miles**" sort across the rest of the pool, where
+ *   total walk = **walk-to-DASH-stop + walk-from-alight-to-venue** for multimodal trips and the
+ *   door-to-door grid walk otherwise (see {@link parkingMarkerEstimatedTotalWalkMiles}). This
+ *   matches the actual feet-on-the-ground distance the user would log for the trip the map draws,
+ *   so DASH-using pins (typically up to **walkCap × 2** miles total) outrank pure direct-walk
+ *   pins (capped at **walkCap**). When **best** already covers the pool's max total walk, this
+ *   role falls through to the next-highest pin instead of collapsing — so e.g. GLC Live still
+ *   gets a walking-person pin even though its best pick is also the most-walking pin in the pool.
+ * - **expensive** — top of a "max popup-displayed dollars" sort across the rest of the pool
+ *   (premium spot the user is still willing to pay for); same fall-through semantics so this role
+ *   prefers a distinct pin from **best** + **farthest** whenever the pool has one.
+ *
+ * Each role only goes empty when the eligible pool has no pin left for it (e.g. only one
+ * candidate left after **best**), so the returned array length stays between **0** and **3**.
+ *
+ * @param {Set<string>|string[]|undefined} enabledKeysOverride — same override semantics as {@link chooseBestParkingStartSpotId}.
+ * @returns {Array<{ spotId: string, role: ParkingRecommendationRole }>}
+ */
+function chooseTopParkingStartSpotIds(enabledKeysOverride) {
+  const markers =
+    enabledKeysOverride instanceof Set
+      ? getAllParkingSpotMarkers([...enabledKeysOverride])
+      : Array.isArray(enabledKeysOverride)
+        ? getAllParkingSpotMarkers(enabledKeysOverride)
+        : getAllParkingSpotMarkers();
+  const pool = buildParkingRecommendationMarkerPool(markers);
+  if (pool.length === 0) return [];
+
+  const destLl = getParkingDestinationLatLng();
+  /** @type {Array<{ spotId: string, role: ParkingRecommendationRole }>} */
+  const picks = [];
+  const takenIds = new Set();
+  const pickRole = (sortedRows, role) => {
+    if (picks.length >= PARKING_RECOMMENDATION_PIN_LIMIT) return;
+    for (const row of sortedRows) {
+      if (!row || typeof row.spotId !== "string") continue;
+      if (takenIds.has(row.spotId)) continue;
+      picks.push({ spotId: row.spotId, role });
+      takenIds.add(row.spotId);
+      return;
+    }
+  };
+
+  pickRole([...pool].sort(compareParkingMarkersForRecommendation), "best");
+
+  if (Array.isArray(destLl) && destLl.length >= 2) {
+    /** Use estimated **total walk miles** (walk-to-DASH-stop + walk-from-alight) so the
+     *  walking-person glyph reflects the actual foot-miles the trip the map draws will log —
+     *  not just the door-to-door grid walk that ignores DASH. */
+    const farthestSorted = [...pool].sort((a, b) => {
+      const da = parkingMarkerEstimatedTotalWalkMiles(a) ?? 0;
+      const db = parkingMarkerEstimatedTotalWalkMiles(b) ?? 0;
+      if (Math.abs(da - db) > 1e-9) return db - da;
+      return compareParkingMarkersCategoryPreference(a, b);
+    });
+    pickRole(farthestSorted, "farthest");
+  }
+
+  /**
+   * Use {@link parkingMarkerDisplayedPriceCeiling} (popup-displayed price) instead of the
+   * **`eveningSortDollars`** ceiling so the **`$`** pin matches the price the user sees: GR
+   * public spots often list **`evening: "$51"`** (overnight max) but display **`events: "$8–9"`**,
+   * and the user judges expensiveness by what's in the popup.
+   */
+  const expensiveSorted = [...pool].sort((a, b) => {
+    const ca = parkingMarkerDisplayedPriceCeiling(a);
+    const cb = parkingMarkerDisplayedPriceCeiling(b);
+    const sa = ca == null ? -Infinity : ca;
+    const sb = cb == null ? -Infinity : cb;
+    if (Math.abs(sa - sb) > 1e-9) return sb - sa;
+    /** Same-dollar tie: prefer the farther one so this role rarely sits on the same pin as **best**. */
+    if (Array.isArray(destLl) && destLl.length >= 2) {
+      const da = gridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
+      const db = gridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
+      if (Math.abs(da - db) > 1e-9) return db - da;
+    }
+    return compareParkingMarkersCategoryPreference(a, b);
+  });
+  pickRole(expensiveSorted, "expensive");
+
+  return picks;
+}
+
 if (typeof globalThis !== "undefined") {
   globalThis.__chooseBestParkingStartSpotIdForTest =
     chooseBestParkingStartSpotId;
+  globalThis.__chooseTopParkingStartSpotIdsForTest =
+    chooseTopParkingStartSpotIds;
+  globalThis.__parkingMarkerDisplayedPriceCeilingForTest =
+    parkingMarkerDisplayedPriceCeiling;
+  globalThis.__parkingMarkerEstimatedTotalWalkMilesForTest =
+    parkingMarkerEstimatedTotalWalkMiles;
   globalThis.__getAllParkingSpotMarkersForTest = getAllParkingSpotMarkers;
   globalThis.__compareParkingMarkersForRecommendationForTest =
     compareParkingMarkersForRecommendation;
@@ -2847,15 +3022,67 @@ function parkingSpotPickIcon(L, glyph) {
 }
 
 /**
- * Muted green pick marker for {@link chooseBestParkingStartSpotId} when **`park=`** is omitted —
- * same pin badge as {@link parkingSpotPickIcon} (**blank** white circle, no glyph).
+ * Glyph color for muted-green suggestion pins — darker than the saturated **`#16a34a`** body of
+ * {@link parkingSpotPickIcon} so the regex check in `tests/visit.spec.js` for the committed-only
+ * state (it looks for **`fill="#16a34a">\d</text>`** specifically) still passes.
  */
-function parkingSpotPickSuggestionIcon(L) {
+const PARKING_PICK_SUGGESTION_GLYPH_COLOR = "#15803d";
+
+/**
+ * Inline SVG glyph stamped on the white circle of a muted-green suggestion pin. Each glyph is
+ * sized for the **`r=5.2`** circle around `(14, 13)` so it reads at one glance.
+ *
+ * @param {ParkingRecommendationRole | undefined} role
+ * @returns {string}
+ */
+function parkingSpotPickSuggestionGlyphSvg(role) {
+  const fill = PARKING_PICK_SUGGESTION_GLYPH_COLOR;
+  if (role === "best") {
+    /** Five-pointed star, outer radius ≈ **4.2** px, inner radius ≈ **1.7** px around `(14, 13)`. */
+    return (
+      `<path data-parking-pick-glyph="best" fill="${fill}" ` +
+      `d="M14 8.8 L15.10 11.04 L17.58 11.40 L15.79 13.15 L16.21 15.62 ` +
+      `L14 14.45 L11.79 15.62 L12.21 13.15 L10.42 11.40 L12.90 11.04 Z"/>`
+    );
+  }
+  if (role === "farthest") {
+    /** Stylized walking pictogram — head, torso, mid-stride legs and arms. */
+    return (
+      `<g data-parking-pick-glyph="walk" fill="${fill}" stroke="${fill}" stroke-linecap="round">` +
+      `<circle cx="14" cy="9.5" r="0.95" stroke="none"/>` +
+      `<line x1="14" y1="10.5" x2="14" y2="13.2" stroke-width="0.95"/>` +
+      `<line x1="14" y1="13.2" x2="12.55" y2="15.8" stroke-width="0.95"/>` +
+      `<line x1="14" y1="13.2" x2="15.45" y2="15.65" stroke-width="0.95"/>` +
+      `<line x1="14" y1="11.45" x2="12.7" y2="12.75" stroke-width="0.85"/>` +
+      `<line x1="14" y1="11.45" x2="15.4" y2="12.55" stroke-width="0.85"/>` +
+      `</g>`
+    );
+  }
+  if (role === "expensive") {
+    return (
+      `<text data-parking-pick-glyph="dollar" x="14" y="15.4" text-anchor="middle" ` +
+      `font-size="7.2" font-family="Inter, system-ui, -apple-system, Segoe UI, sans-serif" ` +
+      `font-weight="700" fill="${fill}">$</text>`
+    );
+  }
+  return "";
+}
+
+/**
+ * Muted green pick marker for {@link chooseTopParkingStartSpotIds} when **`park=`** is omitted —
+ * same shell as {@link parkingSpotPickIcon} but pale fill so suggestion pins read as recommended,
+ * not selected. The optional **`role`** stamps a glyph on the inner circle: a **star** for
+ * **best**, a **walking person** for **farthest**, or a **`$`** for **expensive**.
+ *
+ * @param {ParkingRecommendationRole | undefined} role
+ */
+function parkingSpotPickSuggestionIcon(L, role) {
   const svg =
     '<svg xmlns="http://www.w3.org/2000/svg" width="28" height="42" viewBox="0 0 28 42">' +
     '<path fill="#bbf7d0" stroke="#16a34a" stroke-width="1.25" stroke-linejoin="round" ' +
     'd="M14 2C7.9 2 3 6.9 3 13c0 7.8 10.2 24.6 10.8 25.5.2.3.6.3.8 0 .6-.9 10.9-17.7 10.9-25.5C25 6.9 20.1 2 14 2z"/>' +
     '<circle cx="14" cy="13" r="5.2" fill="#ffffff"/>' +
+    parkingSpotPickSuggestionGlyphSvg(role) +
     "</svg>";
   return L.icon({
     iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
@@ -2863,6 +3090,18 @@ function parkingSpotPickSuggestionIcon(L) {
     iconAnchor: [14, 42],
     popupAnchor: [0, -36],
   });
+}
+
+/**
+ * Per-role z-index for muted suggestion pins so the **best** star paints over **farthest** /
+ * **expensive** when their drop-shadows overlap.
+ *
+ * @param {ParkingRecommendationRole} role
+ */
+function parkingPickSuggestionZIndexForRole(role) {
+  if (role === "best") return 630;
+  if (role === "farthest") return 615;
+  return 600;
 }
 
 function syncParkingSpotPickMarker(map) {
@@ -2878,30 +3117,43 @@ function syncParkingSpotPickMarker(map) {
     parkingSpotPickLayerGroup = null;
   }
 
-  const id = getParkingEffectiveStartSpotId();
-  if (!id) return;
-
-  const p = parseParkingSpotIdToken(id);
-  if (!p) return;
-
-  const spot = getAllParkingSpotMarkers().find((m) => m.spotId === id);
-  const row = spot ?? parkingSpotRowFallback(id, p);
   const committed = getParkingSpotIdForHash();
-  const isCommitted =
-    typeof committed === "string" && committed.length > 0 && committed === id;
-  const stepNums = parkingTripStepNumbersHashReady();
+  if (typeof committed === "string" && committed.length > 0) {
+    const p = parseParkingSpotIdToken(committed);
+    if (!p) return;
+    const spot = getAllParkingSpotMarkers().find((m) => m.spotId === committed);
+    const row = spot ?? parkingSpotRowFallback(committed, p);
+    const stepNums = parkingTripStepNumbersHashReady();
+    parkingSpotPickLayerGroup = L.layerGroup().addTo(map);
+    const g = parkingSpotPickLayerGroup;
+    const m = L.marker([p.lat, p.lng], {
+      icon: stepNums ? parkingSpotPickIcon(L, "1") : parkingSpotPickIcon(L, ""),
+      zIndexOffset: 650,
+    });
+    attachParkingSpotStartButton(m, row);
+    m.addTo(g);
+    return;
+  }
+
+  if (!getParkingDestinationLatLng()) return;
+  const candidates = chooseTopParkingStartSpotIds();
+  if (candidates.length === 0) return;
+
   parkingSpotPickLayerGroup = L.layerGroup().addTo(map);
   const g = parkingSpotPickLayerGroup;
-  const m = L.marker([p.lat, p.lng], {
-    icon: !isCommitted
-      ? parkingSpotPickSuggestionIcon(L)
-      : stepNums
-        ? parkingSpotPickIcon(L, "1")
-        : parkingSpotPickIcon(L, ""),
-    zIndexOffset: isCommitted ? 650 : 620,
-  });
-  attachParkingSpotStartButton(m, row);
-  m.addTo(g);
+  const allMarkers = getAllParkingSpotMarkers();
+  for (const { spotId, role } of candidates) {
+    const p = parseParkingSpotIdToken(spotId);
+    if (!p) continue;
+    const spot = allMarkers.find((m) => m.spotId === spotId);
+    const row = spot ?? parkingSpotRowFallback(spotId, p);
+    const m = L.marker([p.lat, p.lng], {
+      icon: parkingSpotPickSuggestionIcon(L, role),
+      zIndexOffset: parkingPickSuggestionZIndexForRole(role),
+    });
+    attachParkingSpotStartButton(m, row);
+    m.addTo(g);
+  }
 }
 
 function stampParkingEstimatedWalkLineAnimation(line) {
@@ -3514,7 +3766,7 @@ function syncParkingRouteInstructionsPanel() {
 
   if (!destLl) {
     body.innerHTML = routeNextHtml(
-      `Choose <strong class="font-semibold text-slate-800">where you're going</strong> with the destination menu above or click on one of the map markers.`,
+      `Choose <strong class="font-semibold text-slate-800">where you're going</strong> with the dropdown menu above or click on one of the map markers.`,
     );
     setParkingRouteUnverifiedNoteVisible(true);
     return;
@@ -3545,7 +3797,7 @@ function syncParkingRouteInstructionsPanel() {
       return;
     }
     body.innerHTML = routeNextHtml(
-      `Choose where you <strong class="font-semibold text-slate-800">plan to park</strong> by clicking on one of the locations, which match your current filters.`,
+      `Choose <strong class="font-semibold text-slate-800">where you'll park</strong> by clicking on one of the suggested map markers, which match your current filters.`,
       true,
     );
     setParkingRouteUnverifiedNoteVisible(true);
