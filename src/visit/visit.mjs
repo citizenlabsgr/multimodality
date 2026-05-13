@@ -1046,6 +1046,10 @@ const PARKING_FINISH_QUERY_KEY = "finish";
 /** Query param for selected parking pin on `#/visit` (`category:lat,lng`, 6dp). Legacy tilde form + legacy `start`, `spot`. */
 const PARKING_PARK_QUERY_KEY = "park";
 
+/** Query param that mirrors the parking legend / help modal being open (`help=true`). Toggled via `history.replaceState`. */
+const PARKING_HELP_QUERY_KEY = "help";
+const PARKING_HELP_QUERY_VALUE = "true";
+
 function parseParkingRoutePathSlug() {
   const hash = window.location.hash.slice(1);
   const qIdx = hash.indexOf("?");
@@ -4268,9 +4272,43 @@ function refitParkingLegendMiniMaps() {
   }
 }
 
+function isParkingHelpOpenInHash() {
+  const hash = window.location.hash.slice(1);
+  const qIdx = hash.indexOf("?");
+  if (qIdx < 0) return false;
+  const params = new URLSearchParams(hash.slice(qIdx + 1));
+  return params.get(PARKING_HELP_QUERY_KEY) === PARKING_HELP_QUERY_VALUE;
+}
+
+/**
+ * Write/strip `help=true` on the current hash without firing `hashchange` (uses {@link History#replaceState}),
+ * preserving the order of every other query param so {@link buildParkingHashFromState} round-trips cleanly.
+ */
+function setParkingHelpInHash(open) {
+  const hash = window.location.hash.slice(1);
+  const qIdx = hash.indexOf("?");
+  const path = qIdx >= 0 ? hash.slice(0, qIdx) : hash;
+  const queryStr = qIdx >= 0 ? hash.slice(qIdx + 1) : "";
+  const parts = queryStr ? queryStr.split("&").filter(Boolean) : [];
+  const filtered = parts.filter(
+    (kv) => kv.split("=")[0] !== PARKING_HELP_QUERY_KEY,
+  );
+  if (open)
+    filtered.push(`${PARKING_HELP_QUERY_KEY}=${PARKING_HELP_QUERY_VALUE}`);
+  const nextHash = filtered.length
+    ? `#${path}?${filtered.join("&")}`
+    : `#${path}`;
+  if (window.location.hash === nextHash) return;
+  window.history.replaceState(null, "", nextHash);
+}
+
 function openParkingLegendModal() {
   const modal = document.getElementById("parkingLegendModal");
   if (!modal || typeof globalThis.L === "undefined") return;
+  if (!modal.classList.contains("hidden")) {
+    setParkingHelpInHash(true);
+    return;
+  }
 
   disposeAllParkingLegendMiniMaps();
   for (const key of PARKING_MAP_ITEM_KEYS) {
@@ -4281,6 +4319,7 @@ function openParkingLegendModal() {
   modal.classList.remove("hidden");
   modal.setAttribute("aria-hidden", "false");
   document.body.classList.add("parking-legend-modal-open");
+  setParkingHelpInHash(true);
 
   requestAnimationFrame(() => {
     refitParkingLegendMiniMaps();
@@ -4298,6 +4337,17 @@ function closeParkingLegendModal() {
   }
   document.body.classList.remove("parking-legend-modal-open");
   disposeAllParkingLegendMiniMaps();
+  setParkingHelpInHash(false);
+}
+
+/** Open the legend modal when the URL says so (e.g. on initial load or after a shared link); close it otherwise. */
+function syncParkingLegendModalFromHash() {
+  const modal = document.getElementById("parkingLegendModal");
+  if (!modal) return;
+  const wantOpen = isParkingHelpOpenInHash();
+  const isOpen = !modal.classList.contains("hidden");
+  if (wantOpen && !isOpen) openParkingLegendModal();
+  else if (!wantOpen && isOpen) closeParkingLegendModal();
 }
 
 let parkingLegendModalDelegated = false;
@@ -4357,6 +4407,7 @@ export function renderParkingView() {
         map.invalidateSize();
         syncParkingMapOverlays(map);
       }
+      syncParkingLegendModalFromHash();
     });
   });
 }
