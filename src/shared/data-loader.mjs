@@ -79,6 +79,124 @@ function collectOfficialDriveParkingLatLngs(parking) {
   return out;
 }
 
+/** `category` in overrides — `#/visit` ids (`private-lot`) or parking keys (`osmLots`). */
+const PARKING_OVERRIDE_CATEGORY_TO_KEY = {
+  "public-garage": "garages",
+  "public-lot": "lots",
+  "private-garage": "osmGarages",
+  "private-lot": "osmLots",
+  garages: "garages",
+  lots: "lots",
+  osmGarages: "osmGarages",
+  osmLots: "osmLots",
+  meters: "meters",
+  racks: "racks",
+  micromobility: "micromobility",
+};
+
+/** Default Haversine match radius for override pins (miles). ~0.5 m at mid-lat. */
+const PARKING_OVERRIDE_DEFAULT_MATCH_MILES = 0.0002;
+
+/**
+ * Merge manual rows from `data/overrides.json` (a JSON array) into loaded parking arrays
+ * (after fetch filters and official/OSM dedupe). Unmatched entries log a console warning.
+ * @param {object} parking — merged `appData.parking` buckets
+ * @param {unknown[] | null} list
+ */
+function applyParkingDataOverrides(parking, list) {
+  if (!Array.isArray(list) || !list.length) return;
+  for (const ov of list) {
+    if (!ov || typeof ov !== "object") continue;
+    const rawCat = ov.category;
+    const key =
+      typeof rawCat === "string"
+        ? PARKING_OVERRIDE_CATEGORY_TO_KEY[rawCat.trim()]
+        : null;
+    if (!key) {
+      console.warn(
+        "data/overrides.json: unknown category",
+        rawCat,
+        "(use public-garage, public-lot, private-garage, private-lot, or garages, lots, …)",
+      );
+      continue;
+    }
+    const arr = parking[key];
+    if (!Array.isArray(arr)) continue;
+
+    const lat =
+      typeof ov.latitude === "number"
+        ? ov.latitude
+        : typeof ov.lat === "number"
+          ? ov.lat
+          : null;
+    const lng =
+      typeof ov.longitude === "number"
+        ? ov.longitude
+        : typeof ov.lon === "number"
+          ? ov.lon
+          : typeof ov.lng === "number"
+            ? ov.lng
+            : null;
+    if (lat == null || lng == null) {
+      console.warn("data/overrides.json: missing latitude/longitude for", key);
+      continue;
+    }
+
+    let tol = PARKING_OVERRIDE_DEFAULT_MATCH_MILES;
+    if (
+      typeof ov.matchToleranceMiles === "number" &&
+      Number.isFinite(ov.matchToleranceMiles) &&
+      ov.matchToleranceMiles > 0
+    ) {
+      tol = ov.matchToleranceMiles;
+    }
+
+    const idx = arr.findIndex((item) => {
+      const loc = item?.location;
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      ) {
+        return false;
+      }
+      return (
+        haversineMiles(loc.latitude, loc.longitude, lat, lng) <= tol + 1e-12
+      );
+    });
+    if (idx < 0) {
+      console.warn(
+        "data/overrides.json: no pin matched",
+        key,
+        "at",
+        lat,
+        lng,
+        "(try matchToleranceMiles)",
+      );
+      continue;
+    }
+
+    const item = arr[idx];
+    const next = { ...item };
+    if (typeof ov.name === "string" && ov.name.trim()) {
+      next.name = ov.name.trim();
+    }
+    if (
+      ov.pricing &&
+      typeof ov.pricing === "object" &&
+      !Array.isArray(ov.pricing)
+    ) {
+      next.pricing = {
+        ...(item.pricing && typeof item.pricing === "object"
+          ? item.pricing
+          : {}),
+        ...ov.pricing,
+      };
+    }
+    arr[idx] = next;
+  }
+}
+
 /** Remove OSM pins that duplicate ArcGIS facilities (nearby centroid). */
 function dedupeOsmParkingNearOfficial(parking) {
   const official = collectOfficialDriveParkingLatLngs(parking);
@@ -205,11 +323,14 @@ export async function loadData() {
       { file: "public/racks.json", key: "racks" },
       { file: "private/micromobility.json", key: "micromobility" },
     ];
-    const parkingResolves = await Promise.all(
-      parkingCategories.map(({ file }) =>
-        fetch(`data/parking/${file}`).then((r) => (r.ok ? r.json() : null)),
+    const [parkingResolves, overridesList] = await Promise.all([
+      Promise.all(
+        parkingCategories.map(({ file }) =>
+          fetch(`data/parking/${file}`).then((r) => (r.ok ? r.json() : null)),
+        ),
       ),
-    );
+      fetch("data/overrides.json").then((r) => (r.ok ? r.json() : null)),
+    ]);
     const parking = {
       garages: [],
       lots: [],
@@ -253,6 +374,7 @@ export async function loadData() {
     }
 
     dedupeOsmParkingNearOfficial(parking);
+    applyParkingDataOverrides(parking, overridesList);
 
     let busRoutes = null;
     const busRes = await fetch("data/bus/routes.json");

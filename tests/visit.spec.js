@@ -1214,7 +1214,7 @@ test.describe("Parking map (#/visit)", () => {
       );
     });
 
-    test("ArcGIS hourlyRate with weekends/weekday-evening prose counts as free under pay cap", async ({
+    test("ArcGIS hourly with weekends/weekday-evening prose counts as free under pay cap", async ({
       page,
     }) => {
       await page.goto("/#/visit/van-andel-arena?pay=15&walk=0.5");
@@ -1244,7 +1244,7 @@ test.describe("Parking map (#/visit)", () => {
               longitude: freeTierCoords.lng,
             },
             pricing: {
-              hourlyRate: "Weekends and Weekdays after 7pm",
+              hourly: "Weekends and Weekdays after 7pm",
             },
           });
         },

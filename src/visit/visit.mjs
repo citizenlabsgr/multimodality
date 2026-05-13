@@ -402,7 +402,7 @@ const PARKING_EVENING_PRICE_AMBIGUOUS_PROSE = -1;
 
 function pricingObjectHasAnyKnownTierField(pricing) {
   if (!pricing || typeof pricing !== "object") return false;
-  for (const k of ["evening", "events", "hourlyRate", "rate", "daytime"]) {
+  for (const k of ["evening", "events", "hourly", "rate", "daytime"]) {
     if (typeof pricing[k] === "string" && pricing[k].trim()) return true;
   }
   return false;
@@ -410,7 +410,7 @@ function pricingObjectHasAnyKnownTierField(pricing) {
 
 /**
  * ArcGIS / OSM prose that describes free parking during evenings or weekends (no `$` in source).
- * Grand Rapids meters: free after 7pm weekdays and weekends — visitor map sometimes uses `hourlyRate` for that prose.
+ * Grand Rapids meters: free after 7pm weekdays and weekends — visitor map sometimes uses `hourly` for that prose.
  */
 function parkingPriceTextImpliesEveningFree(text) {
   const s = typeof text === "string" ? text.trim().toLowerCase() : "";
@@ -436,12 +436,8 @@ function pickEveningTierStringForCap(pricing, categoryKey) {
   if (isPublic && typeof pricing.events === "string" && pricing.events.trim()) {
     return pricing.events.trim();
   }
-  if (
-    isPublic &&
-    typeof pricing.hourlyRate === "string" &&
-    pricing.hourlyRate.trim()
-  ) {
-    return pricing.hourlyRate.trim();
+  if (isPublic && typeof pricing.hourly === "string" && pricing.hourly.trim()) {
+    return pricing.hourly.trim();
   }
   if (typeof pricing.rate === "string" && pricing.rate.trim()) {
     return pricing.rate.trim();
@@ -817,6 +813,7 @@ function formatParkingPrice(pricing, categoryKey) {
   }
   if (pricing.events) return pricing.events;
   if (pricing.evening) return pricing.evening;
+  if (pricing.hourly) return pricing.hourly;
   if (pricing.rate) return pricing.rate;
   if (pricing.daytime) return pricing.daytime;
   return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
@@ -829,7 +826,7 @@ function parkingCostTextLooksLikeRate(s) {
 }
 
 /**
- * When ArcGIS has both **EVENT_CHRG** (`events`) and **Hour_Rate** (`hourlyRate`), show both in the popup.
+ * When ArcGIS has both **EVENT_CHRG** (`events`) and **Hour_Rate** (`hourly`), show both in the popup.
  * @returns {{ text: string, hourlyHint: boolean } | null}
  */
 function parkingMapEventPlusHourlySupplement(eventsText, hourlyText) {
@@ -859,8 +856,8 @@ function parkingMapCostLineForTierText(tierText) {
 }
 
 /**
- * Cost line for `#/visit` popups: prefers ArcGIS `hourlyRate` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
- * When **`events`** and **`hourlyRate`** are both set (city map), primary line is the **event** charge plus **`hourlyRate`** as a supplement (weekend / hourly context).
+ * Cost line for `#/visit` popups: prefers ArcGIS `hourly` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
+ * When **`events`** and **`hourly`** are both set (city map), primary line is the **event** charge plus **`hourly`** as a supplement (weekend / hourly context).
  * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
  */
 function getParkingMapCostDisplay(pricing, categoryKey) {
@@ -874,8 +871,7 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
   }
   const eventsRaw =
     typeof pricing.events === "string" ? pricing.events.trim() : "";
-  const hrRaw =
-    typeof pricing.hourlyRate === "string" ? pricing.hourlyRate.trim() : "";
+  const hrRaw = typeof pricing.hourly === "string" ? pricing.hourly.trim() : "";
 
   if (eventsRaw && hrRaw) {
     const extra = parkingMapEventPlusHourlySupplement(eventsRaw, hrRaw);

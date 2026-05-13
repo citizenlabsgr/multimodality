@@ -167,7 +167,7 @@ def build_pricing(attrs: dict) -> dict | None:
         pricing["rate"] = half
     hr = _pricing_val(attrs.get("Hour_Rate"))
     if hr:
-        pricing["hourlyRate"] = hr
+        pricing["hourly"] = hr
     return pricing or None
 
 

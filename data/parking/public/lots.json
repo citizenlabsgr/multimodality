@@ -11,7 +11,7 @@
       "name": "601 Ottawa Lot",
       "address": "601 Ottawa Ave NE",
       "pricing": {
-        "hourlyRate": "Weekends and Weekdays after 7pm"
+        "hourly": "Weekends and Weekdays after 7pm"
       },
       "availability": "80 spaces; DASH: Circulator"
     },
@@ -155,7 +155,7 @@
         "evening": "$51.00",
         "events": "$8.00-9.00",
         "rate": "$1.00 Per Hour",
-        "hourlyRate": "$1.00"
+        "hourly": "$1.00"
       },
       "availability": "300 spaces; DASH: Circulator"
     },

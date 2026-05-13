@@ -731,6 +731,7 @@ function formatParkingPrice(pricing, categoryKey) {
   }
   if (pricing.events) return pricing.events;
   if (pricing.evening) return pricing.evening;
+  if (pricing.hourly) return pricing.hourly;
   if (pricing.rate) return pricing.rate;
   if (pricing.daytime) return pricing.daytime;
   return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
