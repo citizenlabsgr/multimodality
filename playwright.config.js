@@ -5,7 +5,7 @@ module.exports = defineConfig({
   fullyParallel: true,
   workers: "100%",
   retries: 2,
-  updateSnapshots: process.env.CI ? "none" : "changed",
+  updateSnapshots: "changed",
   snapshotPathTemplate: "{testDir}/snapshots/{arg}{ext}",
   expect: {
     toHaveScreenshot: {
