@@ -10,6 +10,7 @@ import {
   MODES_PAGE_EMPTY_MAP_CENTER,
   FALLBACK_DATA,
   PARKING_PRICE_NOT_LISTED_LABEL,
+  getParkingDataViewOverrideSourceFields,
 } from "./shared/data-loader.mjs";
 import {
   compareParkingDataViewPointsForPaintOrder,
@@ -900,14 +901,20 @@ function updateDataViewMap(points, options) {
         2,
       );
       const rows = [];
+      const ovf = p.parkingOverrideFields;
       if (p.categoryName != null && p.categoryName !== "")
         rows.push(
           `<tr><th style="${thStyle}">Category</th><td style="${tdStyle}">${escapeHtml(p.categoryName)}</td></tr>`,
         );
-      if (p.locationName != null && p.locationName !== "")
+      if (p.locationName != null && p.locationName !== "") {
+        const nameTd =
+          ovf?.name === true
+            ? `<span style="color:#b91c1c">${escapeHtml(p.locationName)}</span>`
+            : escapeHtml(p.locationName);
         rows.push(
-          `<tr><th style="${thStyle}">Name</th><td style="${tdStyle}">${escapeHtml(p.locationName)}</td></tr>`,
+          `<tr><th style="${thStyle}">Name</th><td style="${tdStyle}">${nameTd}</td></tr>`,
         );
+      }
       const parkingAddress =
         p.parkingItem &&
         typeof p.parkingItem.address === "string" &&
@@ -919,8 +926,12 @@ function updateDataViewMap(points, options) {
           `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(parkingAddress)}</td></tr>`,
         );
       const costText = p.price != null && p.price !== "" ? p.price : "—";
+      const costTd =
+        ovf?.pricing === true
+          ? `<span style="color:#b91c1c">${escapeHtml(costText)}</span>`
+          : escapeHtml(costText);
       rows.push(
-        `<tr><th style="${thStyle}">Cost</th><td style="${tdStyle}">${escapeHtml(costText)}</td></tr>`,
+        `<tr><th style="${thStyle}">Cost</th><td style="${tdStyle}">${costTd}</td></tr>`,
       );
       const totalSpaces = parseTotalSpacesFromAvailability(
         p.parkingItem?.availability,
@@ -1288,12 +1299,14 @@ function renderDataView() {
       { href: "#/data/parking", label: "parking" },
       { href: "#/data/routes", label: "routes" },
     ];
-    dataViewIndex.innerHTML = geoLinks
-      .map(
-        (l) =>
-          `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
-      )
-      .join("");
+    dataViewIndex.innerHTML =
+      geoLinks
+        .map(
+          (l) =>
+            `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
+        )
+        .join("") +
+      `<p class="mt-4 max-w-prose text-sm text-slate-600">On <a href="#/data/parking" class="text-blue-600 hover:underline">parking</a>, name and cost values taken from <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">data/overrides.json</code> show in red in the pin popup.</p>`;
     return;
   }
 
@@ -1683,6 +1696,8 @@ function renderDataView() {
               price: formatParkingPrice(item.pricing, p.key),
               parkingItem: { ...item },
               parkingDatasetKey: p.key,
+              parkingOverrideFields:
+                getParkingDataViewOverrideSourceFields(item),
             });
           }
         });
@@ -1753,6 +1768,7 @@ function renderDataView() {
           price: formatParkingPrice(item.pricing, categoryKey),
           parkingItem: { ...item },
           parkingDatasetKey: categoryKey,
+          parkingOverrideFields: getParkingDataViewOverrideSourceFields(item),
         };
       });
   } else {

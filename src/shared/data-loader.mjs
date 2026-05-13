@@ -98,8 +98,26 @@ const PARKING_OVERRIDE_CATEGORY_TO_KEY = {
 const PARKING_OVERRIDE_DEFAULT_MATCH_MILES = 0.0002;
 
 /**
+ * Pin object -> which `#/data` popup fields were set from `data/overrides.json`
+ * (for red emphasis in the data map popup only).
+ */
+const parkingDataOverrideSourceFields = new WeakMap();
+
+/**
+ * @param {unknown} item — a parking row from `appData.parking.*`
+ * @returns {{ name?: true, pricing?: true } | null}
+ */
+export function getParkingDataViewOverrideSourceFields(item) {
+  if (item == null || typeof item !== "object") return null;
+  return (
+    parkingDataOverrideSourceFields.get(/** @type {object} */ (item)) ?? null
+  );
+}
+
+/**
  * Merge manual rows from `data/overrides.json` (a JSON array) into loaded parking arrays
  * (after fetch filters and official/OSM dedupe). Unmatched entries log a console warning.
+ * Use **`location`: `{ latitude, longitude }`** for pin coordinates (root-level lat/lng aliases still parse).
  * Each object may include **`note`** (string) for editors only — it is not copied onto pins or shown in the app.
  * **`hidden`: true** removes the matched pin from the merged dataset (no `#/visit` / `#/data` marker).
  * @param {object} parking — merged `appData.parking` buckets
@@ -125,20 +143,36 @@ function applyParkingDataOverrides(parking, list) {
     const arr = parking[key];
     if (!Array.isArray(arr)) continue;
 
+    const locOv =
+      ov.location &&
+      typeof ov.location === "object" &&
+      !Array.isArray(ov.location)
+        ? ov.location
+        : null;
     const lat =
-      typeof ov.latitude === "number"
-        ? ov.latitude
-        : typeof ov.lat === "number"
-          ? ov.lat
-          : null;
+      locOv && typeof locOv.latitude === "number"
+        ? locOv.latitude
+        : locOv && typeof locOv.lat === "number"
+          ? locOv.lat
+          : typeof ov.latitude === "number"
+            ? ov.latitude
+            : typeof ov.lat === "number"
+              ? ov.lat
+              : null;
     const lng =
-      typeof ov.longitude === "number"
-        ? ov.longitude
-        : typeof ov.lon === "number"
-          ? ov.lon
-          : typeof ov.lng === "number"
-            ? ov.lng
-            : null;
+      locOv && typeof locOv.longitude === "number"
+        ? locOv.longitude
+        : locOv && typeof locOv.lon === "number"
+          ? locOv.lon
+          : locOv && typeof locOv.lng === "number"
+            ? locOv.lng
+            : typeof ov.longitude === "number"
+              ? ov.longitude
+              : typeof ov.lon === "number"
+                ? ov.lon
+                : typeof ov.lng === "number"
+                  ? ov.lng
+                  : null;
     if (lat == null || lng == null) {
       console.warn("data/overrides.json: missing latitude/longitude for", key);
       continue;
@@ -185,20 +219,30 @@ function applyParkingDataOverrides(parking, list) {
 
     const item = arr[idx];
     const next = { ...item };
+    /** @type {{ name?: true, pricing?: true }} */
+    const fromOverride = {};
     if (typeof ov.name === "string" && ov.name.trim()) {
       next.name = ov.name.trim();
+      fromOverride.name = true;
     }
     if (
       ov.pricing &&
       typeof ov.pricing === "object" &&
       !Array.isArray(ov.pricing)
     ) {
-      next.pricing = {
-        ...(item.pricing && typeof item.pricing === "object"
-          ? item.pricing
-          : {}),
-        ...ov.pricing,
-      };
+      const pricingKeys = Object.keys(ov.pricing);
+      if (pricingKeys.length > 0) {
+        next.pricing = {
+          ...(item.pricing && typeof item.pricing === "object"
+            ? item.pricing
+            : {}),
+          ...ov.pricing,
+        };
+        fromOverride.pricing = true;
+      }
+    }
+    if (fromOverride.name || fromOverride.pricing) {
+      parkingDataOverrideSourceFields.set(next, fromOverride);
     }
     arr[idx] = next;
   }
