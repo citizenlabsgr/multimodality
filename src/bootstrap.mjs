@@ -1299,14 +1299,12 @@ function renderDataView() {
       { href: "#/data/parking", label: "parking" },
       { href: "#/data/routes", label: "routes" },
     ];
-    dataViewIndex.innerHTML =
-      geoLinks
-        .map(
-          (l) =>
-            `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
-        )
-        .join("") +
-      `<p class="mt-4 max-w-prose text-sm text-slate-600">On <a href="#/data/parking" class="text-blue-600 hover:underline">parking</a>, name and cost values taken from <code class="rounded bg-slate-100 px-1 py-0.5 text-xs">data/overrides.json</code> show in red in the pin popup.</p>`;
+    dataViewIndex.innerHTML = geoLinks
+      .map(
+        (l) =>
+          `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
+      )
+      .join("");
     return;
   }
 

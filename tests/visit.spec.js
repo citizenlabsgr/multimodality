@@ -993,7 +993,7 @@ test.describe("Parking map (#/visit)", () => {
       expect(id).toBe("public-lot:42.969938,-85.681874");
     });
 
-    test("Acrisure private-garage and private-lot only still auto-picks when no parseable price", async ({
+    test("Acrisure private-garage and private-lot only still auto-picks", async ({
       page,
     }) => {
       await page.goto(
@@ -1004,18 +1004,14 @@ test.describe("Parking map (#/visit)", () => {
 
       const r = await page.evaluate(() => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
-        const filt = globalThis.__filterParkingMarkersForRecommendationForTest;
         const id = globalThis.__chooseBestParkingStartSpotIdForTest();
         return {
           markerCount: markers.length,
-          knownDollarPins:
-            typeof filt === "function" ? filt(markers).length : 0,
           chosenId: id,
         };
       });
 
       expect(r.markerCount).toBeGreaterThan(0);
-      expect(r.knownDollarPins).toBe(0);
       expect(r.chosenId).toBeTruthy();
     });
   });

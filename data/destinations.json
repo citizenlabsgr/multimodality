@@ -3,6 +3,7 @@
     {
       "name": "Acrisure Amphitheater",
       "slug": "acrisure-amphitheater",
+      "useDashEventRoute": true,
       "location": {
         "latitude": 42.95878,
         "longitude": -85.67662
