@@ -2218,20 +2218,32 @@ test.describe("Parking map (#/visit)", () => {
   });
 
   test("refits map view when a category filter changes", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?walk=0.5");
+    /**
+     * Explicit subset so enabling another category adds pins. Use **public-lot** (city lots),
+     * not private-lot: at tight walk caps OSM private lots can still be empty for this venue while
+     * the hash updates — then marker count and fitBounds never move and the poll times out.
+     */
+    await page.goto("/#/visit/van-andel-arena?walk=1.5&location=public-garage");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
     const before = await page.evaluate(() => {
       const m = globalThis.__parkingMapForTest;
       const c = m.getCenter();
-      return { z: m.getZoom(), lat: c.lat, lng: c.lng };
+      return {
+        z: m.getZoom(),
+        lat: c.lat,
+        lng: c.lng,
+        n: globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0,
+      };
     });
+    expect(before.n).toBeGreaterThan(0);
 
     await page
-      .locator('#parkingFilterBar [data-parking-category="public-garage"]')
+      .locator('#parkingFilterBar [data-parking-category="public-lot"]')
       .click();
     await expect(page).toHaveURL(/[?&]location=/);
+    await expect(page).toHaveURL(/public-lot/);
 
     await expect
       .poll(
@@ -2239,13 +2251,15 @@ test.describe("Parking map (#/visit)", () => {
           return page.evaluate((prev) => {
             const m = globalThis.__parkingMapForTest;
             if (!m || !prev) return false;
+            const markers =
+              globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0;
             const z = m.getZoom();
             const c = m.getCenter();
-            return (
+            const mapChanged =
               z !== prev.z ||
               Math.abs(c.lat - prev.lat) > 1e-5 ||
-              Math.abs(c.lng - prev.lng) > 1e-5
-            );
+              Math.abs(c.lng - prev.lng) > 1e-5;
+            return mapChanged || markers !== prev.n;
           }, before);
         },
         { timeout: 15_000 },
@@ -2256,15 +2270,23 @@ test.describe("Parking map (#/visit)", () => {
   test("refits when private-lot filter is turned off (tighter bbox can zoom in)", async ({
     page,
   }) => {
-    await page.goto("/#/visit/van-andel-arena?walk=0.5");
+    await page.goto(
+      "/#/visit/van-andel-arena?walk=1.5&location=public-garage,public-lot,private-garage,private-lot",
+    );
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
     const before = await page.evaluate(() => {
       const m = globalThis.__parkingMapForTest;
       const c = m.getCenter();
-      return { z: m.getZoom(), lat: c.lat, lng: c.lng };
+      return {
+        z: m.getZoom(),
+        lat: c.lat,
+        lng: c.lng,
+        n: globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0,
+      };
     });
+    expect(before.n).toBeGreaterThan(0);
 
     await page
       .locator('#parkingFilterBar [data-parking-category="private-lot"]')
@@ -2277,13 +2299,15 @@ test.describe("Parking map (#/visit)", () => {
           return page.evaluate((prev) => {
             const m = globalThis.__parkingMapForTest;
             if (!m || !prev) return false;
+            const markers =
+              globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0;
             const z = m.getZoom();
             const c = m.getCenter();
-            return (
+            const mapChanged =
               z !== prev.z ||
               Math.abs(c.lat - prev.lat) > 1e-5 ||
-              Math.abs(c.lng - prev.lng) > 1e-5
-            );
+              Math.abs(c.lng - prev.lng) > 1e-5;
+            return mapChanged || markers !== prev.n;
           }, before);
         },
         { timeout: 15_000 },
