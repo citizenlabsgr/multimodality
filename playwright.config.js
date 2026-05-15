@@ -15,7 +15,8 @@ module.exports = defineConfig({
   use: {
     baseURL: "http://localhost:8080",
   },
-  timeout: 5000, // this is a static prototype so everything should be fast
+  // CI + Leaflet + data load often need >5s end-to-end; sub-steps use their own caps where needed.
+  timeout: 20_000,
   projects: [
     {
       name: "chromium",

@@ -26,14 +26,6 @@
       }
     },
     {
-      "name": "The Big Room (Silva)",
-      "slug": "the-big-room",
-      "location": {
-        "latitude": 42.97974,
-        "longitude": -85.67051
-      }
-    },
-    {
       "name": "The Intersection",
       "slug": "the-intersection",
       "location": {

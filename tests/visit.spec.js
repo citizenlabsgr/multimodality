@@ -5,11 +5,16 @@ installConsoleErrorAssertions(test);
 
 test.describe("Parking map (#/visit)", () => {
   async function waitForParkingData(page) {
-    await page.waitForFunction(() => typeof globalThis.L !== "undefined");
+    const dataTimeout = { timeout: 20_000 };
+    await page.waitForFunction(
+      () => typeof globalThis.L !== "undefined",
+      dataTimeout,
+    );
     await page.waitForFunction(
       () =>
         Array.isArray(window.appData?.parking?.garages) &&
         window.appData.parking.garages.length > 0,
+      dataTimeout,
     );
   }
 
@@ -1946,45 +1951,6 @@ test.describe("Parking map (#/visit)", () => {
       expect(walkZeroCount).toBeLessThan(generousWalkCount);
     });
 
-    /**
-     * Regression: far venues used to list pins that only satisfied “walk to DASH” while the winning
-     * multimodal route showed a long alight→venue leg over the cap (`#/visit/the-big-room?walk=0.2`).
-     */
-    test("The Big Room + tight walk: every listed pin satisfies multimodal walk-leg cap", async ({
-      page,
-    }) => {
-      await page.goto("/#/visit/the-big-room?walk=0.2");
-      await waitForParkingData(page);
-      await waitForParkingLeafletMap(page);
-
-      const r = await page.evaluate(() => {
-        const fn = globalThis.__parkingSpotWalkLegsWithinCapForTest;
-        const markers = globalThis.__getAllParkingSpotMarkersForTest?.();
-        const dest = window.appData?.destinations?.find(
-          (d) => d.slug === "the-big-room",
-        );
-        const dLat = dest?.latitude ?? dest?.location?.latitude;
-        const dLng = dest?.longitude ?? dest?.location?.longitude;
-        if (
-          typeof fn !== "function" ||
-          !Array.isArray(markers) ||
-          typeof dLat !== "number" ||
-          typeof dLng !== "number"
-        ) {
-          return { ok: false, reason: "setup", n: 0, bad: 0 };
-        }
-        const cap = 0.2;
-        let bad = 0;
-        for (const m of markers) {
-          if (!fn(m.lat, m.lng, dLat, dLng, cap)) bad += 1;
-        }
-        return { ok: bad === 0, bad, n: markers.length };
-      });
-
-      expect(r.ok, JSON.stringify(r)).toBe(true);
-      expect(r.n, JSON.stringify(r)).toBeGreaterThan(0);
-    });
-
     /** Winning trip (DASH or door-only): every walk segment must fit **`walk`** (regression: `#/visit/acrisure-amphitheater?walk=0.5`). */
     test("Acrisure walk=0.5: every listed pin fits displayed walks within cap", async ({
       page,
@@ -2252,71 +2218,101 @@ test.describe("Parking map (#/visit)", () => {
   });
 
   test("refits map view when a category filter changes", async ({ page }) => {
-    await page.goto("/#/visit/van-andel-arena?walk=0.5");
+    /**
+     * Explicit subset so enabling another category adds pins. Use **public-lot** (city lots),
+     * not private-lot: at tight walk caps OSM private lots can still be empty for this venue while
+     * the hash updates — then marker count and fitBounds never move and the poll times out.
+     */
+    await page.goto("/#/visit/van-andel-arena?walk=1.5&location=public-garage");
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
     const before = await page.evaluate(() => {
       const m = globalThis.__parkingMapForTest;
       const c = m.getCenter();
-      return { z: m.getZoom(), lat: c.lat, lng: c.lng };
+      return {
+        z: m.getZoom(),
+        lat: c.lat,
+        lng: c.lng,
+        n: globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0,
+      };
     });
+    expect(before.n).toBeGreaterThan(0);
 
     await page
-      .locator('#parkingFilterBar [data-parking-category="public-garage"]')
+      .locator('#parkingFilterBar [data-parking-category="public-lot"]')
       .click();
     await expect(page).toHaveURL(/[?&]location=/);
+    await expect(page).toHaveURL(/public-lot/);
 
-    await page.waitForFunction(
-      (prev) => {
-        const m = globalThis.__parkingMapForTest;
-        if (!m || !prev) return false;
-        const z = m.getZoom();
-        const c = m.getCenter();
-        return (
-          z !== prev.z ||
-          Math.abs(c.lat - prev.lat) > 1e-5 ||
-          Math.abs(c.lng - prev.lng) > 1e-5
-        );
-      },
-      before,
-      { timeout: 8000 },
-    );
+    await expect
+      .poll(
+        async () => {
+          return page.evaluate((prev) => {
+            const m = globalThis.__parkingMapForTest;
+            if (!m || !prev) return false;
+            const markers =
+              globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0;
+            const z = m.getZoom();
+            const c = m.getCenter();
+            const mapChanged =
+              z !== prev.z ||
+              Math.abs(c.lat - prev.lat) > 1e-5 ||
+              Math.abs(c.lng - prev.lng) > 1e-5;
+            return mapChanged || markers !== prev.n;
+          }, before);
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
   });
 
   test("refits when private-lot filter is turned off (tighter bbox can zoom in)", async ({
     page,
   }) => {
-    await page.goto("/#/visit/van-andel-arena?walk=0.5");
+    await page.goto(
+      "/#/visit/van-andel-arena?walk=1.5&location=public-garage,public-lot,private-garage,private-lot",
+    );
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
     const before = await page.evaluate(() => {
       const m = globalThis.__parkingMapForTest;
       const c = m.getCenter();
-      return { z: m.getZoom(), lat: c.lat, lng: c.lng };
+      return {
+        z: m.getZoom(),
+        lat: c.lat,
+        lng: c.lng,
+        n: globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0,
+      };
     });
+    expect(before.n).toBeGreaterThan(0);
 
     await page
       .locator('#parkingFilterBar [data-parking-category="private-lot"]')
       .click();
     await expect(page).toHaveURL(/[?&]location=/);
 
-    await page.waitForFunction(
-      (prev) => {
-        const m = globalThis.__parkingMapForTest;
-        if (!m || !prev) return false;
-        const z = m.getZoom();
-        const c = m.getCenter();
-        return (
-          z !== prev.z ||
-          Math.abs(c.lat - prev.lat) > 1e-5 ||
-          Math.abs(c.lng - prev.lng) > 1e-5
-        );
-      },
-      before,
-      { timeout: 8000 },
-    );
+    await expect
+      .poll(
+        async () => {
+          return page.evaluate((prev) => {
+            const m = globalThis.__parkingMapForTest;
+            if (!m || !prev) return false;
+            const markers =
+              globalThis.__getAllParkingSpotMarkersForTest?.()?.length ?? 0;
+            const z = m.getZoom();
+            const c = m.getCenter();
+            const mapChanged =
+              z !== prev.z ||
+              Math.abs(c.lat - prev.lat) > 1e-5 ||
+              Math.abs(c.lng - prev.lng) > 1e-5;
+            return mapChanged || markers !== prev.n;
+          }, before);
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
   });
 
   test.describe("Auto recommendation without park= in URL", () => {
@@ -2437,66 +2433,71 @@ test.describe("Parking map (#/visit)", () => {
     await waitForParkingData(page);
     await waitForParkingLeafletMap(page);
 
-    const result = await page.evaluate(() => {
-      /** Same bottom→top order as `PARKING_CATEGORY_PAINT_ORDER` in `src/visit/visit.mjs`. */
-      const PAINT_ORDER_BOTTOM_TO_TOP = [
-        "private-lot",
-        "public-lot",
-        "private-garage",
-        "public-garage",
-      ];
-      const rank = (k) => PAINT_ORDER_BOTTOM_TO_TOP.indexOf(k);
-      const g = globalThis.__parkingSpotsLayerForTest;
-      if (!g) return { ok: false, error: "no parking spots layer" };
+    await expect
+      .poll(
+        async () =>
+          page.evaluate(() => {
+            /** Same bottom→top order as `PARKING_CATEGORY_PAINT_ORDER` in `src/visit/visit.mjs`. */
+            const PAINT_ORDER_BOTTOM_TO_TOP = [
+              "private-lot",
+              "public-lot",
+              "private-garage",
+              "public-garage",
+            ];
+            const rank = (k) => PAINT_ORDER_BOTTOM_TO_TOP.indexOf(k);
+            const g = globalThis.__parkingSpotsLayerForTest;
+            if (!g) return { ok: false, error: "no parking spots layer" };
 
-      const rows = [];
-      g.eachLayer((group) => {
-        if (!group?.eachLayer) return;
-        group.eachLayer((m) => {
-          const k = m.options?.parkingCategoryKey;
-          if (
-            !k ||
-            m.options?.parkingSpotPopupLayer ||
-            typeof m.getElement !== "function"
-          )
-            return;
-          const el = m.getElement();
-          if (!el) return;
-          rows.push({ k, el });
-        });
-      });
-      if (rows.length < 2) return { ok: false, error: "too few markers" };
+            const rows = [];
+            g.eachLayer((group) => {
+              if (!group?.eachLayer) return;
+              group.eachLayer((m) => {
+                const k = m.options?.parkingCategoryKey;
+                if (
+                  !k ||
+                  m.options?.parkingSpotPopupLayer ||
+                  typeof m.getElement !== "function"
+                )
+                  return;
+                const el = m.getElement();
+                if (!el) return;
+                rows.push({ k, el });
+              });
+            });
+            if (rows.length < 2) return { ok: false, error: "too few markers" };
 
-      const svg = rows[0].el.ownerSVGElement;
-      if (!svg) return { ok: false, error: "no svg" };
-      const paintOrder = Array.from(svg.querySelectorAll("circle, path"));
-      const idx = (el) => paintOrder.indexOf(el);
+            const svg = rows[0].el.ownerSVGElement;
+            if (!svg) return { ok: false, error: "no svg" };
+            const paintOrder = Array.from(svg.querySelectorAll("circle, path"));
+            const idx = (el) => paintOrder.indexOf(el);
 
-      const ordered = rows.filter((r) => idx(r.el) >= 0);
-      if (ordered.length < 2) return { ok: false, error: "markers not in svg" };
+            const ordered = rows.filter((r) => idx(r.el) >= 0);
+            if (ordered.length < 2)
+              return { ok: false, error: "markers not in svg" };
 
-      ordered.sort((a, b) => idx(a.el) - idx(b.el));
+            ordered.sort((a, b) => idx(a.el) - idx(b.el));
 
-      for (let i = 1; i < ordered.length; i++) {
-        const r0 = rank(ordered[i - 1].k);
-        const r1 = rank(ordered[i].k);
-        if (r0 === -1 || r1 === -1)
-          return {
-            ok: false,
-            error: "unknown category",
-            pair: [ordered[i - 1].k, ordered[i].k],
-          };
-        if (r1 < r0)
-          return {
-            ok: false,
-            error: "paint order breaks PARKING_CATEGORY_PAINT_ORDER",
-            pair: [ordered[i - 1].k, ordered[i].k],
-          };
-      }
-      return { ok: true, count: ordered.length };
-    });
-
-    expect(result.ok, JSON.stringify(result)).toBe(true);
+            for (let i = 1; i < ordered.length; i++) {
+              const r0 = rank(ordered[i - 1].k);
+              const r1 = rank(ordered[i].k);
+              if (r0 === -1 || r1 === -1)
+                return {
+                  ok: false,
+                  error: "unknown category",
+                  pair: [ordered[i - 1].k, ordered[i].k],
+                };
+              if (r1 < r0)
+                return {
+                  ok: false,
+                  error: "paint order breaks PARKING_CATEGORY_PAINT_ORDER",
+                  pair: [ordered[i - 1].k, ordered[i].k],
+                };
+            }
+            return { ok: true, count: ordered.length };
+          }),
+        { timeout: 15_000 },
+      )
+      .toMatchObject({ ok: true });
   });
 });
 

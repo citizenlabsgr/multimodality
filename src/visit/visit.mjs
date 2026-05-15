@@ -2286,6 +2286,22 @@ function getParkingDashMapData() {
 }
 
 /**
+ * DASH stop + polyline vertices for map bounds (same geometry as the base route layer).
+ * @returns {Array<[number, number]>}
+ */
+function getParkingDashLatLngsForMapBounds() {
+  const { points, polylines } = getParkingDashMapData();
+  const ll = [];
+  for (const p of points) ll.push([p.lat, p.lng]);
+  for (const pl of polylines) {
+    for (const pair of pl.latLngs || []) {
+      if (Array.isArray(pair) && pair.length >= 2) ll.push([pair[0], pair[1]]);
+    }
+  }
+  return ll;
+}
+
+/**
  * DASH stop coordinates used for parking proximity (same points as the map layer).
  * @returns {Array<{ lat: number, lng: number }>}
  */
@@ -3649,11 +3665,15 @@ function fitParkingMapToAllContent(map) {
   const allDestLatLngs = noFinish ? getAllParkingDestinationFitLatLngs() : [];
 
   /**
-   * No venue: frame **only** placeholder destination pins — not parking (parking spreads
-   * far past venues and leaves empty margin, especially on tall viewports).
+   * No venue: frame placeholder destination pins **and** the DASH loop — not parking
+   * (parking spreads far past venues). Including route geometry avoids clipping the shuttle
+   * tails when venues cluster away from the full loop.
    */
   if (noFinish && allDestLatLngs.length > 1) {
-    map.fitBounds(L.latLngBounds(allDestLatLngs), {
+    const dashLl = getParkingDashLatLngsForMapBounds();
+    const merged =
+      dashLl.length > 0 ? [...allDestLatLngs, ...dashLl] : allDestLatLngs;
+    map.fitBounds(L.latLngBounds(merged), {
       padding: PARKING_MAP_FIT_DEST_ONLY_PADDING,
       maxZoom: fitMaxZoom,
     });
@@ -3695,9 +3715,18 @@ function fitParkingMapToAllContent(map) {
     return;
   }
 
-  /** Rare: one destination in data — keep it in view when also fitting many spots. */
-  const mergeDestWhenNoFinish = (pts) =>
-    noFinish && allDestLatLngs.length === 1 ? [...pts, ...allDestLatLngs] : pts;
+  /** Rare: one destination in data — keep it in view when also fitting many spots / DASH. */
+  const mergeDestWhenNoFinish = (pts) => {
+    let merged =
+      noFinish && allDestLatLngs.length === 1
+        ? [...pts, ...allDestLatLngs]
+        : pts;
+    if (noFinish) {
+      const dashLl = getParkingDashLatLngsForMapBounds();
+      if (dashLl.length > 0) merged = [...merged, ...dashLl];
+    }
+    return merged;
+  };
 
   // Fit to parking pins only (no `finish=` yet, or single-destination data edge case).
   if (spotLatLngs.length > 1) {
@@ -3719,19 +3748,19 @@ function fitParkingMapToAllContent(map) {
   }
 
   if (allDestLatLngs.length === 1) {
-    cappedSetZoom(allDestLatLngs[0], 15);
+    const dashLl = getParkingDashLatLngsForMapBounds();
+    if (dashLl.length > 0) {
+      map.fitBounds(L.latLngBounds([...allDestLatLngs, ...dashLl]), {
+        padding: PARKING_MAP_FIT_DEST_ONLY_PADDING,
+        maxZoom: fitMaxZoom,
+      });
+    } else {
+      cappedSetZoom(allDestLatLngs[0], 15);
+    }
     return;
   }
 
-  const { points: dashPoints, polylines } = getParkingDashMapData();
-  const dashBounds = [];
-  for (const p of dashPoints) dashBounds.push([p.lat, p.lng]);
-  for (const pl of polylines) {
-    for (const pair of pl.latLngs || []) {
-      if (Array.isArray(pair) && pair.length >= 2)
-        dashBounds.push([pair[0], pair[1]]);
-    }
-  }
+  const dashBounds = getParkingDashLatLngsForMapBounds();
   if (dashBounds.length > 1) {
     map.fitBounds(L.latLngBounds(dashBounds), fitOpts);
   } else if (dashBounds.length === 1) {
