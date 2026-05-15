@@ -5,6 +5,7 @@
 import {
   appData,
   loadData,
+  isDestinationHiddenFromPublicMaps,
   haversineMiles,
   roundCoord5,
   MODES_PAGE_EMPTY_MAP_CENTER,
@@ -195,7 +196,52 @@ function normalizeUnknownHashRoute() {
     return;
   }
 
+  const trimmedPath = pathPart.replace(/\/$/, "");
+  if (/^\/[^/]+$/.test(trimmedPath)) {
+    return;
+  }
+
   window.location.hash = query ? `#/visit?${query}` : "#/visit";
+}
+
+/**
+ * After `loadData()`, turn deferred `#/<destination-slug>` hashes into `#/visit/<slug>` (preserve query).
+ * Unknown single-segment paths become `#/visit` (or `#/visit?<query>`).
+ */
+function rewriteDeferredDestinationHashIfNeeded() {
+  if (
+    !Array.isArray(appData?.destinations) ||
+    appData.destinations.length === 0
+  )
+    return;
+  const raw = window.location.hash.slice(1);
+  if (!raw) return;
+  const qIdx = raw.indexOf("?");
+  const pathPart = (qIdx >= 0 ? raw.slice(0, qIdx) : raw).replace(/\/$/, "");
+  const query = qIdx >= 0 ? raw.slice(qIdx) : "";
+  if (!/^\/[^/]+$/.test(pathPart)) return;
+  if (
+    pathPart === "/visit" ||
+    pathPart.startsWith("/visit/") ||
+    pathPart === "/data" ||
+    pathPart.startsWith("/data/") ||
+    pathPart === "/modes" ||
+    pathPart.startsWith("/modes/") ||
+    pathPart === "/parking" ||
+    pathPart.startsWith("/parking/")
+  ) {
+    return;
+  }
+  const slug = pathPart.slice(1);
+  const list = Array.isArray(appData?.destinations) ? appData.destinations : [];
+  const match = list.some((d) => d.slug === slug);
+  const next =
+    match && slug
+      ? `#/visit/${slug}${query}`
+      : query
+        ? `#/visit${query}`
+        : "#/visit";
+  if (window.location.hash !== next) window.location.hash = next;
 }
 
 const MODES_PAGE_PARKING_KEYS = [
@@ -276,6 +322,7 @@ function destinationsToModesPagePoints() {
     : [];
   const out = [];
   for (const d of destinations) {
+    if (isDestinationHiddenFromPublicMaps(d)) continue;
     const lat = d.latitude;
     const lng = d.longitude;
     if (typeof lat !== "number" || typeof lng !== "number") continue;
@@ -744,6 +791,40 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+/** Eye icon — destinations shown on the visit map (`#/data/destinations` filter). */
+function dataDestinationsVisibleIconSvg() {
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">' +
+    '<path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>' +
+    '<path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd"/>' +
+    "</svg>"
+  );
+}
+
+/** Eye-off — `hidden` destinations (visit map browse only when linked). */
+function dataDestinationsHiddenOnlyIconSvg() {
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">' +
+    '<path fill-rule="evenodd" d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745A10.03 10.03 0 0019.542 10C17.857 5.865 14.183 3 10 3c-1.156 0-2.255.196-3.28.55L3.28 2.22zm2.602 2.602l1.977 1.977A3.998 3.998 0 006 10c0 2.21 1.79 4 4 4 1.37 0 2.58-.69 3.3-1.74l2.601 2.602A9.969 9.969 0 0110 17c-4.478 0-8.268-2.943-9.542-7a9.978 9.978 0 012.422-3.178zm4.118 4.118l2.002 2.002a2 2 0 01-2.002-2.002zM10 5.5c-.51 0-1 .09-1.45.25l3.2 3.2A2.5 2.5 0 0010 5.5z" clip-rule="evenodd"/>' +
+    "</svg>"
+  );
+}
+
+function setDataDestinationsViewButtonActive(btn, active) {
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", active ? "true" : "false");
+  btn.classList.toggle("bg-sky-100", active);
+  btn.classList.toggle("border-sky-500", active);
+  btn.classList.toggle("border-slate-300", !active);
+  if (!active) {
+    btn.classList.add("bg-white", "text-slate-700", "hover:bg-slate-100");
+    btn.classList.remove("text-slate-900", "hover:bg-sky-200");
+  } else {
+    btn.classList.remove("hover:bg-slate-100");
+    btn.classList.add("text-slate-900", "hover:bg-sky-200");
+  }
+}
+
 function formatParkingPrice(pricing, categoryKey) {
   const privateOsm = categoryKey === "osmGarages" || categoryKey === "osmLots";
   if (!pricing || typeof pricing !== "object") {
@@ -1126,6 +1207,10 @@ function updateDataViewMap(points, options) {
         rows.push(
           `<tr><th style="${thStyle}">Slug</th><td style="${tdStyle}">${escapeHtml(p.slug)}</td></tr>`,
         );
+      if (p.destinationHiddenFromPublicMaps === true)
+        rows.push(
+          `<tr><th style="${thStyle}">Visit map</th><td style="${tdStyle}">Hidden from the parking map browse UI until linked directly (e.g. <code class="text-xs">#/visit/${escapeHtml(String(p.slug))}</code>).</td></tr>`,
+        );
       rows.push(
         `<tr><th style="${thStyle}">Coordinates</th><td style="${tdStyle}"><span class="data-view-popup-coords" style="font-family:ui-monospace,monospace;font-size:11px;white-space:pre;display:block;padding-top:4px">${escapeHtml(coordsJson)}</span><div class="mt-1 mb-1 text-right"><button type="button" class="data-view-copy-json hidden rounded bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700">Copy New JSON</button></div></td></tr>`,
       );
@@ -1312,16 +1397,62 @@ function renderDataView() {
     const destinations = Array.isArray(appData.destinations)
       ? appData.destinations
       : [];
+    const params = parseFragment();
+    const viewRaw = params.view ? String(params.view).trim().toLowerCase() : "";
+    const destViewMode =
+      viewRaw === "hidden"
+        ? "hidden"
+        : viewRaw === "visible"
+          ? "visible"
+          : "all";
+
+    function buildDataDestinationsHash(opts) {
+      const q = [];
+      if (opts.view === "visible") q.push("view=visible");
+      if (opts.view === "hidden") q.push("view=hidden");
+      return "#/data/destinations" + (q.length > 0 ? "?" + q.join("&") : "");
+    }
+
     const dataViewDestinationsBar = document.getElementById(
       "dataViewDestinationsBar",
     );
     if (dataViewDestinationsBar) {
       dataViewDestinationsBar.classList.remove("hidden");
+      const visiblePressed = destViewMode === "visible";
+      const hiddenPressed = destViewMode === "hidden";
       dataViewDestinationsBar.innerHTML = `
         <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">←</a>
-        <span class="ml-auto text-sm font-medium text-slate-700">Destinations</span>`;
+        <div class="flex flex-1 flex-wrap items-center justify-center gap-2 min-w-0" role="group" aria-label="Destination visibility">
+          <span class="text-sm font-medium text-slate-700">Destinations:</span>
+          <button type="button" class="data-dest-view-btn inline-flex items-center gap-1.5 rounded-lg border py-2 px-3 text-sm font-medium transition-colors" data-dest-view="visible" aria-pressed="${visiblePressed ? "true" : "false"}" title="Show only venues on the visit map browse list (tap again for all)">${dataDestinationsVisibleIconSvg()}<span>Visible</span></button>
+          <button type="button" class="data-dest-view-btn inline-flex items-center gap-1.5 rounded-lg border py-2 px-3 text-sm font-medium transition-colors" data-dest-view="hidden" aria-pressed="${hiddenPressed ? "true" : "false"}" title="Show only venues hidden from the visit map until linked (tap again for all)">${dataDestinationsHiddenOnlyIconSvg()}<span>Hidden</span></button>
+        </div>
+        <div class="flex items-center gap-2 shrink-0 md:min-w-[10.5rem]" aria-hidden="true"></div>`;
+      const btnVisible = dataViewDestinationsBar.querySelector(
+        '.data-dest-view-btn[data-dest-view="visible"]',
+      );
+      const btnHidden = dataViewDestinationsBar.querySelector(
+        '.data-dest-view-btn[data-dest-view="hidden"]',
+      );
+      setDataDestinationsViewButtonActive(btnVisible, visiblePressed);
+      setDataDestinationsViewButtonActive(btnHidden, hiddenPressed);
+      btnVisible?.addEventListener("click", () => {
+        const next = destViewMode === "visible" ? "all" : "visible";
+        window.location.hash = buildDataDestinationsHash({ view: next });
+      });
+      btnHidden?.addEventListener("click", () => {
+        const next = destViewMode === "hidden" ? "all" : "hidden";
+        window.location.hash = buildDataDestinationsHash({ view: next });
+      });
     }
     const destinationPoints = destinations
+      .filter((d) => {
+        if (destViewMode === "hidden")
+          return isDestinationHiddenFromPublicMaps(d);
+        if (destViewMode === "visible")
+          return !isDestinationHiddenFromPublicMaps(d);
+        return true;
+      })
       .filter(
         (d) =>
           typeof d.latitude === "number" && typeof d.longitude === "number",
@@ -1332,6 +1463,7 @@ function renderDataView() {
         isDestination: true,
         destinationName: d.name || d.slug || "Destination",
         slug: d.slug,
+        destinationHiddenFromPublicMaps: isDestinationHiddenFromPublicMaps(d),
       }));
     updateDataViewMap(destinationPoints);
     dataViewIndex.classList.add("hidden");
@@ -1881,6 +2013,7 @@ window.addEventListener("hashchange", () => {
   migrateLegacyParkingRouteHash();
   migratePlannerRouteHash();
   normalizeUnknownHashRoute();
+  rewriteDeferredDestinationHashIfNeeded();
   if (isParkingRoute()) {
     hideModesView();
     hideDataView();
@@ -1911,6 +2044,10 @@ async function init() {
     prepareParkingShellVisibility();
   }
   await loadData();
+  rewriteDeferredDestinationHashIfNeeded();
+  if (isParkingRoute()) {
+    prepareParkingShellVisibility();
+  }
   validModes = appData.validModes;
   window.appData = appData;
 

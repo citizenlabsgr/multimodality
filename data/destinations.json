@@ -34,6 +34,15 @@
       }
     },
     {
+      "name": "The Big Room (Silva)",
+      "slug": "the-big-room",
+      "hidden": true,
+      "location": {
+        "latitude": 42.97974,
+        "longitude": -85.67051
+      }
+    },
+    {
       "name": "The Pyramid Scheme",
       "slug": "the-pyramid-scheme",
       "location": {
@@ -47,6 +56,15 @@
       "location": {
         "latitude": 42.96298,
         "longitude": -85.67186
+      }
+    },
+    {
+      "name": "Amway Stadium",
+      "slug": "amway-stadium",
+      "hidden": true,
+      "location": {
+        "latitude": 42.968266,
+        "longitude": -85.680687
       }
     }
   ]
