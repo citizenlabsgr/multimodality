@@ -104,7 +104,7 @@ const parkingDataOverrideSourceFields = new WeakMap();
 
 /**
  * @param {unknown} item — a parking row from `appData.parking.*`
- * @returns {{ name?: true, pricing?: true } | null}
+ * @returns {{ name?: true, pricing?: true, manager?: true } | null}
  */
 export function getParkingDataViewOverrideSourceFields(item) {
   if (item == null || typeof item !== "object") return null;
@@ -119,9 +119,10 @@ export function getParkingDataViewOverrideSourceFields(item) {
  * Use **`location`: `{ latitude, longitude }`** for pin coordinates (root-level lat/lng aliases still parse).
  * Each object may include **`note`** (string) for editors only — it is not copied onto pins or shown in the app.
  * Optional **`address`** (string) replaces the matched pin's address when non-empty.
+ * Optional **`manager`** (string) sets who operates the lot or garage (shown in **`#/visit`** for private pins).
  * **`hidden`: true** removes the matched pin from the merged dataset (no `#/visit` / `#/data` marker).
- * AirGarage lots: listing URLs usually follow `https://www.airgarage.com/location/` + kebab-case **name**
- * + `-grand-rapids-mi` (confirm in browser — not stored in **`note`**).
+ * Private lots with AirGarage pricing often use **`manager`: `"AirGarage"`**; listing URLs are usually
+ * `https://www.airgarage.com/location/` + kebab-case name + `-grand-rapids-mi` (confirm in browser — not stored in **`note`**).
  * @param {object} parking — merged `appData.parking` buckets
  * @param {unknown[] | null} list
  */
@@ -221,7 +222,7 @@ function applyParkingDataOverrides(parking, list) {
 
     const item = arr[idx];
     const next = { ...item };
-    /** @type {{ name?: true, pricing?: true }} */
+    /** @type {{ name?: true, pricing?: true, manager?: true }} */
     const fromOverride = {};
     if (typeof ov.name === "string" && ov.name.trim()) {
       next.name = ov.name.trim();
@@ -246,13 +247,33 @@ function applyParkingDataOverrides(parking, list) {
     if (typeof ov.address === "string" && ov.address.trim()) {
       next.address = ov.address.trim();
     }
+    if (typeof ov.manager === "string" && ov.manager.trim()) {
+      next.manager = ov.manager.trim();
+      fromOverride.manager = true;
+    }
     if (typeof ov.note === "string" && ov.note.trim()) {
       next.dataOverrideNote = ov.note.trim();
     }
-    if (fromOverride.name || fromOverride.pricing) {
+    if (fromOverride.name || fromOverride.pricing || fromOverride.manager) {
       parkingDataOverrideSourceFields.set(next, fromOverride);
     }
     arr[idx] = next;
+  }
+}
+
+/** Official public inventory defaults to municipal operation when **`manager`** is omitted. */
+function ensureDefaultManagersOnPublicDriveParking(parking) {
+  const city = "City";
+  for (const key of ["garages", "lots"]) {
+    const arr = parking[key];
+    if (!Array.isArray(arr)) continue;
+    for (let i = 0; i < arr.length; i++) {
+      const item = arr[i];
+      if (!item || typeof item !== "object") continue;
+      const m = item.manager;
+      if (typeof m === "string" && m.trim() !== "") continue;
+      arr[i] = { ...item, manager: city };
+    }
   }
 }
 
@@ -444,6 +465,7 @@ export async function loadData() {
 
     dedupeOsmParkingNearOfficial(parking);
     applyParkingDataOverrides(parking, overridesList);
+    ensureDefaultManagersOnPublicDriveParking(parking);
 
     let busRoutes = null;
     const busRes = await fetch("data/bus/routes.json");

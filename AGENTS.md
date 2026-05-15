@@ -79,13 +79,14 @@ Each parking file has:
 
 Each **item** (parking location) has:
 
-| Attribute      | Type   | Required | Description                                                     |
-| -------------- | ------ | -------- | --------------------------------------------------------------- |
-| `location`     | object | yes      | Coordinates: `{ "latitude": number, "longitude": number }`.     |
-| `name`         | string | no       | Display name for the map and popup (e.g. "Arena Place Garage"). |
-| `address`      | string | no       | Street address.                                                 |
-| `pricing`      | object | no       | Price info; shown in map popups. See below.                     |
-| `availability` | string | no       | e.g. "Good availability".                                       |
+| Attribute      | Type   | Required | Description                                                                                                                                                                                                                                                                                     |
+| -------------- | ------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `location`     | object | yes      | Coordinates: `{ "latitude": number, "longitude": number }`.                                                                                                                                                                                                                                     |
+| `name`         | string | no       | Display name for the map and popup (e.g. "Arena Place Garage").                                                                                                                                                                                                                                 |
+| `address`      | string | no       | Street address.                                                                                                                                                                                                                                                                                 |
+| `pricing`      | object | no       | Price info; shown in map popups. See below.                                                                                                                                                                                                                                                     |
+| `availability` | string | no       | e.g. "Good availability".                                                                                                                                                                                                                                                                       |
+| `manager`      | string | no       | Who operates the facility (e.g. **AirGarage** on a private lot). Official public **`garages`** / **`lots`** from ArcGIS default to **`City`** in `loadData()` when omitted. The **`#/visit`** map shows **`(manager)`** after the category line only for **private** garages and lots when set. |
 
 **`pricing`** (optional): an object. The **data view** map shows one line chosen in this order: `events`, then `evening`, then `hourly`, then `rate`, then `daytime`. The **`#/visit`** map popup uses **`events`** as the primary cost when ArcGIS **`EVENT_CHRG`** is present; if **`hourly`** (`Hour_Rate`) is also set, it is shown after the event line (weekend/hourly context). When `events` is absent, `#/visit` falls back in order: `hourly`, `evening`, `rate`, `daytime`. If none are present, the data-view map shows **"Not listed"** for private OSM garages/lots (`osmGarages`, `osmLots`) and **"Free"** for other categories. Examples: `{ "rate": "$8-$10 for 4 hours" }` or `{ "daytime": "Max $27", "evening": "$27-$30", "events": "$27-$30" }`.
 

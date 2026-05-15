@@ -1080,6 +1080,21 @@ function updateDataViewMap(points, options) {
         rows.push(
           `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(parkingAddress)}</td></tr>`,
         );
+      const parkingManager =
+        p.parkingItem &&
+        typeof p.parkingItem.manager === "string" &&
+        p.parkingItem.manager.trim() !== ""
+          ? p.parkingItem.manager.trim()
+          : "";
+      if (parkingManager) {
+        const managerTd =
+          ovf?.manager === true
+            ? `<span style="color:#b91c1c">${escapeHtml(parkingManager)}</span>`
+            : escapeHtml(parkingManager);
+        rows.push(
+          `<tr><th style="${thStyle}">Manager</th><td style="${tdStyle}">${managerTd}</td></tr>`,
+        );
+      }
       const pricingRows = getDataViewParkingPricingRows(
         p.parkingItem?.pricing,
         p.parkingDatasetKey,
