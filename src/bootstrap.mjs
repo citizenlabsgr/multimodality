@@ -825,17 +825,89 @@ function setDataDestinationsViewButtonActive(btn, active) {
   }
 }
 
-function formatParkingPrice(pricing, categoryKey) {
+/** Display order for `#/data/parking` map popups — unknown keys sort after these. */
+const DATA_VIEW_PARKING_PRICING_KEY_ORDER = [
+  "events",
+  "evening",
+  "hourly",
+  "daytime",
+  "rate",
+  "daily",
+  "weekly",
+  "monthly",
+  "overnight",
+  "weekend",
+];
+
+function dataViewParkingPricingKeyLabel(key) {
+  if (typeof key !== "string" || !key.trim()) return "Price";
+  const map = {
+    events: "Events",
+    evening: "Evening",
+    hourly: "Hourly",
+    daytime: "Daytime",
+    rate: "Rate",
+    daily: "Daily",
+    weekly: "Weekly",
+    monthly: "Monthly",
+    overnight: "Overnight",
+    weekend: "Weekend",
+  };
+  const k = key.trim();
+  if (map[k]) return map[k];
+  return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Rows for data-view parking popups: every non-empty `pricing` string (plus numeric
+ * values coerced to string). Falls back to one "Cost" row (Free / Not listed).
+ * @returns {{ label: string, value: string }[]}
+ */
+function getDataViewParkingPricingRows(pricing, categoryKey) {
   const privateOsm = categoryKey === "osmGarages" || categoryKey === "osmLots";
-  if (!pricing || typeof pricing !== "object") {
-    return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
+  const fallbackValue = privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
+  if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)) {
+    return [{ label: "Cost", value: fallbackValue }];
   }
-  if (pricing.events) return pricing.events;
-  if (pricing.evening) return pricing.evening;
-  if (pricing.hourly) return pricing.hourly;
-  if (pricing.rate) return pricing.rate;
-  if (pricing.daytime) return pricing.daytime;
-  return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
+  /** @type {{ key: string, label: string, value: string }[]} */
+  const entries = [];
+  for (const [rawKey, rawVal] of Object.entries(pricing)) {
+    if (rawKey == null) continue;
+    const key = String(rawKey).trim();
+    if (!key) continue;
+    if (rawVal == null) continue;
+    if (typeof rawVal === "object") continue;
+    const value =
+      typeof rawVal === "string"
+        ? rawVal.trim()
+        : typeof rawVal === "number" && Number.isFinite(rawVal)
+          ? String(rawVal)
+          : typeof rawVal === "boolean"
+            ? rawVal
+              ? "Yes"
+              : "No"
+            : "";
+    if (!value) continue;
+    entries.push({
+      key,
+      label: dataViewParkingPricingKeyLabel(key),
+      value,
+    });
+  }
+  if (entries.length === 0) {
+    return [{ label: "Cost", value: fallbackValue }];
+  }
+  entries.sort((a, b) => {
+    const ia = DATA_VIEW_PARKING_PRICING_KEY_ORDER.indexOf(a.key);
+    const ib = DATA_VIEW_PARKING_PRICING_KEY_ORDER.indexOf(b.key);
+    const aKnown = ia !== -1;
+    const bKnown = ib !== -1;
+    if (aKnown && bKnown) return ia - ib;
+    if (aKnown) return -1;
+    if (bKnown) return 1;
+    return a.key.localeCompare(b.key);
+  });
+  return entries.map(({ label, value }) => ({ label, value }));
 }
 
 function updateDataViewMap(points, options) {
@@ -848,6 +920,8 @@ function updateDataViewMap(points, options) {
   if (!container) return;
   if (pointList.length === 0 && extraPolylines.length === 0) {
     container.classList.add("hidden");
+    if (dataMapPolylinesLayer) dataMapPolylinesLayer.clearLayers();
+    if (dataMapMarkersLayer) dataMapMarkersLayer.clearLayers();
     return;
   }
   container.classList.remove("hidden");
@@ -1006,14 +1080,19 @@ function updateDataViewMap(points, options) {
         rows.push(
           `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(parkingAddress)}</td></tr>`,
         );
-      const costText = p.price != null && p.price !== "" ? p.price : "—";
-      const costTd =
-        ovf?.pricing === true
-          ? `<span style="color:#b91c1c">${escapeHtml(costText)}</span>`
-          : escapeHtml(costText);
-      rows.push(
-        `<tr><th style="${thStyle}">Cost</th><td style="${tdStyle}">${costTd}</td></tr>`,
+      const pricingRows = getDataViewParkingPricingRows(
+        p.parkingItem?.pricing,
+        p.parkingDatasetKey,
       );
+      for (const pr of pricingRows) {
+        const valueTd =
+          ovf?.pricing === true
+            ? `<span style="color:#b91c1c">${escapeHtml(pr.value)}</span>`
+            : escapeHtml(pr.value);
+        rows.push(
+          `<tr><th style="${thStyle}">${escapeHtml(pr.label)}</th><td style="${tdStyle}">${valueTd}</td></tr>`,
+        );
+      }
       const totalSpaces = parseTotalSpacesFromAvailability(
         p.parkingItem?.availability,
       );
@@ -1656,12 +1735,34 @@ function renderDataView() {
             .map((m) => m.trim())
             .filter((m) => PARKING_DATA_MODES.includes(m));
 
+    const qParamRaw = params.q != null ? String(params.q) : "";
+    const qParamTrimmed = qParamRaw.trim();
+    function dataParkingItemMatchesSearchQuery(item) {
+      if (!qParamTrimmed) return true;
+      const needle = qParamTrimmed.toLowerCase();
+      const hay = [
+        item?.name,
+        item?.address,
+        item?.dataOverrideNote,
+        item?.note,
+      ]
+        .filter((v) => v != null && String(v).trim() !== "")
+        .map((v) => String(v).toLowerCase())
+        .join(" ");
+      return hay.includes(needle);
+    }
+
     function buildDataParkingHash(opts) {
-      const q = [];
-      if (opts.dataset) q.push("dataset=" + encodeURIComponent(opts.dataset));
+      const segments = [];
+      if (opts.dataset)
+        segments.push("dataset=" + encodeURIComponent(opts.dataset));
       if (opts.modes && opts.modes.length > 0)
-        q.push("modes=" + opts.modes.join(","));
-      return "#/data/parking" + (q.length > 0 ? "?" + q.join("&") : "");
+        segments.push("modes=" + opts.modes.join(","));
+      if (opts.q != null && String(opts.q).trim() !== "")
+        segments.push("q=" + encodeURIComponent(String(opts.q).trim()));
+      return (
+        "#/data/parking" + (segments.length > 0 ? "?" + segments.join("&") : "")
+      );
     }
 
     // Dataset dropdown options: when modes are selected, only show categories that match those modes.
@@ -1711,12 +1812,13 @@ function renderDataView() {
           <span class="text-sm font-medium text-slate-700">Parking Modes:</span>
           ${modeButtonsHtml}
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
           <label for="data-parking-dataset" class="text-sm font-medium text-slate-700 shrink-0">Dataset:</label>
           <div class="data-parking-dataset-dropdown relative min-w-[10rem] max-w-[min(100%,18rem)]">
             <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
             <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
           </div>
+          <input type="search" id="data-parking-q-filter" class="min-w-[10rem] max-w-md flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 sm:min-w-[12rem]" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
         </div>`;
       PARKING_DATA_MODES.forEach((mode) => {
         const btn = dataViewParkingModes.querySelector(
@@ -1739,21 +1841,26 @@ function renderDataView() {
           }
           btn.addEventListener("click", () => {
             const current = parseFragment();
+            const modesStr =
+              current.modes != null ? String(current.modes).trim() : "";
             const currentModes =
-              current.modes || ""
-                ? String(current.modes)
+              modesStr === ""
+                ? []
+                : modesStr
                     .split(",")
                     .map((s) => s.trim())
-                    .filter((m) => PARKING_DATA_MODES.includes(m))
-                : [];
+                    .filter((m) => PARKING_DATA_MODES.includes(m));
             const idx = currentModes.indexOf(mode);
             const nextModes =
               idx >= 0
                 ? currentModes.filter((_, i) => i !== idx)
                 : [...currentModes, mode];
+            const dsRaw =
+              current.dataset != null ? String(current.dataset).trim() : "";
             window.location.hash = buildDataParkingHash({
-              dataset: current.dataset || effectiveKey || undefined,
+              dataset: dsRaw !== "" ? dsRaw : undefined,
               modes: nextModes,
+              q: current.q,
             });
           });
         }
@@ -1796,12 +1903,57 @@ function renderDataView() {
               const raw = btn.getAttribute("data-dataset-value");
               const value = raw != null ? raw : "";
               closeDatasetPanel();
+              const snap = parseFragment();
+              const snapModesParam = snap.modes
+                ? String(snap.modes).trim()
+                : "";
+              const snapModes =
+                snapModesParam === ""
+                  ? []
+                  : snapModesParam
+                      .split(",")
+                      .map((s) => s.trim())
+                      .filter((m) => PARKING_DATA_MODES.includes(m));
               window.location.hash = buildDataParkingHash({
                 dataset: value || undefined,
-                modes: selectedModes,
+                modes: snapModes,
+                q: snap.q,
               });
             });
           });
+      }
+      const qInput = dataViewParkingModes.querySelector(
+        "#data-parking-q-filter",
+      );
+      if (qInput) {
+        qInput.addEventListener("change", () => {
+          const snap = parseFragment();
+          const snapModesParam = snap.modes ? String(snap.modes).trim() : "";
+          const snapModes =
+            snapModesParam === ""
+              ? []
+              : snapModesParam
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter((m) => PARKING_DATA_MODES.includes(m));
+          const ds =
+            snap.dataset != null && String(snap.dataset).trim() !== ""
+              ? String(snap.dataset).trim()
+              : undefined;
+          const v = qInput.value.trim();
+          const next = buildDataParkingHash({
+            dataset: ds,
+            modes: snapModes,
+            q: v || undefined,
+          });
+          if (window.location.hash !== next) window.location.hash = next;
+        });
+        qInput.addEventListener("input", () => {
+          clearTimeout(qInput._dataParkingQDebounce);
+          qInput._dataParkingQDebounce = setTimeout(() => {
+            qInput.dispatchEvent(new Event("change", { bubbles: true }));
+          }, 400);
+        });
       }
     }
 
@@ -1815,6 +1967,7 @@ function renderDataView() {
       const categoryName = categoryNames[p.key] || p.file;
       if (Array.isArray(items)) {
         items.forEach((item) => {
+          if (!dataParkingItemMatchesSearchQuery(item)) return;
           const lat = item.location?.latitude ?? item.latitude;
           const lng = item.location?.longitude ?? item.longitude;
           if (typeof lat === "number" && typeof lng === "number") {
@@ -1823,7 +1976,6 @@ function renderDataView() {
               lng,
               categoryName,
               locationName: item.name || "—",
-              price: formatParkingPrice(item.pricing, p.key),
               parkingItem: { ...item },
               parkingDatasetKey: p.key,
               parkingOverrideFields:
@@ -1895,7 +2047,6 @@ function renderDataView() {
           lng,
           categoryName,
           locationName: item.name || "—",
-          price: formatParkingPrice(item.pricing, categoryKey),
           parkingItem: { ...item },
           parkingDatasetKey: categoryKey,
           parkingOverrideFields: getParkingDataViewOverrideSourceFields(item),
@@ -1969,6 +2120,8 @@ function replaceDataParkingHistoricalHash(nextPin) {
       q.push(`dataset=${encodeURIComponent(String(f.dataset).trim())}`);
     if (f.modes != null && String(f.modes).trim() !== "")
       q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
+    if (f.q != null && String(f.q).trim() !== "")
+      q.push(`q=${encodeURIComponent(String(f.q).trim())}`);
   } else if (f.modes != null && String(f.modes).trim() !== "") {
     q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
   }

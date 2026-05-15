@@ -870,10 +870,11 @@ function formatParkingPrice(pricing, categoryKey) {
     return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
   }
   if (pricing.events) return pricing.events;
+  if (pricing.daily) return pricing.daily;
   if (pricing.evening) return pricing.evening;
-  if (pricing.hourly) return pricing.hourly;
   if (pricing.rate) return pricing.rate;
   if (pricing.daytime) return pricing.daytime;
+  if (pricing.hourly) return pricing.hourly;
   return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
 }
 
@@ -884,7 +885,8 @@ function parkingCostTextLooksLikeRate(s) {
 }
 
 /**
- * When ArcGIS has both **EVENT_CHRG** (`events`) and **Hour_Rate** (`hourly`), show both in the popup.
+ * When two pricing strings differ, use **`hourlyText`** as a supplement under the primary line
+ * (e.g. event/daily max + Hour_Rate context).
  * @returns {{ text: string, hourlyHint: boolean } | null}
  */
 function parkingMapEventPlusHourlySupplement(eventsText, hourlyText) {
@@ -914,8 +916,9 @@ function parkingMapCostLineForTierText(tierText) {
 }
 
 /**
- * Cost line for `#/visit` popups: prefers ArcGIS `hourly` when set, else events → evening → rate → daytime (see {@link formatParkingPrice}).
- * When **`events`** and **`hourly`** are both set (city map), primary line is the **event** charge plus **`hourly`** as a supplement (weekend / hourly context).
+ * Cost line for `#/visit` popups: prefers **flat / cap** tiers (`events`, **`daily`**, `evening`, `rate`, `daytime`)
+ * over **`hourly`**. When **`hourly`** pairs with a primary tier, the primary is the main line and hourly may
+ * appear as a supplement (same pattern as event + Hour_Rate).
  * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
  */
 function getParkingMapCostDisplay(pricing, categoryKey) {
@@ -930,6 +933,13 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
   const eventsRaw =
     typeof pricing.events === "string" ? pricing.events.trim() : "";
   const hrRaw = typeof pricing.hourly === "string" ? pricing.hourly.trim() : "";
+  const dailyRaw =
+    typeof pricing.daily === "string" ? pricing.daily.trim() : "";
+  const eveningRaw =
+    typeof pricing.evening === "string" ? pricing.evening.trim() : "";
+  const rateRaw = typeof pricing.rate === "string" ? pricing.rate.trim() : "";
+  const daytimeRaw =
+    typeof pricing.daytime === "string" ? pricing.daytime.trim() : "";
 
   if (eventsRaw && hrRaw) {
     const extra = parkingMapEventPlusHourlySupplement(eventsRaw, hrRaw);
@@ -944,6 +954,53 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
     return { text: eventsRaw, costHourlyHint: false };
   }
 
+  if (eventsRaw) {
+    const line = parkingMapCostLineForTierText(eventsRaw);
+    return {
+      text: line || eventsRaw,
+      costHourlyHint: false,
+    };
+  }
+
+  function primaryPlusHourly(primaryRaw) {
+    const extra = parkingMapEventPlusHourlySupplement(primaryRaw, hrRaw);
+    if (extra) {
+      return {
+        text: primaryRaw,
+        costHourlyHint: false,
+        costSupplement: extra.text,
+        costSupplementHint: extra.hourlyHint,
+      };
+    }
+    return { text: primaryRaw, costHourlyHint: false };
+  }
+
+  if (dailyRaw && hrRaw) return primaryPlusHourly(dailyRaw);
+  if (eveningRaw && hrRaw) return primaryPlusHourly(eveningRaw);
+  if (rateRaw && hrRaw) return primaryPlusHourly(rateRaw);
+  if (daytimeRaw && hrRaw) return primaryPlusHourly(daytimeRaw);
+
+  if (dailyRaw)
+    return {
+      text: parkingMapCostLineForTierText(dailyRaw) || dailyRaw,
+      costHourlyHint: false,
+    };
+  if (eveningRaw)
+    return {
+      text: parkingMapCostLineForTierText(eveningRaw) || eveningRaw,
+      costHourlyHint: false,
+    };
+  if (rateRaw)
+    return {
+      text: parkingMapCostLineForTierText(rateRaw) || rateRaw,
+      costHourlyHint: false,
+    };
+  if (daytimeRaw)
+    return {
+      text: parkingMapCostLineForTierText(daytimeRaw) || daytimeRaw,
+      costHourlyHint: false,
+    };
+
   if (hrRaw) {
     const line = parkingMapCostLineForTierText(hrRaw);
     const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hrRaw);
@@ -955,26 +1012,6 @@ function getParkingMapCostDisplay(pricing, categoryKey) {
         !alreadyHourly,
     };
   }
-  if (pricing.events)
-    return {
-      text: String(pricing.events).trim(),
-      costHourlyHint: false,
-    };
-  if (pricing.evening)
-    return {
-      text: String(pricing.evening).trim(),
-      costHourlyHint: false,
-    };
-  if (pricing.rate)
-    return {
-      text: String(pricing.rate).trim(),
-      costHourlyHint: false,
-    };
-  if (pricing.daytime)
-    return {
-      text: String(pricing.daytime).trim(),
-      costHourlyHint: false,
-    };
   return {
     text: privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free",
     costHourlyHint: false,

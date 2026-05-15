@@ -86,6 +86,123 @@ test.describe("Data routes", () => {
     await page.waitForTimeout(300);
     await expect(page).toHaveURL(/#\/data\/parking$/);
   });
+
+  test("should filter parking markers by q= on name, address, and override note", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    await page.goto("/#/data/parking?dataset=osmLots&q=airgarage");
+    await page.waitForSelector("#data-parking-q-filter", { state: "visible" });
+    await expect(page.locator("#data-parking-q-filter")).toHaveValue(
+      "airgarage",
+    );
+
+    const markerCount = await page.evaluate(() => {
+      return document.querySelectorAll(
+        "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+      ).length;
+    });
+    expect(markerCount).toBeGreaterThanOrEqual(2);
+
+    await page.goto("/#/data/parking?dataset=osmLots&q=zzznomatchzzz");
+    await page.waitForTimeout(400);
+    const emptyCount = await page.evaluate(() => {
+      return document.querySelectorAll(
+        "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+      ).length;
+    });
+    expect(emptyCount).toBe(0);
+
+    await page.goto("/#/data/parking?dataset=osmLots&q=AIRGARAGE");
+    await page.waitForTimeout(400);
+    const caseCount = await page.evaluate(() => {
+      return document.querySelectorAll(
+        "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+      ).length;
+    });
+    expect(caseCount).toBeGreaterThanOrEqual(2);
+  });
+
+  test("should preserve q= when toggling parking mode buttons", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/parking?q=airgarage");
+    await page.waitForSelector(".data-parking-mode-btn[data-mode=drive]", {
+      state: "visible",
+    });
+    await page.locator('.data-parking-mode-btn[data-mode="drive"]').click();
+    await page.waitForTimeout(400);
+    const hash = await page.evaluate(() => window.location.hash);
+    expect(hash).toContain("q=airgarage");
+    expect(hash).toMatch(/modes=drive/);
+  });
+
+  test("should apply #/data/parking?q= across all datasets (no dataset param)", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-q-filter", { state: "visible" });
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 50,
+    );
+
+    const unfilteredCount = await page.evaluate(() => {
+      return document.querySelectorAll(
+        "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+      ).length;
+    });
+
+    await page.goto("/#/data/parking?q=airgarage");
+    await page.waitForSelector("#data-parking-q-filter", { state: "visible" });
+    await expect(page).toHaveURL(/#\/data\/parking\?q=airgarage/);
+    await expect(page.locator("#data-parking-q-filter")).toHaveValue(
+      "airgarage",
+    );
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length < 50,
+    );
+
+    const filteredCount = await page.evaluate(() => {
+      return document.querySelectorAll(
+        "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+      ).length;
+    });
+
+    expect(filteredCount).toBeGreaterThanOrEqual(2);
+    expect(filteredCount).toBeLessThan(unfilteredCount);
+  });
+
+  test("should update URL when typing in parking search (debounced)", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-q-filter", { state: "visible" });
+
+    const input = page.locator("#data-parking-q-filter");
+    await input.fill("airgarage");
+    await expect(page).toHaveURL(/#\/data\/parking$/);
+    await page.waitForFunction(() => /q=airgarage/.test(window.location.hash));
+    await expect(page).toHaveURL(/q=airgarage/);
+  });
 });
 
 test.describe("Data destinations", () => {
