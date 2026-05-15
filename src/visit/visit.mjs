@@ -415,7 +415,7 @@ const PARKING_EVENING_PRICE_AMBIGUOUS_PROSE = -1;
 
 function pricingObjectHasAnyKnownTierField(pricing) {
   if (!pricing || typeof pricing !== "object") return false;
-  for (const k of ["evening", "events", "hourly", "rate", "daytime"]) {
+  for (const k of ["evening", "events", "hourly", "rate", "daytime", "daily"]) {
     if (typeof pricing[k] === "string" && pricing[k].trim()) return true;
   }
   return false;
@@ -466,6 +466,9 @@ function pickEveningTierStringForCap(pricing, categoryKey) {
   if (typeof pricing.daytime === "string" && pricing.daytime.trim()) {
     return pricing.daytime.trim();
   }
+  if (typeof pricing.daily === "string" && pricing.daily.trim()) {
+    return pricing.daily.trim();
+  }
   if (
     !isPublic &&
     typeof pricing.events === "string" &&
@@ -483,6 +486,9 @@ function pickEveningTierStringForCap(pricing, categoryKey) {
  * Hourly-style copy (e.g. **$5 per hour**) or values taken from the **`pricing.hourly`** JSON field use
  * the largest parseable dollar × **{@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}** (assumes **6 hours** for the cap).
  * Posted ranges (**`$12-$15`** or **`$16.00-25.00`**) use the **high** dollar via {@link parseDollarAmountsFromPriceText}.
+ * **`daily`** (e.g. AirGarage **$15** flat) is used for the cap when set — before falling back to **`hourly`**
+ * × **{@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}** so lots with both **hourly** and **daily** do not
+ * over-filter on the hourly multiple alone.
  */
 function parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey) {
   if (!pricing || typeof pricing !== "object")

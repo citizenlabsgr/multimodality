@@ -1449,6 +1449,50 @@ test.describe("Parking map (#/visit)", () => {
       expect(hasCherry).toBe(false);
     });
 
+    test("AirGarage Red Lion Lot uses daily rate for pay cap when hourly+daily set", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit?pay=15");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const found = await page.evaluate(() => {
+        const lots = window.appData?.parking?.osmLots;
+        const item = lots?.find(
+          (x) =>
+            typeof x?.name === "string" &&
+            x.name.includes("Red Lion Lot (AirGarage)"),
+        );
+        if (!item?.location) return false;
+        const lat = item.location.latitude;
+        const lng = item.location.longitude;
+        if (typeof lat !== "number" || typeof lng !== "number") return false;
+        const g = globalThis.__parkingSpotsLayerForTest;
+        if (!g?.eachLayer) return false;
+        let hit = false;
+        g.eachLayer((group) => {
+          if (!group?.eachLayer) return;
+          group.eachLayer((m) => {
+            if (
+              m.options?.parkingCategoryKey === "private-lot" &&
+              m.options?.parkingSpotPopupLayer &&
+              typeof m.getLatLng === "function"
+            ) {
+              const ll = m.getLatLng();
+              if (
+                Math.abs(ll.lat - lat) < 1e-4 &&
+                Math.abs(ll.lng - lng) < 1e-4
+              ) {
+                hit = true;
+              }
+            }
+          });
+        });
+        return hit;
+      });
+      expect(found).toBe(true);
+    });
+
     test("shows Free only label when pay is 0", async ({ page }) => {
       await page.goto("/#/visit?pay=0");
       await waitForParkingData(page);
