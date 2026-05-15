@@ -96,6 +96,53 @@ test.describe("Parking map (#/visit)", () => {
     );
   });
 
+  test("hidden destination the-big-room: short hash links only; omitted from browse UI on #/visit", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+
+    await expect(
+      page.locator('#parkingDestinationSelect option[value="the-big-room"]'),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('#parkingDestinationSelect option[value="amway-stadium"]'),
+    ).toHaveCount(0);
+
+    const hiddenFlagsOk = await page.evaluate(() => {
+      const big = window.appData?.destinations?.find(
+        (x) => x.slug === "the-big-room",
+      );
+      const amway = window.appData?.destinations?.find(
+        (x) => x.slug === "amway-stadium",
+      );
+      return !!(big?.hidden === true && amway?.hidden === true);
+    });
+    expect(hiddenFlagsOk).toBe(true);
+
+    await page.goto("/#/the-big-room");
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+    await expect(page).toHaveURL(/#\/visit\/the-big-room$/);
+    await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
+      "the-big-room",
+    );
+
+    await page.goto("/#/the-big-room?walk=5");
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+    await expect(page).toHaveURL(/#\/visit\/the-big-room\?walk=5/);
+
+    await page.goto("/#/amway-stadium");
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+    await expect(page).toHaveURL(/#\/visit\/amway-stadium$/);
+    await expect(page.locator("#parkingDestinationSelect")).toHaveValue(
+      "amway-stadium",
+    );
+  });
+
   test("parking legend help opens modal stacked above the map", async ({
     page,
   }) => {

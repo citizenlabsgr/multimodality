@@ -330,6 +330,11 @@ export const FALLBACK_DATA = {
 
 export let appData = null;
 
+/** When true, the venue stays out of browse UI and map placeholder pins until linked (e.g. `#/<slug>` → `#/visit/<slug>`). */
+export function isDestinationHiddenFromPublicMaps(dest) {
+  return dest?.hidden === true;
+}
+
 export async function loadData() {
   try {
     const [configRes, destinationsRes] = await Promise.all([

@@ -3,6 +3,7 @@ import {
   formatRouteDistanceMiles,
   gridWalkMiles,
   haversineMiles,
+  isDestinationHiddenFromPublicMaps,
   MODES_PAGE_EMPTY_MAP_CENTER,
   PARKING_PRICE_NOT_LISTED_LABEL,
 } from "../shared/data-loader.mjs";
@@ -1491,6 +1492,7 @@ function buildParkingDestinationSelect() {
   none.hidden = true;
   sel.appendChild(none);
   for (const d of destinations) {
+    if (isDestinationHiddenFromPublicMaps(d)) continue;
     const lat = d.latitude ?? d.location?.latitude;
     const lng = d.longitude ?? d.location?.longitude;
     if (typeof lat !== "number" || typeof lng !== "number") continue;
@@ -1498,6 +1500,22 @@ function buildParkingDestinationSelect() {
     opt.value = d.slug;
     opt.textContent = d.name || d.slug;
     sel.appendChild(opt);
+  }
+  if (urlDest) {
+    const hiddenRec = appData?.destinations?.find(
+      (d) => d.slug === urlDest && isDestinationHiddenFromPublicMaps(d),
+    );
+    if (hiddenRec && ![...sel.options].some((o) => o.value === urlDest)) {
+      const lat = hiddenRec.latitude ?? hiddenRec.location?.latitude;
+      const lng = hiddenRec.longitude ?? hiddenRec.location?.longitude;
+      if (typeof lat === "number" && typeof lng === "number") {
+        const opt = document.createElement("option");
+        opt.value = hiddenRec.slug;
+        opt.textContent = hiddenRec.name || hiddenRec.slug;
+        opt.hidden = true;
+        sel.appendChild(opt);
+      }
+    }
   }
   if (urlDest && [...sel.options].some((o) => o.value === urlDest)) {
     sel.value = urlDest;
@@ -1532,6 +1550,7 @@ function getAllParkingDestinationFitLatLngs() {
     ? appData.destinations
     : [];
   for (const dest of destinations) {
+    if (isDestinationHiddenFromPublicMaps(dest)) continue;
     const slug = dest?.slug;
     if (typeof slug !== "string" || slug.trim() === "") continue;
     const ll = parkingLatLngFromDestinationRecord(dest);
@@ -3630,6 +3649,8 @@ function syncParkingDestinationMarker(map) {
       selectedMarkers.push(m);
       continue;
     }
+
+    if (isDestinationHiddenFromPublicMaps(dest)) continue;
 
     const m = L.marker(ll, { icon: parkingDestinationPlaceholderIcon(L) });
     attachParkingDestinationSelectButton(m, name, slug);

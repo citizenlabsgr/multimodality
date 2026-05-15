@@ -28,11 +28,12 @@ The file has a single key **`destinations`**: an array of destination objects.
 
 Each **destination** has:
 
-| Attribute  | Type   | Required | Description                            |
-| ---------- | ------ | -------- | -------------------------------------- |
-| `name`     | string | yes      | Display name (e.g. "Van Andel Arena"). |
-| `slug`     | string | yes      | URL-safe id (e.g. "van-andel-arena").  |
-| `location` | object | yes      | Coordinates; see below.                |
+| Attribute  | Type   | Required | Description                                                                                                                                                                                                                                                                                                     |
+| ---------- | ------ | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`     | string | yes      | Display name (e.g. "Van Andel Arena").                                                                                                                                                                                                                                                                          |
+| `slug`     | string | yes      | URL-safe id (e.g. "van-andel-arena").                                                                                                                                                                                                                                                                           |
+| `location` | object | yes      | Coordinates; see below.                                                                                                                                                                                                                                                                                         |
+| `hidden`   | bool   | no       | When true, omitted from visit browse UI and map placeholder pins until linked (`#/visit/<slug>` or `#/<slug>`). On **`#/data/destinations`**, the map defaults to **all** venues; **Visible** / **Hidden** narrow the map (`?view=visible` / `?view=hidden`); tap the active filter again to clear back to all. |
 
 **`location`** must be an object with:
 
