@@ -910,13 +910,19 @@ test.describe("Parking map (#/visit)", () => {
         }
         const dashPool = pool.filter((m) => dashFn(m));
         if (dashPool.length === 0) return { ok: false, reason: "no-dash-pool" };
+        const isPublicPin = (m) =>
+          m.categoryKey === "public-garage" || m.categoryKey === "public-lot";
+        const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
+        const chosenRow = pool.find((m) => m.spotId === chosenId);
+        const bandPool =
+          chosenRow != null
+            ? dashPool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
+            : dashPool;
         let maxVenueMi = -Infinity;
-        for (const m of dashPool) {
+        for (const m of bandPool) {
           const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
           if (Number.isFinite(d) && d > maxVenueMi) maxVenueMi = d;
         }
-        const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
-        const chosenRow = pool.find((m) => m.spotId === chosenId);
         const chosenVenueMi =
           chosenRow &&
           Number.isFinite(chosenRow.lat) &&
@@ -979,13 +985,19 @@ test.describe("Parking map (#/visit)", () => {
             maxVenueMi: null,
           };
         }
+        const isPublicPin = (m) =>
+          m.categoryKey === "public-garage" || m.categoryKey === "public-lot";
+        const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
+        const chosenRow = pool.find((m) => m.spotId === chosenId);
+        const bandPool =
+          chosenRow != null
+            ? pool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
+            : pool;
         let maxVenueMi = -Infinity;
-        for (const m of pool) {
+        for (const m of bandPool) {
           const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
           if (Number.isFinite(d) && d > maxVenueMi) maxVenueMi = d;
         }
-        const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
-        const chosenRow = pool.find((m) => m.spotId === chosenId);
         const chosenVenueMi =
           chosenRow &&
           Number.isFinite(chosenRow.lat) &&
@@ -1048,13 +1060,19 @@ test.describe("Parking map (#/visit)", () => {
               maxVenueMi: null,
             };
           }
+          const isPublicPin = (m) =>
+            m.categoryKey === "public-garage" || m.categoryKey === "public-lot";
+          const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
+          const chosenRow = pool.find((m) => m.spotId === chosenId);
+          const bandPool =
+            chosenRow != null
+              ? pool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
+              : pool;
           let maxVenueMi = -Infinity;
-          for (const m of pool) {
+          for (const m of bandPool) {
             const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
             if (Number.isFinite(d) && d > maxVenueMi) maxVenueMi = d;
           }
-          const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
-          const chosenRow = pool.find((m) => m.spotId === chosenId);
           const chosenVenueMi =
             chosenRow &&
             Number.isFinite(chosenRow.lat) &&
@@ -1449,7 +1467,7 @@ test.describe("Parking map (#/visit)", () => {
       expect(hasCherry).toBe(false);
     });
 
-    test("AirGarage Red Lion Lot uses daily rate for pay cap when hourly+daily set", async ({
+    test("Red Lion Lot uses daily rate for pay cap when hourly+daily set", async ({
       page,
     }) => {
       await page.goto("/#/visit?pay=15");
@@ -1459,9 +1477,7 @@ test.describe("Parking map (#/visit)", () => {
       const found = await page.evaluate(() => {
         const lots = window.appData?.parking?.osmLots;
         const item = lots?.find(
-          (x) =>
-            typeof x?.name === "string" &&
-            x.name.includes("Red Lion Lot (AirGarage)"),
+          (x) => typeof x?.name === "string" && x.name.includes("Red Lion Lot"),
         );
         if (!item?.location) return false;
         const lat = item.location.latitude;

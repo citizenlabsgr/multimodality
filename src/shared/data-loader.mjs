@@ -13,10 +13,10 @@ export const PARKING_PRICE_NOT_LISTED_LABEL = "Not listed";
 export const DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER = 1.75;
 
 /**
- * OSM private garage/lot pins within this Haversine distance (mi) of any City
- * (ArcGIS) garage or lot are dropped — prefer official pricing/names (e.g. Museum
- * ramp vs OSM “Museum Parking”). Must match `OFFICIAL_VS_OSM_DEDUP_MILES` in
- * scripts/fetch_car_parking_osm.py.
+ * OSM pins within this Haversine distance (mi) of a **same-kind** City (ArcGIS)
+ * centroid are dropped: **`osmGarages`** vs public **garages** only, **`osmLots`**
+ * vs public **lots** only (a surface lot next to a ramp is not treated as a duplicate).
+ * Must match `OFFICIAL_VS_OSM_DEDUP_MILES` in `scripts/fetch_car_parking_osm.py`.
  */
 const OFFICIAL_VS_OSM_DEDUP_MILES = 0.06;
 
@@ -60,20 +60,19 @@ export function roundCoord5(n) {
   return Math.round(n * 1e5) / 1e5;
 }
 
-function collectOfficialDriveParkingLatLngs(parking) {
+/** @param {"garages" | "lots"} officialKey */
+function collectOfficialDriveParkingLatLngs(parking, officialKey) {
   const out = [];
-  for (const key of ["garages", "lots"]) {
-    const items = parking[key];
-    if (!Array.isArray(items)) continue;
-    for (const item of items) {
-      const loc = item?.location;
-      if (
-        loc &&
-        typeof loc.latitude === "number" &&
-        typeof loc.longitude === "number"
-      ) {
-        out.push([loc.latitude, loc.longitude]);
-      }
+  const items = parking[officialKey];
+  if (!Array.isArray(items)) return out;
+  for (const item of items) {
+    const loc = item?.location;
+    if (
+      loc &&
+      typeof loc.latitude === "number" &&
+      typeof loc.longitude === "number"
+    ) {
+      out.push([loc.latitude, loc.longitude]);
     }
   }
   return out;
@@ -119,7 +118,10 @@ export function getParkingDataViewOverrideSourceFields(item) {
  * (after fetch filters and official/OSM dedupe). Unmatched entries log a console warning.
  * Use **`location`: `{ latitude, longitude }`** for pin coordinates (root-level lat/lng aliases still parse).
  * Each object may include **`note`** (string) for editors only — it is not copied onto pins or shown in the app.
+ * Optional **`address`** (string) replaces the matched pin's address when non-empty.
  * **`hidden`: true** removes the matched pin from the merged dataset (no `#/visit` / `#/data` marker).
+ * AirGarage lots: listing URLs usually follow `https://www.airgarage.com/location/` + kebab-case **name**
+ * + `-grand-rapids-mi` (confirm in browser — not stored in **`note`**).
  * @param {object} parking — merged `appData.parking` buckets
  * @param {unknown[] | null} list
  */
@@ -241,6 +243,12 @@ function applyParkingDataOverrides(parking, list) {
         fromOverride.pricing = true;
       }
     }
+    if (typeof ov.address === "string" && ov.address.trim()) {
+      next.address = ov.address.trim();
+    }
+    if (typeof ov.note === "string" && ov.note.trim()) {
+      next.dataOverrideNote = ov.note.trim();
+    }
     if (fromOverride.name || fromOverride.pricing) {
       parkingDataOverrideSourceFields.set(next, fromOverride);
     }
@@ -248,12 +256,17 @@ function applyParkingDataOverrides(parking, list) {
   }
 }
 
-/** Remove OSM pins that duplicate ArcGIS facilities (nearby centroid). */
+/** Remove OSM pins that duplicate a same-kind ArcGIS facility (nearby centroid). */
 function dedupeOsmParkingNearOfficial(parking) {
-  const official = collectOfficialDriveParkingLatLngs(parking);
-  if (!official.length) return;
   const cap = OFFICIAL_VS_OSM_DEDUP_MILES;
-  for (const osmKey of ["osmGarages", "osmLots"]) {
+  /** @type {[string, "garages" | "lots"][]} */
+  const pairs = [
+    ["osmGarages", "garages"],
+    ["osmLots", "lots"],
+  ];
+  for (const [osmKey, officialKey] of pairs) {
+    const official = collectOfficialDriveParkingLatLngs(parking, officialKey);
+    if (!official.length) continue;
     const arr = parking[osmKey];
     if (!Array.isArray(arr) || !arr.length) continue;
     parking[osmKey] = arr.filter((item) => {

@@ -52,13 +52,56 @@
   {
     "category": "private-lot",
     "location": {
-      "latitude": 42.97078,
-      "longitude": -85.68031
+      "latitude": 42.964521,
+      "longitude": -85.67193
     },
-    "name": "Bridge Street Parking (AirGarage)",
+    "name": "Downtown Grand Rapids Parking (AirGarage)",
+    "address": "45 Ottawa Ave NW, Grand Rapids, MI 49503",
+    "pricing": {
+      "hourly": "$4.00",
+      "daily": "$24.00"
+    },
+    "note": "https://www.airgarage.com/location/downtown-grand-rapids-parking-grand-rapids-mi"
+  },
+  {
+    "category": "private-lot",
+    "location": {
+      "latitude": 42.959918,
+      "longitude": -85.646478
+    },
+    "name": "East Hills Cherry Street Parking (AirGarage)",
+    "address": "946 Cherry St SE, Grand Rapids, MI 49506",
     "pricing": {
       "hourly": "$4.99",
-      "daily": "$15"
+      "daily": "$24.00"
+    },
+    "note": "https://www.airgarage.com/location/east-hills-cherry-street-parking-grand-rapids-mi"
+  },
+  {
+    "category": "private-lot",
+    "location": {
+      "latitude": 42.970012,
+      "longitude": -85.677352
+    },
+    "name": "Swift Printing Parking (AirGarage)",
+    "address": "349 Mt Vernon Ave NW, Grand Rapids, MI 49504",
+    "pricing": {
+      "hourly": "$4.99",
+      "daily": "$15.00"
+    },
+    "note": "https://www.airgarage.com/location/swift-printing-parking-grand-rapids-mi"
+  },
+  {
+    "category": "private-lot",
+    "location": {
+      "latitude": 42.970898,
+      "longitude": -85.681926
+    },
+    "name": "Bridge Street Parking (AirGarage)",
+    "address": "433 Bridge St NW, Grand Rapids, MI 49504",
+    "pricing": {
+      "hourly": "$4.99",
+      "daily": "$15.00"
     },
     "note": "https://www.airgarage.com/location/bridge-street-parking-grand-rapids-mi"
   },
@@ -69,9 +112,10 @@
       "longitude": -85.679696
     },
     "name": "Red Lion Lot (AirGarage)",
+    "address": "412 Bridge St NW, Grand Rapids, MI 49504",
     "pricing": {
       "hourly": "$4.99",
-      "daily": "$15"
+      "daily": "$15.00"
     },
     "note": "https://www.airgarage.com/location/red-lion-lot-grand-rapids-mi"
   },
