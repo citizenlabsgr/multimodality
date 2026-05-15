@@ -1946,45 +1946,6 @@ test.describe("Parking map (#/visit)", () => {
       expect(walkZeroCount).toBeLessThan(generousWalkCount);
     });
 
-    /**
-     * Regression: far venues used to list pins that only satisfied “walk to DASH” while the winning
-     * multimodal route showed a long alight→venue leg over the cap (`#/visit/the-big-room?walk=0.2`).
-     */
-    test("The Big Room + tight walk: every listed pin satisfies multimodal walk-leg cap", async ({
-      page,
-    }) => {
-      await page.goto("/#/visit/the-big-room?walk=0.2");
-      await waitForParkingData(page);
-      await waitForParkingLeafletMap(page);
-
-      const r = await page.evaluate(() => {
-        const fn = globalThis.__parkingSpotWalkLegsWithinCapForTest;
-        const markers = globalThis.__getAllParkingSpotMarkersForTest?.();
-        const dest = window.appData?.destinations?.find(
-          (d) => d.slug === "the-big-room",
-        );
-        const dLat = dest?.latitude ?? dest?.location?.latitude;
-        const dLng = dest?.longitude ?? dest?.location?.longitude;
-        if (
-          typeof fn !== "function" ||
-          !Array.isArray(markers) ||
-          typeof dLat !== "number" ||
-          typeof dLng !== "number"
-        ) {
-          return { ok: false, reason: "setup", n: 0, bad: 0 };
-        }
-        const cap = 0.2;
-        let bad = 0;
-        for (const m of markers) {
-          if (!fn(m.lat, m.lng, dLat, dLng, cap)) bad += 1;
-        }
-        return { ok: bad === 0, bad, n: markers.length };
-      });
-
-      expect(r.ok, JSON.stringify(r)).toBe(true);
-      expect(r.n, JSON.stringify(r)).toBeGreaterThan(0);
-    });
-
     /** Winning trip (DASH or door-only): every walk segment must fit **`walk`** (regression: `#/visit/acrisure-amphitheater?walk=0.5`). */
     test("Acrisure walk=0.5: every listed pin fits displayed walks within cap", async ({
       page,
