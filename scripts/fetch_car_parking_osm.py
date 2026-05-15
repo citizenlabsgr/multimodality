@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Regenerate data/parking/private/garages.json and data/parking/private/lots.json
+Regenerate data/parking/private/garages-osm.json and data/parking/private/lots-osm.json
 from OpenStreetMap via the Overpass API.
 
 Queries all amenity=parking (nodes, ways, relations) in a Grand Rapids metro
@@ -17,9 +17,13 @@ Rows with operator=Grand Rapids Parking Services are skipped (same DASH / city
 lots as fetch_car_parking_arcgis.py).
 
 Any OSM feature whose centroid is within OFFICIAL_VS_OSM_DEDUP_MILES of a point in
-the matching City visitor-map layer is skipped (garage-like OSM vs public/garages.json
-only; surface-style OSM vs public/lots.json only), so the app prefers official
+the matching City visitor-map layer is skipped (garage-like OSM vs public/garages-arcgis.json
+only; surface-style OSM vs public/lots-arcgis.json only), so the app prefers official
 names/pricing over near-duplicate OSM pins of the same facility type.
+
+OSM pins within the same radius of any Ellis (garages-ellis.json / lots-ellis.json) centroid
+are also skipped so Ellis names/pricing replace near-duplicate private OSM features
+(e.g. surface lot vs Ellis-listed ramp at the same address).
 
 Data © OpenStreetMap contributors, ODbL — https://www.openstreetmap.org/copyright
 """
@@ -43,10 +47,12 @@ MAX_MILES_FROM_CENTER = 1.75
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 REPO_ROOT = Path(__file__).resolve().parent.parent
-OUT_GARAGES = REPO_ROOT / "data/parking/private/garages.json"
-OUT_LOTS = REPO_ROOT / "data/parking/private/lots.json"
-PUBLIC_GARAGES_JSON = REPO_ROOT / "data/parking/public/garages.json"
-PUBLIC_LOTS_JSON = REPO_ROOT / "data/parking/public/lots.json"
+OUT_GARAGES = REPO_ROOT / "data/parking/private/garages-osm.json"
+OUT_LOTS = REPO_ROOT / "data/parking/private/lots-osm.json"
+PUBLIC_GARAGES_JSON = REPO_ROOT / "data/parking/public/garages-arcgis.json"
+PUBLIC_LOTS_JSON = REPO_ROOT / "data/parking/public/lots-arcgis.json"
+ELLIS_GARAGES_JSON = REPO_ROOT / "data/parking/private/garages-ellis.json"
+ELLIS_LOTS_JSON = REPO_ROOT / "data/parking/private/lots-ellis.json"
 
 # ~96 m; match src/shared/data-loader.mjs OFFICIAL_VS_OSM_DEDUP_MILES
 OFFICIAL_VS_OSM_DEDUP_MILES = 0.06
@@ -141,7 +147,31 @@ def load_official_arcgis_latlngs_by_kind() -> tuple[
     return garages, lots
 
 
-def item_near_official_parking(item: dict, official_pts: list[tuple[float, float]]) -> bool:
+def load_ellis_latlngs() -> list[tuple[float, float]]:
+    """Centroids from Ellis API snapshots (any kind — OSM may tag the same site as lot or garage)."""
+    out: list[tuple[float, float]] = []
+    for path in (ELLIS_GARAGES_JSON, ELLIS_LOTS_JSON):
+        if not path.is_file():
+            continue
+        try:
+            doc = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        for item in doc.get("items") or []:
+            loc = item.get("location") or {}
+            lat, lon = loc.get("latitude"), loc.get("longitude")
+            if lat is None or lon is None:
+                continue
+            try:
+                out.append((float(lat), float(lon)))
+            except (TypeError, ValueError):
+                continue
+    return out
+
+
+def item_near_reference_points(
+    item: dict, reference_pts: list[tuple[float, float]]
+) -> bool:
     loc = item.get("location") or {}
     lat, lon = loc.get("latitude"), loc.get("longitude")
     if lat is None or lon is None:
@@ -151,7 +181,11 @@ def item_near_official_parking(item: dict, official_pts: list[tuple[float, float
     except (TypeError, ValueError):
         return False
     cap = OFFICIAL_VS_OSM_DEDUP_MILES + 1e-12
-    return any(haversine_miles(la, lo, olat, olon) <= cap for olat, olon in official_pts)
+    return any(haversine_miles(la, lo, olat, olon) <= cap for olat, olon in reference_pts)
+
+
+def item_near_official_parking(item: dict, official_pts: list[tuple[float, float]]) -> bool:
+    return item_near_reference_points(item, official_pts)
 
 
 def item_within_gr_center(item: dict) -> bool:
@@ -341,6 +375,7 @@ def main() -> int:
         print(f"Overpass remark: {data['remark']}", file=sys.stderr)
 
     official_garages_pts, official_lots_pts = load_official_arcgis_latlngs_by_kind()
+    ellis_pts = load_ellis_latlngs()
 
     garages_raw: list[dict] = []
     lots_raw: list[dict] = []
@@ -354,11 +389,15 @@ def main() -> int:
                 item, official_garages_pts
             ):
                 continue
+            if ellis_pts and item_near_reference_points(item, ellis_pts):
+                continue
             garages_raw.append(item)
         else:
             if official_lots_pts and item_near_official_parking(
                 item, official_lots_pts
             ):
+                continue
+            if ellis_pts and item_near_reference_points(item, ellis_pts):
                 continue
             lots_raw.append(item)
 
@@ -371,6 +410,7 @@ def main() -> int:
         "Excludes operator=Grand Rapids Parking Services (covered by fetch_car_parking_arcgis.py). "
         "Excludes features within ~0.06 mi of a same-kind City (ArcGIS) centroid "
         "(OSM garages vs public garages; OSM lots vs public lots). "
+        "Excludes features within ~0.06 mi of any Ellis (garages/lots) centroid. "
         "Tags are crowdsourced and often incomplete (access, fee, capacity). "
         f"Points are limited to within {MAX_MILES_FROM_CENTER:g} mi of downtown Grand Rapids "
         f"({GR_CENTER_LAT:.5f}, {GR_CENTER_LON:.5f}). "

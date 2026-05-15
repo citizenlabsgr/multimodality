@@ -50,8 +50,12 @@ export const PARKING_DATA_VIEW_STYLE_RACKS = {
 /** `appData.parking` keys for drive garages/lots — bottom → top (same as `#/visit`). */
 export const PARKING_DRIVE_DATA_KEYS_PAINT_ORDER = [
   "osmLots",
+  "airGarageLots",
+  "ellisLots",
   "lots",
   "osmGarages",
+  "airGarageGarages",
+  "ellisGarages",
   "garages",
 ];
 
@@ -69,6 +73,10 @@ export function parkingMapCategoryIdFromDataKey(dataKey) {
     lots: "public-lot",
     osmGarages: "private-garage",
     osmLots: "private-lot",
+    airGarageGarages: "private-garage",
+    airGarageLots: "private-lot",
+    ellisGarages: "private-garage",
+    ellisLots: "private-lot",
   };
   return m[dataKey] || null;
 }
@@ -76,8 +84,10 @@ export function parkingMapCategoryIdFromDataKey(dataKey) {
 export function circleStyleForParkingCategoryKey(key) {
   if (key === "public-garage") return PARKING_SPOT_STYLE_PUBLIC_GARAGE;
   if (key === "public-lot") return PARKING_SPOT_STYLE_PUBLIC_LOT;
-  if (key === "private-garage") return PARKING_SPOT_STYLE_PRIVATE_GARAGE;
-  if (key === "private-lot") return PARKING_SPOT_STYLE_PRIVATE_LOT;
+  if (key === "private-garage" || key === "ellis-garage")
+    return PARKING_SPOT_STYLE_PRIVATE_GARAGE;
+  if (key === "private-lot" || key === "ellis-lot")
+    return PARKING_SPOT_STYLE_PRIVATE_LOT;
   return PARKING_SPOT_STYLE_PUBLIC_GARAGE;
 }
 

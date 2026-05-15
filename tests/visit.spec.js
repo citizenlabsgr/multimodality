@@ -407,7 +407,7 @@ test.describe("Parking map (#/visit)", () => {
   });
 
   test.describe("Selected parking spot (park query)", () => {
-    /** Cherry Commerce Ramp in `data/parking/public/garages.json` (public garage). */
+    /** Cherry Commerce Ramp in `data/parking/public/garages-arcgis.json` (public garage). */
     const cherrySpot = "public-garage:42.960041,-85.669489";
 
     async function closeParkingMapPopups(page) {
@@ -632,7 +632,7 @@ test.describe("Parking map (#/visit)", () => {
       );
     });
 
-    /** OSM private lot in `data/parking/private/lots.json`. */
+    /** OSM private lot in `data/parking/private/lots-osm.json`. */
     const acrisurePrivateLotSpot = "private-lot:42.980445,-85.671441";
 
     test("setting walk slider to zero clears park and hides green pick marker", async ({
@@ -1095,7 +1095,7 @@ test.describe("Parking map (#/visit)", () => {
     });
 
     /**
-     * 601 Ottawa Lot — prose free-evening tier in `data/parking/public/lots.json`.
+     * 601 Ottawa Lot — prose free-evening tier in `data/parking/public/lots-arcgis.json`.
      * Use **`walk=1.5`** so door-to-door grid miles to GLC stay within the cap; default **0.5** mi excludes
      * this north lot while still listing closer ramps (see Acrisure **`walk=0.5`** regression test).
      */
@@ -1112,7 +1112,7 @@ test.describe("Parking map (#/visit)", () => {
       expect(id).toBe("public-lot:42.974095,-85.670505");
     });
 
-    /** Area 8 Lot in `data/parking/public/lots.json`; default walk 0.5 mi, pay omitted (no cap). */
+    /** Area 8 Lot in `data/parking/public/lots-arcgis.json`; default walk 0.5 mi, pay omitted (no cap). */
     test("Acrisure default walk recommends farthest multimodal paid lot (Area 8)", async ({
       page,
     }) => {
@@ -1420,7 +1420,7 @@ test.describe("Parking map (#/visit)", () => {
   });
 
   test.describe("Evening price cap (pay)", () => {
-    /** Cherry Commerce Ramp — evening $51 in `data/parking/public/garages.json`. */
+    /** Cherry Commerce Ramp — evening $51 in `data/parking/public/garages-arcgis.json`. */
     const cherryCoords = "public-garage:42.960041,-85.669489";
 
     test("hydrates slider and label from pay in the URL", async ({ page }) => {
@@ -1475,8 +1475,12 @@ test.describe("Parking map (#/visit)", () => {
       await waitForParkingLeafletMap(page);
 
       const found = await page.evaluate(() => {
-        const lots = window.appData?.parking?.osmLots;
-        const item = lots?.find(
+        const p = window.appData?.parking;
+        const lots = [
+          ...(Array.isArray(p?.osmLots) ? p.osmLots : []),
+          ...(Array.isArray(p?.airGarageLots) ? p.airGarageLots : []),
+        ];
+        const item = lots.find(
           (x) => typeof x?.name === "string" && x.name.includes("Red Lion Lot"),
         );
         if (!item?.location) return false;
@@ -1738,9 +1742,14 @@ test.describe("Parking map (#/visit)", () => {
 
       await page.evaluate(
         ({ hourlyOnlyCoords }) => {
-          const lots = window.appData?.parking?.osmLots;
-          if (!Array.isArray(lots)) return;
-          const exists = lots.some((x) => {
+          const p = window.appData?.parking;
+          const osm = p?.osmLots;
+          const air = p?.airGarageLots;
+          const scan = [
+            ...(Array.isArray(osm) ? osm : []),
+            ...(Array.isArray(air) ? air : []),
+          ];
+          const exists = scan.some((x) => {
             const lat = x?.location?.latitude;
             const lng = x?.location?.longitude;
             return (
@@ -1751,14 +1760,16 @@ test.describe("Parking map (#/visit)", () => {
             );
           });
           if (exists) return;
-          lots.push({
-            name: "Six-hour hourly cap test lot",
-            location: {
-              latitude: hourlyOnlyCoords.lat,
-              longitude: hourlyOnlyCoords.lng,
-            },
-            pricing: { hourly: "$4.99" },
-          });
+          if (Array.isArray(osm)) {
+            osm.push({
+              name: "Six-hour hourly cap test lot",
+              location: {
+                latitude: hourlyOnlyCoords.lat,
+                longitude: hourlyOnlyCoords.lng,
+              },
+              pricing: { hourly: "$4.99" },
+            });
+          }
         },
         { hourlyOnlyCoords },
       );
@@ -1845,9 +1856,14 @@ test.describe("Parking map (#/visit)", () => {
       const unknownCoords = { lat: 42.960141, lng: -85.669389 };
       await page.evaluate(
         ({ unknownCoords }) => {
-          const lots = window.appData?.parking?.osmLots;
-          if (!Array.isArray(lots)) return;
-          const exists = lots.some((x) => {
+          const p = window.appData?.parking;
+          const osm = p?.osmLots;
+          const air = p?.airGarageLots;
+          const scan = [
+            ...(Array.isArray(osm) ? osm : []),
+            ...(Array.isArray(air) ? air : []),
+          ];
+          const exists = scan.some((x) => {
             const lat = x?.location?.latitude;
             const lng = x?.location?.longitude;
             return (
@@ -1858,14 +1874,16 @@ test.describe("Parking map (#/visit)", () => {
             );
           });
           if (exists) return;
-          lots.push({
-            name: "Unknown Private Lot Test",
-            location: {
-              latitude: unknownCoords.lat,
-              longitude: unknownCoords.lng,
-            },
-            pricing: {},
-          });
+          if (Array.isArray(osm)) {
+            osm.push({
+              name: "Unknown Private Lot Test",
+              location: {
+                latitude: unknownCoords.lat,
+                longitude: unknownCoords.lng,
+              },
+              pricing: {},
+            });
+          }
         },
         { unknownCoords },
       );
@@ -2489,7 +2507,9 @@ test.describe("Parking map (#/visit)", () => {
             ),
           { timeout: 10000 },
         )
-        .toMatch(/^(public-garage|public-lot|private-garage|private-lot):/);
+        .toMatch(
+          /^(public-garage|public-lot|private-garage|private-lot|ellis-garage|ellis-lot):/,
+        );
     });
 
     test("category filter omits park=; effective pick matches enabled categories", async ({
@@ -2526,10 +2546,16 @@ test.describe("Parking map (#/visit)", () => {
         return { pickCategory: cat, locationCats };
       });
       expect(pickCategory).toMatch(
-        /^(public-garage|public-lot|private-garage|private-lot)$/,
+        /^(public-garage|public-lot|private-garage|private-lot|ellis-garage|ellis-lot)$/,
       );
       expect(locationCats).not.toContain("private-lot");
-      expect(locationCats).toContain(pickCategory);
+      const pickBucket =
+        pickCategory === "ellis-garage"
+          ? "private-garage"
+          : pickCategory === "ellis-lot"
+            ? "private-lot"
+            : pickCategory;
+      expect(locationCats).toContain(pickBucket);
     });
   });
 
@@ -2547,8 +2573,10 @@ test.describe("Parking map (#/visit)", () => {
             /** Same bottom→top order as `PARKING_CATEGORY_PAINT_ORDER` in `src/visit/visit.mjs`. */
             const PAINT_ORDER_BOTTOM_TO_TOP = [
               "private-lot",
+              "ellis-lot",
               "public-lot",
               "private-garage",
+              "ellis-garage",
               "public-garage",
             ];
             const rank = (k) => PAINT_ORDER_BOTTOM_TO_TOP.indexOf(k);

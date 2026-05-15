@@ -249,6 +249,10 @@ const MODES_PAGE_PARKING_KEYS = [
   "lots",
   "osmGarages",
   "osmLots",
+  "airGarageGarages",
+  "airGarageLots",
+  "ellisGarages",
+  "ellisLots",
   "meters",
   "racks",
   "micromobility",
@@ -864,7 +868,13 @@ function dataViewParkingPricingKeyLabel(key) {
  * @returns {{ label: string, value: string }[]}
  */
 function getDataViewParkingPricingRows(pricing, categoryKey) {
-  const privateOsm = categoryKey === "osmGarages" || categoryKey === "osmLots";
+  const privateOsm =
+    categoryKey === "osmGarages" ||
+    categoryKey === "osmLots" ||
+    categoryKey === "airGarageGarages" ||
+    categoryKey === "airGarageLots" ||
+    categoryKey === "ellisGarages" ||
+    categoryKey === "ellisLots";
   const fallbackValue = privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
   if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)) {
     return [{ label: "Cost", value: fallbackValue }];
@@ -1727,15 +1737,23 @@ function renderDataView() {
       { file: "lots", key: "lots" },
       { file: "osmGarages", key: "osmGarages" },
       { file: "osmLots", key: "osmLots" },
+      { file: "airGarageGarages", key: "airGarageGarages" },
+      { file: "airGarageLots", key: "airGarageLots" },
+      { file: "ellisGarages", key: "ellisGarages" },
+      { file: "ellisLots", key: "ellisLots" },
       { file: "meters", key: "meters" },
       { file: "racks", key: "racks" },
       { file: "micromobility", key: "micromobility" },
     ];
+    const parkingKeysWithData = parkingKeys.filter((p) => {
+      const items = appData.parking?.[p.key];
+      return Array.isArray(items) && items.length > 0;
+    });
     const params = parseFragment();
     const datasetParam = params.dataset ? String(params.dataset).trim() : "";
     const categoryNames = appData.parking?.categoryNames || {};
     const selectedKey =
-      datasetParam && parkingKeys.some((p) => p.key === datasetParam)
+      datasetParam && parkingKeysWithData.some((p) => p.key === datasetParam)
         ? datasetParam
         : "";
 
@@ -1758,6 +1776,8 @@ function renderDataView() {
       const hay = [
         item?.name,
         item?.address,
+        item?.manager,
+        item?.availability,
         item?.dataOverrideNote,
         item?.note,
       ]
@@ -1780,14 +1800,21 @@ function renderDataView() {
       );
     }
 
-    // Dataset dropdown options: when modes are selected, only show categories that match those modes.
-    const keysForDropdown =
+    // Dataset dropdown options: omit empty categories; when modes are selected, only show categories that match those modes.
+    const keysForDropdown = (
       selectedModes.length === 0
-        ? parkingKeys
-        : parkingKeys.filter((p) => {
+        ? parkingKeysWithData
+        : parkingKeysWithData.filter((p) => {
             const categoryModes = appData.parking?.modes?.[p.key] || [];
             return categoryModes.some((m) => selectedModes.includes(m));
-          });
+          })
+    )
+      .slice()
+      .sort((a, b) => {
+        const la = String(categoryNames[a.key] || a.file);
+        const lb = String(categoryNames[b.key] || b.file);
+        return la.localeCompare(lb, undefined, { sensitivity: "base" });
+      });
     const effectiveKey = keysForDropdown.some((p) => p.key === selectedKey)
       ? selectedKey
       : "";
@@ -2019,6 +2046,10 @@ function renderDataView() {
       lots: "lots",
       osmGarages: "osmGarages",
       osmLots: "osmLots",
+      airGarageGarages: "airGarageGarages",
+      airGarageLots: "airGarageLots",
+      ellisGarages: "ellisGarages",
+      ellisLots: "ellisLots",
       meters: "meters",
       racks: "racks",
       micromobility: "micromobility",
@@ -2041,6 +2072,10 @@ function renderDataView() {
       lots: "lots",
       osmGarages: "osmGarages",
       osmLots: "osmLots",
+      airGarageGarages: "airGarageGarages",
+      airGarageLots: "airGarageLots",
+      ellisGarages: "ellisGarages",
+      ellisLots: "ellisLots",
       meters: "meters",
       racks: "racks",
       micromobility: "micromobility",
@@ -2153,6 +2188,10 @@ const DATA_VIEW_PARKING_KEY_TO_VISIT_CATEGORY = {
   lots: "public-lot",
   osmGarages: "private-garage",
   osmLots: "private-lot",
+  airGarageGarages: "private-garage",
+  airGarageLots: "private-lot",
+  ellisGarages: "ellis-garage",
+  ellisLots: "ellis-lot",
 };
 
 /** Same shape as `#/visit` `park=` / overrides: `private-garage:42.958306,-85.676288` (6 dp). */

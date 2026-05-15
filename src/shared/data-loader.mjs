@@ -16,6 +16,8 @@ export const DOWNTOWN_PARKING_MAX_MILES_FROM_CENTER = 1.75;
  * OSM pins within this Haversine distance (mi) of a **same-kind** City (ArcGIS)
  * centroid are dropped: **`osmGarages`** vs public **garages** only, **`osmLots`**
  * vs public **lots** only (a surface lot next to a ramp is not treated as a duplicate).
+ * The same radius drops **`osmGarages`** / **`osmLots`** pins near **any** Ellis
+ * garage or lot centroid (Ellis wins over duplicate OSM tagging).
  * Must match `OFFICIAL_VS_OSM_DEDUP_MILES` in `scripts/fetch_car_parking_osm.py`.
  */
 const OFFICIAL_VS_OSM_DEDUP_MILES = 0.06;
@@ -84,10 +86,16 @@ const PARKING_OVERRIDE_CATEGORY_TO_KEY = {
   "public-lot": "lots",
   "private-garage": "osmGarages",
   "private-lot": "osmLots",
+  "ellis-garage": "ellisGarages",
+  "ellis-lot": "ellisLots",
   garages: "garages",
   lots: "lots",
   osmGarages: "osmGarages",
   osmLots: "osmLots",
+  ellisGarages: "ellisGarages",
+  ellisLots: "ellisLots",
+  airGarageGarages: "airGarageGarages",
+  airGarageLots: "airGarageLots",
   meters: "meters",
   racks: "racks",
   micromobility: "micromobility",
@@ -310,6 +318,101 @@ function dedupeOsmParkingNearOfficial(parking) {
   }
 }
 
+/**
+ * Remove OSM private garages/lots whose centroids sit near an Ellis pin (Ellis names/pricing win).
+ * Uses the same radius as {@link dedupeOsmParkingNearOfficial} (see `scripts/fetch_car_parking_osm.py`).
+ */
+function dedupeOsmParkingNearEllis(parking) {
+  const cap = OFFICIAL_VS_OSM_DEDUP_MILES;
+  /** @type {[number, number][]} */
+  const ellisPts = [];
+  for (const key of ["ellisGarages", "ellisLots"]) {
+    const arr = parking[key];
+    if (!Array.isArray(arr)) continue;
+    for (const item of arr) {
+      const loc = item?.location;
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      ) {
+        continue;
+      }
+      ellisPts.push([loc.latitude, loc.longitude]);
+    }
+  }
+  if (!ellisPts.length) return;
+
+  for (const osmKey of ["osmGarages", "osmLots"]) {
+    const arr = parking[osmKey];
+    if (!Array.isArray(arr) || !arr.length) continue;
+    parking[osmKey] = arr.filter((item) => {
+      const loc = item?.location;
+      if (
+        !loc ||
+        typeof loc.latitude !== "number" ||
+        typeof loc.longitude !== "number"
+      ) {
+        return false;
+      }
+      const { latitude: lat, longitude: lng } = loc;
+      for (const [elat, elng] of ellisPts) {
+        if (haversineMiles(lat, lng, elat, elng) <= cap + 1e-12) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+}
+
+const AIRGARAGE_MANAGER_LABEL = "AirGarage";
+
+function parkingManagerTrimmed(item) {
+  const m = item?.manager;
+  return typeof m === "string" ? m.trim() : "";
+}
+
+/**
+ * Move pins with manager AirGarage into their own buckets for `#/data/parking` (drive map).
+ * `#/visit` merges them back with OSM via {@link parkingItemsForVisitDataKey} in `visit.mjs`.
+ */
+function splitAirGarageParkingIntoOwnCategories(parking) {
+  for (const [osmKey, airKey] of /** @type {const} */ ([
+    ["osmGarages", "airGarageGarages"],
+    ["osmLots", "airGarageLots"],
+  ])) {
+    const arr = parking[osmKey];
+    if (!Array.isArray(arr) || !arr.length) {
+      parking[airKey] = [];
+      continue;
+    }
+    const rest = [];
+    const air = [];
+    for (const item of arr) {
+      if (parkingManagerTrimmed(item) === AIRGARAGE_MANAGER_LABEL) {
+        air.push(item);
+      } else {
+        rest.push(item);
+      }
+    }
+    parking[osmKey] = rest;
+    parking[airKey] = air;
+  }
+  parking.modes.airGarageGarages = ["drive"];
+  parking.modes.airGarageLots = ["drive"];
+}
+
+/** `#/data/parking` dataset labels for Ellis and AirGarage (drive-only buckets). */
+function applyDriveParkingDatasetDisplayNames(parking) {
+  if (!parking?.categoryNames) return;
+  parking.categoryNames.ellisGarages = "Private Parking Garages (Ellis)";
+  parking.categoryNames.ellisLots = "Private Parking Lots (Ellis)";
+  parking.categoryNames.airGarageGarages =
+    "Private Parking Garages (AirGarage)";
+  parking.categoryNames.airGarageLots = "Private Parking Lots (AirGarage)";
+}
+
 export const FALLBACK_DATA = {
   validModes: [
     "drive",
@@ -405,13 +508,15 @@ export async function loadData() {
     });
 
     const parkingCategories = [
-      { file: "public/garages.json", key: "garages" },
-      { file: "public/lots.json", key: "lots" },
-      { file: "private/garages.json", key: "osmGarages" },
-      { file: "private/lots.json", key: "osmLots" },
+      { file: "public/garages-arcgis.json", key: "garages" },
+      { file: "public/lots-arcgis.json", key: "lots" },
+      { file: "private/garages-osm.json", key: "osmGarages" },
+      { file: "private/lots-osm.json", key: "osmLots" },
       { file: "public/meters.json", key: "meters" },
       { file: "public/racks.json", key: "racks" },
       { file: "private/micromobility.json", key: "micromobility" },
+      { file: "private/garages-ellis.json", key: "ellisGarages" },
+      { file: "private/lots-ellis.json", key: "ellisLots" },
     ];
     const [parkingResolves, overridesList] = await Promise.all([
       Promise.all(
@@ -426,9 +531,13 @@ export async function loadData() {
       lots: [],
       osmGarages: [],
       osmLots: [],
+      airGarageGarages: [],
+      airGarageLots: [],
       meters: [],
       racks: [],
       micromobility: [],
+      ellisGarages: [],
+      ellisLots: [],
       notes: {},
       modes: {},
       categoryNames: {},
@@ -443,7 +552,12 @@ export async function loadData() {
       }
     });
 
-    for (const osmKey of ["osmGarages", "osmLots"]) {
+    for (const osmKey of [
+      "osmGarages",
+      "osmLots",
+      "ellisGarages",
+      "ellisLots",
+    ]) {
       const arr = parking[osmKey];
       if (!Array.isArray(arr) || !arr.length) continue;
       const [cLat, cLon] = MODES_PAGE_EMPTY_MAP_CENTER;
@@ -466,6 +580,9 @@ export async function loadData() {
     dedupeOsmParkingNearOfficial(parking);
     applyParkingDataOverrides(parking, overridesList);
     ensureDefaultManagersOnPublicDriveParking(parking);
+    dedupeOsmParkingNearEllis(parking);
+    splitAirGarageParkingIntoOwnCategories(parking);
+    applyDriveParkingDatasetDisplayNames(parking);
 
     let busRoutes = null;
     const busRes = await fetch("data/bus/routes.json");
