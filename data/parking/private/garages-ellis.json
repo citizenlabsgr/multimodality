@@ -13,9 +13,9 @@
       "address": "210 Ionia Ave NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 204 spaces; Monthly from $210; North of Commerce Building corner of Lyon and Ionia Early Bird Discount program available, please call (616) 458-1179 for details. Residential Rate : $245 (24/7 access) Monthly Rate: $210 (Monday - Friday 6am - 6pm)&nbsp;",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$15",
-        "daytime": "Max $27 / day"
+        "hourly": 6.0,
+        "evening": 15.0,
+        "daily": 27.0
       }
     },
     {
@@ -28,9 +28,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 125 spaces; Monthly from $195; Corner of Library and Division Monthly parking is on a Waiting list, call (616) 458-1179 for details",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$20",
-        "daytime": "Max $27 / day"
+        "hourly": 6.0,
+        "evening": 20.0,
+        "daily": 27.0
       }
     },
     {
@@ -43,9 +43,9 @@
       "address": "55 Ottawa Ave SW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 250 spaces; Located near the Van Andel Arena",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$30",
-        "daytime": "Max $27 / day"
+        "hourly": 6.0,
+        "evening": 30.0,
+        "daily": 27.0
       }
     },
     {
@@ -58,9 +58,9 @@
       "address": "435 Ionia Ave SW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 225 spaces; Surface parking lot&nbsp; 1st 1/2 hour free $3.00 per half upto a $24.00 Max",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$24",
-        "daytime": "Max $24 / day"
+        "hourly": 6.0,
+        "evening": 24.0,
+        "daily": 24.0
       }
     },
     {
@@ -73,9 +73,9 @@
       "address": "432 Monroe Ave NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 600 spaces; Monthly from $168.83; Please call to be added to the waitlist 616-458-1179",
       "pricing": {
-        "hourly": "$2 per half hour",
-        "evening": "$10",
-        "daytime": "Max $20 / day"
+        "hourly": 4.0,
+        "evening": 10.0,
+        "daily": 20.0
       }
     },
     {
@@ -86,11 +86,11 @@
       "manager": "Ellis",
       "name": "Midtown Parking Garage",
       "address": "130 Lyon Street NW, Grand Rapids, MI, 49503",
-      "availability": "Grand Rapids; 665 spaces; Monthly from $240; Midtown Multi-Level Parking Garage Behind Waters Buliding Entrances off both Pearl and Lyon Street between Monroe and Ottawa. Overnight Parking: &nbsp;$38.00 per 24 hour period &nbsp;No in/out p rivileges &nbsp; Monthly Rate: $240 (Monda\u2026",
+      "availability": "Grand Rapids; 665 spaces; Monthly from $240; Midtown Multi-Level Parking Garage Behind Waters Buliding Entrances off both Pearl and Lyon Street between Monroe and Ottawa. Overnight Parking: &nbsp;$38.00 per 24 hour period &nbsp;No in/out p rivileges &nbsp; Monthly Rate: $240 (Monda…",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$17",
-        "daytime": "Max $30 / day"
+        "hourly": 6.0,
+        "evening": 17.0,
+        "daily": 30.0
       }
     },
     {
@@ -103,9 +103,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 56 spaces; On Pearl Between Ledyard and McKay Tower &nbsp; Overnight Parking: &nbsp;$38.00 per 24 hour period &nbsp;No in/out p rivileges &nbsp;",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$17",
-        "daytime": "Max $30 / day"
+        "hourly": 6.0,
+        "evening": 17.0,
+        "daily": 30.0
       }
     },
     {
@@ -118,9 +118,9 @@
       "address": "151 Ionia Ave NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 125 spaces; Entrance on Ionia&nbsp; &nbsp; Overnight Max: $38.00 per 24 hour period",
       "pricing": {
-        "hourly": "$2.5 per half hour",
-        "evening": "$17",
-        "daytime": "Max $30 / day"
+        "hourly": 5.0,
+        "evening": 17.0,
+        "daily": 30.0
       }
     }
   ]

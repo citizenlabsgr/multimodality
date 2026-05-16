@@ -11,7 +11,7 @@
       "name": "601 Ottawa Lot",
       "address": "601 Ottawa Ave NE",
       "pricing": {
-        "hourly": "Weekends and Weekdays after 7pm"
+        "hourlyFreeWhen": "Weekends and Weekdays after 7pm"
       },
       "availability": "80 spaces; DASH: Circulator"
     },
@@ -23,8 +23,8 @@
       "name": "Area 2 Lot",
       "address": "131 Oakes St SW",
       "pricing": {
-        "daytime": "$16.00",
-        "events": "$16.00-25.00"
+        "daily": 16.0,
+        "events": [16.0, 25.0]
       },
       "availability": "146 spaces; DASH: Circulator, Silver Line"
     },
@@ -36,8 +36,8 @@
       "name": "Area 3 Lot",
       "address": "45 Ionia Ave SW",
       "pricing": {
-        "daytime": "$12.00",
-        "events": "$15.00-25.00"
+        "daily": 12.0,
+        "events": [15.0, 25.0]
       },
       "availability": "65 spaces; DASH: Circulator"
     },
@@ -49,8 +49,8 @@
       "name": "Area 6A Lot",
       "address": "170 Cherry St SW",
       "pricing": {
-        "daytime": "$10.00",
-        "events": "$12.00-20.00"
+        "daily": 10.0,
+        "events": [12.0, 20.0]
       },
       "availability": "191 spaces; DASH: Circulator, Silver Line"
     },
@@ -62,8 +62,8 @@
       "name": "Area 7 Lot",
       "address": "301 Mt Vernon Ave NW",
       "pricing": {
-        "daytime": "$4.00",
-        "events": "$8.00-9.00"
+        "daily": 4.0,
+        "events": [8.0, 9.0]
       },
       "availability": "474 spaces; Monday - Friday after 5 pm; Weekends; DASH: Circulator, Work"
     },
@@ -75,8 +75,8 @@
       "name": "Area 8 Lot",
       "address": "325 Winter Ave NW",
       "pricing": {
-        "daytime": "$5.00",
-        "events": "$6.00-7.00"
+        "daily": 5.0,
+        "events": [6.0, 7.0]
       },
       "availability": "110 spaces; Monday - Friday after 5 pm; Weekends; DASH: Circulator, Work"
     },
@@ -88,8 +88,8 @@
       "name": "Area 9 Lot",
       "address": "250 Seward Ave NW",
       "pricing": {
-        "daytime": "$3.00",
-        "events": "$6.00-7.00"
+        "daily": 3.0,
+        "events": [6.0, 7.0]
       },
       "availability": "485 spaces; Monday - Friday after 5 pm; Weekends; DASH: Circulator, Work"
     },
@@ -128,9 +128,9 @@
       "name": "Library Lot",
       "address": "111 Library St NE",
       "pricing": {
-        "daytime": "$25.00",
-        "events": "$15.00",
-        "rate": "$2.00"
+        "daily": 25.0,
+        "events": 15.0,
+        "hourly": 4.0
       },
       "availability": "118 spaces; DASH: Circulator, Silver Line"
     },
@@ -151,11 +151,10 @@
       "name": "McConnell Ionia Lot",
       "address": "36 McConnell St SW",
       "pricing": {
-        "daytime": "$10.00",
-        "evening": "$51.00",
-        "events": "$8.00-9.00",
-        "rate": "$1.00 Per Hour",
-        "hourly": "$1.00"
+        "daily": 10.0,
+        "evening": 51.0,
+        "events": [8.0, 9.0],
+        "hourly": 1.0
       },
       "availability": "300 spaces; DASH: Circulator"
     },
@@ -167,8 +166,8 @@
       "name": "Scribner Lot",
       "address": "309 Scribner Ave NW",
       "pricing": {
-        "daytime": "$5.00",
-        "events": "$6.00-10.00"
+        "daily": 5.0,
+        "events": [6.0, 10.0]
       },
       "availability": "165 spaces; Monday - Friday after 5 pm; Weekends; DASH: Circulator, Work"
     },

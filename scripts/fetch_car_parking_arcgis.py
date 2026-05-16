@@ -30,6 +30,9 @@ DEFAULT_WEB_APP_ITEM_ID = "19d11d58264249d4a4ca9f96758fc252"
 SHARING_REST = "https://www.arcgis.com/sharing/rest"
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from parking_pricing_schema import build_arcgis_pricing  # noqa: E402
+
 OUT_GARAGES = REPO_ROOT / "data/parking/public/garages-arcgis.json"
 OUT_LOTS = REPO_ROOT / "data/parking/public/lots-arcgis.json"
 
@@ -142,33 +145,8 @@ def is_garage(attrs: dict) -> bool:
     return "ramp" in n
 
 
-def _pricing_val(v) -> str | None:
-    if v is None:
-        return None
-    s = str(v).strip()
-    if not s or s.lower() in ("no rate", "n/a", "none"):
-        return None
-    return s
-
-
 def build_pricing(attrs: dict) -> dict | None:
-    pricing: dict = {}
-    dm = _pricing_val(attrs.get("DAILY_MAX"))
-    if dm:
-        pricing["daytime"] = dm
-    ev = _pricing_val(attrs.get("evening"))
-    if ev:
-        pricing["evening"] = ev
-    ec = _pricing_val(attrs.get("EVENT_CHRG"))
-    if ec:
-        pricing["events"] = ec
-    half = _pricing_val(attrs.get("HALF_HR_RT"))
-    if half:
-        pricing["rate"] = half
-    hr = _pricing_val(attrs.get("Hour_Rate"))
-    if hr:
-        pricing["hourly"] = hr
-    return pricing or None
+    return build_arcgis_pricing(attrs)
 
 
 def build_availability(attrs: dict) -> str | None:

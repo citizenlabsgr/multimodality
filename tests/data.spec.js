@@ -223,6 +223,33 @@ test.describe("Data routes", () => {
     await expect(input).toHaveValue("gran");
     await expect(input).toBeFocused();
   });
+
+  test("clear button clears parking search and preserves pin in URL", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    const pin = "public-garage:42.960041,-85.669489";
+    await page.goto(`/#/data/parking?q=cherry&pin=${encodeURIComponent(pin)}`);
+    await page.waitForSelector("#data-parking-q-filter", { state: "visible" });
+
+    const input = page.locator("#data-parking-q-filter");
+    const clearBtn = page.locator("#data-parking-q-clear");
+    await expect(input).toHaveValue("cherry");
+    await expect(clearBtn).toBeVisible();
+
+    await clearBtn.click();
+    await expect(input).toHaveValue("");
+    await expect(clearBtn).toBeHidden();
+    await expect(page).toHaveURL(
+      new RegExp(
+        `#/data/parking\\?pin=${pin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+      ),
+    );
+    await expect(input).toBeFocused();
+  });
 });
 
 test.describe("Data destinations", () => {

@@ -11,10 +11,10 @@
       "name": "Cherry Commerce Ramp",
       "address": "41 Cherry St SW",
       "pricing": {
-        "daytime": "$24.00",
-        "evening": "$51.00",
-        "events": "$12.00-15.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "evening": 51.0,
+        "events": [12.0, 15.0],
+        "hourly": 4.0
       },
       "availability": "291 spaces; DASH: Circulator"
     },
@@ -26,9 +26,9 @@
       "name": "DeVos Place Ramp",
       "address": "218 Lyon St NW",
       "pricing": {
-        "daytime": "$25.00",
-        "events": "$13.00-25.00",
-        "rate": "$2.00"
+        "daily": 25.0,
+        "events": [13.0, 25.0],
+        "hourly": 4.0
       },
       "availability": "DASH: Circulator, Work"
     },
@@ -40,9 +40,9 @@
       "name": "Government Center Ramp",
       "address": "300 Monroe Ave NW",
       "pricing": {
-        "daytime": "$24.00",
-        "events": "$12.00-25.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "events": [12.0, 25.0],
+        "hourly": 4.0
       },
       "availability": "910 spaces; DASH: Circulator, Work"
     },
@@ -54,9 +54,9 @@
       "name": "Grand Rapids Public Museum Ramp",
       "address": "55 Front Ave NW (Public)",
       "pricing": {
-        "daytime": "$24.00",
-        "events": "$15.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "events": 15.0,
+        "hourly": 4.0
       },
       "availability": "217 spaces; DASH: Circulator, Silver Line"
     },
@@ -68,9 +68,9 @@
       "name": "Louis Campau Ramp",
       "address": "43 Monroe Ave NW",
       "pricing": {
-        "daytime": "$24.00",
-        "events": "$14.00-25.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "events": [14.0, 25.0],
+        "hourly": 4.0
       },
       "availability": "535 spaces; DASH: Circulator, Silver Line"
     },
@@ -82,10 +82,10 @@
       "name": "Monroe Center Ramp",
       "address": "37 Ionia Ave NW",
       "pricing": {
-        "daytime": "$24.00",
-        "evening": "$51.00",
-        "events": "$12.00-20.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "evening": 51.0,
+        "events": [12.0, 20.0],
+        "hourly": 4.0
       },
       "availability": "523 spaces; 1 Hour free parking before 6:00 PM; DASH: Circulator"
     },
@@ -97,9 +97,9 @@
       "name": "Ottawa Fulton Ramp",
       "address": "50 Ottawa Ave NW",
       "pricing": {
-        "daytime": "$24.00",
-        "events": "$15.00-25.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "events": [15.0, 25.0],
+        "hourly": 4.0
       },
       "availability": "782 spaces; DASH: Circulator"
     },
@@ -111,9 +111,9 @@
       "name": "Ottawa-Fulton Wedge Lot",
       "address": "50 Ottawa Ave NW",
       "pricing": {
-        "daytime": "$24.00",
-        "events": "$15.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "events": 15.0,
+        "hourly": 4.0
       },
       "availability": "17 spaces; DASH: Circulator"
     },
@@ -125,10 +125,10 @@
       "name": "Pearl Ionia Ramp",
       "address": "28 Pearl St NW",
       "pricing": {
-        "daytime": "$24.00",
-        "evening": "$51.00",
-        "events": "$7.00-10.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "evening": 51.0,
+        "events": [7.0, 10.0],
+        "hourly": 4.0
       },
       "availability": "610 spaces; DASH: Circulator, Work"
     },
@@ -140,9 +140,9 @@
       "name": "The Gallery Ramp",
       "address": "10 Commerce Ave SW",
       "pricing": {
-        "daytime": "$24.00",
-        "events": "$10.00-12.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "events": [10.0, 12.0],
+        "hourly": 4.0
       },
       "availability": "233 spaces; DASH: Circulator"
     },
@@ -154,10 +154,10 @@
       "name": "Weston Commerce Ramp",
       "address": "18 Weston St SW",
       "pricing": {
-        "daytime": "$24.00",
-        "evening": "$51.00",
-        "events": "$12.00-15.00",
-        "rate": "$2.00"
+        "daily": 24.0,
+        "evening": 51.0,
+        "events": [12.0, 15.0],
+        "hourly": 4.0
       },
       "availability": "380 spaces; DASH: Circulator"
     }
