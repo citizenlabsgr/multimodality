@@ -145,10 +145,6 @@ export function formatPricingTierForDisplay(key, value, pricing) {
       ? formatPricingAmount(value)
       : formatDollarAmount(Math.max(...amounts));
 
-  if (key === "daily" && typeof value === "number") {
-    line = `Max ${formatDollarAmount(value)} / day`;
-  }
-
   const p = pricing && typeof pricing === "object" ? pricing : {};
   if (key === "hourly") {
     line += " per hour";
