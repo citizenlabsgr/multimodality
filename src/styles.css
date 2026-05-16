@@ -46,3 +46,15 @@ body.parking-legend-modal-open {
   border: 1px solid rgb(203 213 225);
   background: rgb(241 245 249);
 }
+
+/* `#/data/parking` search — custom clear control (hide browser defaults). */
+#data-parking-q-filter::-webkit-search-cancel-button,
+#data-parking-q-filter::-webkit-search-decoration,
+#data-parking-q-filter::-webkit-search-results-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+#data-parking-q-filter::-moz-search-clear-button {
+  display: none;
+}

@@ -8,8 +8,8 @@
         "longitude": -85.6734
       },
       "pricing": {
-        "rate": "$1.25-$2.00 per half hour in prime areas",
-        "hourly": "$2.50-$4.00 per hour",
+        "rateNote": "in prime areas",
+        "hourly": [2.5, 4.0],
         "maxDuration": "2-3 hours (varies by location)",
         "enforcement": "Monday-Friday 8am-7pm",
         "free": "After 5pm or 6pm and on weekends (event rates may apply)"

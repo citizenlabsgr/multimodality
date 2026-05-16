@@ -1,5 +1,9 @@
 import { test, expect } from "@playwright/test";
 import { installConsoleErrorAssertions } from "./helpers/console-errors.js";
+import {
+  parkingSpotEveningPriceCeilingOrAbsent,
+  pickEveningTierForCap,
+} from "../src/shared/parking-pricing.mjs";
 
 installConsoleErrorAssertions(test);
 
@@ -1420,21 +1424,21 @@ test.describe("Parking map (#/visit)", () => {
   });
 
   test.describe("Evening price cap (pay)", () => {
-    /** Cherry Commerce Ramp — evening $51 in `data/parking/public/garages-arcgis.json`. */
+    /** Cherry Commerce Ramp — events $12–15, evening $51 in `data/parking/public/garages-arcgis.json`. */
     const cherryCoords = "public-garage:42.960041,-85.669489";
+    const cherryPricing = {
+      daily: 24,
+      evening: 51,
+      events: [12, 15],
+      hourly: 4,
+    };
 
-    test("hydrates slider and label from pay in the URL", async ({ page }) => {
-      await page.goto("/#/visit?pay=25");
-      await waitForParkingData(page);
-      await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("25");
-      await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
-        "$25",
-      );
-      await waitForParkingLeafletMap(page);
-      const hasCherry = await page.evaluate(
-        ({ cherryCoords }) => {
-          const colon = cherryCoords.indexOf(":");
-          const rest = cherryCoords.slice(colon + 1);
+    async function parkingSpotOnMap(page, spotCoords) {
+      return page.evaluate(
+        ({ spotCoords }) => {
+          const colon = spotCoords.indexOf(":");
+          const categoryKey = spotCoords.slice(0, colon);
+          const rest = spotCoords.slice(colon + 1);
           const comma = rest.indexOf(",");
           const lat = Number(rest.slice(0, comma));
           const lng = Number(rest.slice(comma + 1));
@@ -1446,7 +1450,7 @@ test.describe("Parking map (#/visit)", () => {
             if (!group?.eachLayer) return;
             group.eachLayer((m) => {
               if (
-                m.options?.parkingCategoryKey === "public-garage" &&
+                m.options?.parkingCategoryKey === categoryKey &&
                 m.options?.parkingSpotPopupLayer &&
                 typeof m.getLatLng === "function"
               ) {
@@ -1462,9 +1466,47 @@ test.describe("Parking map (#/visit)", () => {
           });
           return found;
         },
-        { cherryCoords },
+        { spotCoords },
       );
-      expect(hasCherry).toBe(false);
+    }
+
+    test("pay cap tier order prefers events over evening for public garages", () => {
+      expect(pickEveningTierForCap(cherryPricing, "public-garage")).toEqual({
+        key: "events",
+        value: [12, 15],
+      });
+      expect(
+        parkingSpotEveningPriceCeilingOrAbsent(cherryPricing, "public-garage"),
+      ).toBe(15);
+    });
+
+    test("hydrates slider and label from pay in the URL", async ({ page }) => {
+      await page.goto("/#/visit?pay=25");
+      await waitForParkingData(page);
+      await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("25");
+      await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
+        "$25",
+      );
+    });
+
+    test("Cherry Commerce Ramp stays on map when events tier is within pay cap", async ({
+      page,
+    }) => {
+      await page.goto(
+        "/#/visit/acrisure-amphitheater?pay=45&park=private-lot:42.970247,-85.679696",
+      );
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      expect(await parkingSpotOnMap(page, cherryCoords)).toBe(true);
+    });
+
+    test("Cherry Commerce Ramp is hidden when events tier exceeds pay cap", async ({
+      page,
+    }) => {
+      await page.goto("/#/visit/acrisure-amphitheater?pay=10");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+      expect(await parkingSpotOnMap(page, cherryCoords)).toBe(false);
     });
 
     test("Red Lion Lot uses daily rate for pay cap when hourly+daily set", async ({
@@ -1689,7 +1731,7 @@ test.describe("Parking map (#/visit)", () => {
               longitude: freeTierCoords.lng,
             },
             pricing: {
-              hourly: "Weekends and Weekdays after 7pm",
+              hourlyFreeWhen: "Weekends and Weekdays after 7pm",
             },
           });
         },
@@ -1767,7 +1809,7 @@ test.describe("Parking map (#/visit)", () => {
                 latitude: hourlyOnlyCoords.lat,
                 longitude: hourlyOnlyCoords.lng,
               },
-              pricing: { hourly: "$4.99" },
+              pricing: { hourly: 4.99 },
             });
           }
         },

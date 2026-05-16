@@ -33,6 +33,9 @@ ELLIS_BASE = "https://www.ellisparking.com"
 # Short `manager` / dataset title label in JSON (full vendor: ELLIS_BASE).
 ELLIS_MANAGER = "Ellis"
 REPO_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPO_ROOT / "scripts"))
+from parking_pricing_schema import ellis_rates_to_pricing as rates_to_pricing  # noqa: E402
+
 OUT_GARAGES = REPO_ROOT / "data/parking/private/garages-ellis.json"
 OUT_LOTS = REPO_ROOT / "data/parking/private/lots-ellis.json"
 
@@ -104,25 +107,6 @@ def fmt_dollars(v: object) -> str | None:
     if abs(x - round(x)) < 1e-6:
         return f"${int(round(x))}"
     return f"${x:.2f}".rstrip("0").rstrip(".")
-
-
-def rates_to_pricing(rates: dict | None) -> dict | None:
-    if not rates or not isinstance(rates, dict):
-        return None
-    pricing: dict[str, str] = {}
-    eb = fmt_dollars(rates.get("earlyBird"))
-    if eb:
-        pricing["rate"] = f"Early bird {eb}"
-    ph = fmt_dollars(rates.get("perHalfHour"))
-    if ph:
-        pricing["hourly"] = f"{ph} per half hour"
-    ev = fmt_dollars(rates.get("evening"))
-    if ev:
-        pricing["evening"] = ev
-    md = fmt_dollars(rates.get("maxDay"))
-    if md:
-        pricing["daytime"] = f"Max {md} / day"
-    return pricing or None
 
 
 def build_address(loc: dict) -> str | None:

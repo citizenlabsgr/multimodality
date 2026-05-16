@@ -13,7 +13,7 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 22 spaces; Across from the Intersection Lounge Event Parking Only",
       "pricing": {
-        "evening": "$30"
+        "evening": 30.0
       }
     },
     {
@@ -26,7 +26,7 @@
       "address": "120 South Ionia, Grand Rapids, Michigan, 49503",
       "availability": "Grand Rapids; 25 spaces; 120 South Ionia Event Parking Only",
       "pricing": {
-        "evening": "$30"
+        "evening": 30.0
       }
     },
     {
@@ -39,8 +39,8 @@
       "address": "28 Ionia Ave, Grand Rapids, MI",
       "availability": "Grand Rapids; 18 spaces; Corner of Ionia and Weston Event Parking only",
       "pricing": {
-        "evening": "$30",
-        "daytime": "Max $30 / day"
+        "evening": 30.0,
+        "daily": 30.0
       }
     },
     {
@@ -53,9 +53,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 180 spaces; Monthly from $220; Overnight Parking: &nbsp;$35.00 per 24 hour period &nbsp;No in/out p rivileges &nbsp; No Trailers allowed in the Lot Call for Monthly parking details 616-458-1179",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$30",
-        "daytime": "Max $27 / day"
+        "hourly": 6.0,
+        "evening": 30.0,
+        "daily": 27.0
       }
     },
     {
@@ -68,9 +68,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 1650 spaces; Corner of Bridge and Scribner",
       "pricing": {
-        "hourly": "$2.5 per half hour",
-        "evening": "$12",
-        "daytime": "Max $17 / day"
+        "hourly": 5.0,
+        "evening": 12.0,
+        "daily": 17.0
       }
     },
     {
@@ -83,9 +83,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 650 spaces; Between Ottawa and Monroe",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$15",
-        "daytime": "Max $27 / day"
+        "hourly": 6.0,
+        "evening": 15.0,
+        "daily": 27.0
       }
     },
     {
@@ -98,9 +98,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 100 spaces; Between County Courthouse and State of Michigan Building",
       "pricing": {
-        "hourly": "$2 per half hour",
-        "evening": "$10",
-        "daytime": "Max $17 / day"
+        "hourly": 4.0,
+        "evening": 10.0,
+        "daily": 17.0
       }
     },
     {
@@ -113,7 +113,7 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 20 spaces; Across street south of Grand Woods Lodge Event Parking Only",
       "pricing": {
-        "evening": "$30"
+        "evening": 30.0
       }
     },
     {
@@ -126,9 +126,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 240 spaces; Monthly from $100; Corner of Bridge and Scribner Monday - Friday Monthly rate $100 24/7 monthly rate $150.00",
       "pricing": {
-        "hourly": "$2.5 per half hour",
-        "evening": "$12",
-        "daytime": "Max $17 / day"
+        "hourly": 5.0,
+        "evening": 12.0,
+        "daily": 17.0
       }
     },
     {
@@ -141,9 +141,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 2200 spaces; Corner of Bostwick and Lyon Radier card Rate $3.50 per use",
       "pricing": {
-        "hourly": "$2 per half hour",
-        "evening": "$6",
-        "daytime": "Max $12 / day"
+        "hourly": 4.0,
+        "evening": 6.0,
+        "daily": 12.0
       }
     },
     {
@@ -156,9 +156,9 @@
       "address": "432 Fountain, Grand Rapids, Michigan, 49503",
       "availability": "Grand Rapids; 250 spaces; GRCC DeVos Campus 432 Fountain Street, NE &nbsp; Raider Card Rate $3.50 per use",
       "pricing": {
-        "hourly": "$2 per half hour",
-        "evening": "$6",
-        "daytime": "Max $12 / day"
+        "hourly": 4.0,
+        "evening": 6.0,
+        "daily": 12.0
       }
     },
     {
@@ -171,9 +171,9 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 768 spaces; Corner of Lyon and Bostwick &nbsp; Raider Card Rate &nbsp;$3.50 per use",
       "pricing": {
-        "hourly": "$2 per half hour",
-        "evening": "$6",
-        "daytime": "Max $12 / day"
+        "hourly": 4.0,
+        "evening": 6.0,
+        "daily": 12.0
       }
     },
     {
@@ -186,10 +186,11 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 145 spaces; Monthly from $0; On Louis-Campau across from Z's",
       "pricing": {
-        "rate": "Early bird $0",
-        "hourly": "$3 per half hour",
-        "evening": "$15",
-        "daytime": "Max $30 / day"
+        "rate": 0.0,
+        "rateLabel": "Early bird",
+        "hourly": 6.0,
+        "evening": 15.0,
+        "daily": 30.0
       }
     },
     {
@@ -202,9 +203,9 @@
       "address": "120 Ottawa Ave SW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 933 spaces; Monthly from $185; 1st 4 hours of Movie Parking is free with a ticket purchase and validation form inside the Theater. This location has ChargePoint EV chargers in the Ramp. &nbsp; &nbsp; &nbsp;",
       "pricing": {
-        "hourly": "$3 per half hour",
-        "evening": "$30",
-        "daytime": "Max $30 / day"
+        "hourly": 6.0,
+        "evening": 30.0,
+        "daily": 30.0
       }
     },
     {
@@ -217,7 +218,7 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 22 spaces; On Ionia behind arena. Event Parking Only for Nights and Weekends.",
       "pricing": {
-        "evening": "$30"
+        "evening": 30.0
       }
     },
     {
@@ -230,8 +231,8 @@
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 440 spaces; Monthly from $150; Womens Health Center at Michigan and Union",
       "pricing": {
-        "hourly": "$0.75 per half hour",
-        "daytime": "Max $12 / day"
+        "hourly": 1.5,
+        "daily": 12.0
       }
     }
   ]

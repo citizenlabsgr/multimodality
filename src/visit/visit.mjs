@@ -15,6 +15,13 @@ import {
   circleStyleForParkingCategoryKey,
   hexToRgba,
 } from "../shared/parking-map-marker-styles.mjs";
+import {
+  getParkingMapCostDisplay,
+  PARKING_EVENING_PRICE_ABSENT,
+  PARKING_EVENING_PRICE_AMBIGUOUS_PROSE,
+  parkingSpotEveningPriceCeilingOrAbsent,
+  parseDollarAmountsFromPriceText,
+} from "../shared/parking-pricing.mjs";
 
 /**
  * Parking map filter toggle ids — same strings as `#/visit?location=` (not `appData.parking` JSON keys).
@@ -428,151 +435,6 @@ function singularizeParkingCategoryLabel(label) {
   return raw;
 }
 
-/**
- * Dollar amounts for evening-cap and recommendation scoring. Picks up every **`$n`** token plus
- * **ArcGIS-style** **`$16.00-25.00`** (one dollar sign, bare high end) so ranges contribute **both**
- * endpoints; callers use **Math.max** for worst-case filtering.
- */
-function parseDollarAmountsFromPriceText(text) {
-  if (typeof text !== "string" || text.trim() === "") return [];
-  const nums = [];
-  const re = /\$(\d+(?:\.\d+)?)/g;
-  let m;
-  while ((m = re.exec(text)) !== null) {
-    const n = Number.parseFloat(m[1]);
-    if (Number.isFinite(n)) nums.push(n);
-  }
-  const singleDollarRange = /\$(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)\b/g;
-  while ((m = singleDollarRange.exec(text)) !== null) {
-    const a = Number.parseFloat(m[1]);
-    const b = Number.parseFloat(m[2]);
-    if (Number.isFinite(a)) nums.push(a);
-    if (Number.isFinite(b)) nums.push(b);
-  }
-  return nums;
-}
-
-/** Sentinels from {@link parkingSpotEveningPriceCeilingOrAbsent} (numeric ceilings ≥ 0). */
-const PARKING_EVENING_PRICE_ABSENT = null;
-/** Tier text exists (not wholly empty pricing) but no parseable dollars and not a free window — still visible when pay > free-only. */
-const PARKING_EVENING_PRICE_AMBIGUOUS_PROSE = -1;
-
-function pricingObjectHasAnyKnownTierField(pricing) {
-  if (!pricing || typeof pricing !== "object") return false;
-  for (const k of ["evening", "events", "hourly", "rate", "daytime", "daily"]) {
-    if (typeof pricing[k] === "string" && pricing[k].trim()) return true;
-  }
-  return false;
-}
-
-/**
- * ArcGIS / OSM prose that describes free parking during evenings or weekends (no `$` in source).
- * Grand Rapids meters: free after 7pm weekdays and weekends — visitor map sometimes uses `hourly` for that prose.
- */
-function parkingPriceTextImpliesEveningFree(text) {
-  const s = typeof text === "string" ? text.trim().toLowerCase() : "";
-  if (!s) return false;
-  if (/\bfree\b/.test(s)) return true;
-  if (/no\s+(charge|fee)\b/.test(s)) return true;
-  if (/\bcomplimentary\b/.test(s)) return true;
-  if (/\b\$0\b/.test(text || "")) return true;
-  if (/\bweekends?\b/.test(s) && /\bweekdays?\b/.test(s) && /\bafter\b/.test(s))
-    return true;
-  if (/\bweekdays?\s+after\s+7\b/.test(s)) return true;
-  if (/\bafter\s+7\s*:?\s*(pm|00)\b/.test(s)) return true;
-  if (/\bafter\s+7\s*pm\b/.test(s)) return true;
-  return false;
-}
-
-/** Tier text reads as an hourly dollar rate (evening filter multiplies by {@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}). */
-const PARKING_EVENING_HOURLY_ASSUMED_HOURS = 6;
-
-function parkingTierTextLooksLikeHourlyDollarRate(text) {
-  if (typeof text !== "string" || !text.trim()) return false;
-  return /\b(per\s+hour|\/hr|hourly)\b/i.test(text);
-}
-
-function pickEveningTierStringForCap(pricing, categoryKey) {
-  const isPublic =
-    categoryKey === "public-garage" || categoryKey === "public-lot";
-  if (typeof pricing.evening === "string" && pricing.evening.trim()) {
-    return pricing.evening.trim();
-  }
-  if (isPublic && typeof pricing.events === "string" && pricing.events.trim()) {
-    return pricing.events.trim();
-  }
-  if (isPublic && typeof pricing.hourly === "string" && pricing.hourly.trim()) {
-    return pricing.hourly.trim();
-  }
-  if (typeof pricing.rate === "string" && pricing.rate.trim()) {
-    return pricing.rate.trim();
-  }
-  if (typeof pricing.daytime === "string" && pricing.daytime.trim()) {
-    return pricing.daytime.trim();
-  }
-  if (typeof pricing.daily === "string" && pricing.daily.trim()) {
-    return pricing.daily.trim();
-  }
-  if (
-    !isPublic &&
-    typeof pricing.events === "string" &&
-    pricing.events.trim()
-  ) {
-    return pricing.events.trim();
-  }
-  return "";
-}
-
-/**
- * Worst-case posted dollars for evening-style pricing (used vs max-evening filter).
- * **`null`** means no pricing tier fields at all (true unknown). **`-1`** means prose without dollars
- * (still shown unless pay is free-only). **`0`** means inferred free evenings/weekends.
- * Hourly-style copy (e.g. **$5 per hour**) or values taken from the **`pricing.hourly`** JSON field use
- * the largest parseable dollar × **{@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}** (assumes **6 hours** for the cap).
- * Posted ranges (**`$12-$15`** or **`$16.00-25.00`**) use the **high** dollar via {@link parseDollarAmountsFromPriceText}.
- * **`daily`** (e.g. AirGarage **$15** flat) is used for the cap when set — before falling back to **`hourly`**
- * × **{@link PARKING_EVENING_HOURLY_ASSUMED_HOURS}** so lots with both **hourly** and **daily** do not
- * over-filter on the hourly multiple alone.
- */
-function parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey) {
-  if (!pricing || typeof pricing !== "object")
-    return PARKING_EVENING_PRICE_ABSENT;
-  if (!pricingObjectHasAnyKnownTierField(pricing))
-    return PARKING_EVENING_PRICE_ABSENT;
-
-  const tier = pickEveningTierStringForCap(pricing, categoryKey);
-  const hourlyTierRaw =
-    typeof pricing.hourly === "string" ? pricing.hourly.trim() : "";
-
-  const ceilingFromParsedTierText = (text, hourlyJsonSemantics) => {
-    const nums = parseDollarAmountsFromPriceText(text);
-    if (nums.length === 0) return null;
-    const base = Math.max(...nums);
-    const multiply =
-      hourlyJsonSemantics === true ||
-      parkingTierTextLooksLikeHourlyDollarRate(text);
-    if (multiply) return base * PARKING_EVENING_HOURLY_ASSUMED_HOURS;
-    return base;
-  };
-
-  if (tier) {
-    if (parkingPriceTextImpliesEveningFree(tier)) return 0;
-    const tierFromHourlyField = hourlyTierRaw !== "" && tier === hourlyTierRaw;
-    const c = ceilingFromParsedTierText(tier, tierFromHourlyField);
-    if (c != null) return c;
-    return PARKING_EVENING_PRICE_AMBIGUOUS_PROSE;
-  }
-
-  if (hourlyTierRaw) {
-    if (parkingPriceTextImpliesEveningFree(hourlyTierRaw)) return 0;
-    const c = ceilingFromParsedTierText(hourlyTierRaw, true);
-    if (c != null) return c;
-    return PARKING_EVENING_PRICE_AMBIGUOUS_PROSE;
-  }
-
-  return PARKING_EVENING_PRICE_ABSENT;
-}
-
 function parkingSpotPassesEveningBudget(
   pricing,
   categoryKey,
@@ -936,164 +798,6 @@ function darkenCssHex(hex, factor) {
   return `#${d(r)}${d(g)}${d(b)}`;
 }
 
-function formatParkingPrice(pricing, categoryKey) {
-  const privateOsm = isVisitParkingPrivateStyleCategory(categoryKey);
-  if (!pricing || typeof pricing !== "object") {
-    return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
-  }
-  if (pricing.events) return pricing.events;
-  if (pricing.daily) return pricing.daily;
-  if (pricing.evening) return pricing.evening;
-  if (pricing.rate) return pricing.rate;
-  if (pricing.daytime) return pricing.daytime;
-  if (pricing.hourly) return pricing.hourly;
-  return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
-}
-
-/** Whether `s` looks like a dollar amount (not prose-only Hour_Rate garbage). */
-function parkingCostTextLooksLikeRate(s) {
-  if (typeof s !== "string" || s.trim() === "") return false;
-  return /[\$€£]|\d+\.\d{2}\b/.test(s);
-}
-
-/**
- * When two pricing strings differ, use **`hourlyText`** as a supplement under the primary line
- * (e.g. event/daily max + Hour_Rate context).
- * @returns {{ text: string, hourlyHint: boolean } | null}
- */
-function parkingMapEventPlusHourlySupplement(eventsText, hourlyText) {
-  const ev = typeof eventsText === "string" ? eventsText.trim() : "";
-  const hr = typeof hourlyText === "string" ? hourlyText.trim() : "";
-  if (!ev || !hr) return null;
-  const evLo = ev.replace(/\s+/g, " ").toLowerCase();
-  const hrLo = hr.replace(/\s+/g, " ").toLowerCase();
-  if (evLo === hrLo) return null;
-  const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hr);
-  return {
-    text: hr,
-    hourlyHint: parkingCostTextLooksLikeRate(hr) && !alreadyHourly,
-  };
-}
-
-/**
- * Single-tier popup line: keep posted dollar text; prose-only evenings inferred as free → **Free**
- * (aligned with {@link parkingSpotEveningPriceCeilingOrAbsent} / {@link parkingPriceTextImpliesEveningFree}).
- */
-function parkingMapCostLineForTierText(tierText) {
-  if (typeof tierText !== "string" || tierText.trim() === "") return "";
-  const t = tierText.trim();
-  if (parseDollarAmountsFromPriceText(t).length > 0) return t;
-  if (parkingPriceTextImpliesEveningFree(t)) return "Free";
-  return t;
-}
-
-/**
- * Cost line for `#/visit` popups: prefers **flat / cap** tiers (`events`, **`daily`**, `evening`, `rate`, `daytime`)
- * over **`hourly`**. When **`hourly`** pairs with a primary tier, the primary is the main line and hourly may
- * appear as a supplement (same pattern as event + Hour_Rate).
- * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
- */
-function getParkingMapCostDisplay(pricing, categoryKey) {
-  const privateOsm = isVisitParkingPrivateStyleCategory(categoryKey);
-  if (!pricing || typeof pricing !== "object") {
-    return {
-      text: privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free",
-      costHourlyHint: false,
-    };
-  }
-  const eventsRaw =
-    typeof pricing.events === "string" ? pricing.events.trim() : "";
-  const hrRaw = typeof pricing.hourly === "string" ? pricing.hourly.trim() : "";
-  const dailyRaw =
-    typeof pricing.daily === "string" ? pricing.daily.trim() : "";
-  const eveningRaw =
-    typeof pricing.evening === "string" ? pricing.evening.trim() : "";
-  const rateRaw = typeof pricing.rate === "string" ? pricing.rate.trim() : "";
-  const daytimeRaw =
-    typeof pricing.daytime === "string" ? pricing.daytime.trim() : "";
-
-  if (eventsRaw && hrRaw) {
-    const extra = parkingMapEventPlusHourlySupplement(eventsRaw, hrRaw);
-    if (extra) {
-      return {
-        text: eventsRaw,
-        costHourlyHint: false,
-        costSupplement: extra.text,
-        costSupplementHint: extra.hourlyHint,
-      };
-    }
-    return { text: eventsRaw, costHourlyHint: false };
-  }
-
-  if (eventsRaw) {
-    const line = parkingMapCostLineForTierText(eventsRaw);
-    return {
-      text: line || eventsRaw,
-      costHourlyHint: false,
-    };
-  }
-
-  function primaryPlusHourly(primaryRaw) {
-    const extra = parkingMapEventPlusHourlySupplement(primaryRaw, hrRaw);
-    if (extra) {
-      return {
-        text: primaryRaw,
-        costHourlyHint: false,
-        costSupplement: extra.text,
-        costSupplementHint: extra.hourlyHint,
-      };
-    }
-    return { text: primaryRaw, costHourlyHint: false };
-  }
-
-  if (dailyRaw && hrRaw) return primaryPlusHourly(dailyRaw);
-  if (eveningRaw && hrRaw) return primaryPlusHourly(eveningRaw);
-  if (rateRaw && hrRaw) return primaryPlusHourly(rateRaw);
-  if (daytimeRaw && hrRaw) return primaryPlusHourly(daytimeRaw);
-
-  if (dailyRaw)
-    return {
-      text: parkingMapCostLineForTierText(dailyRaw) || dailyRaw,
-      costHourlyHint: false,
-    };
-  if (eveningRaw)
-    return {
-      text: parkingMapCostLineForTierText(eveningRaw) || eveningRaw,
-      costHourlyHint: false,
-    };
-  if (rateRaw)
-    return {
-      text: parkingMapCostLineForTierText(rateRaw) || rateRaw,
-      costHourlyHint: false,
-    };
-  if (daytimeRaw)
-    return {
-      text: parkingMapCostLineForTierText(daytimeRaw) || daytimeRaw,
-      costHourlyHint: false,
-    };
-
-  if (hrRaw) {
-    const line = parkingMapCostLineForTierText(hrRaw);
-    const alreadyHourly = /\b(per\s+hour|\/hr|hourly)\b/i.test(hrRaw);
-    return {
-      text: line,
-      costHourlyHint:
-        line !== "Free" &&
-        parkingCostTextLooksLikeRate(hrRaw) &&
-        !alreadyHourly,
-    };
-  }
-  return {
-    text: privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free",
-    costHourlyHint: false,
-  };
-}
-
-/**
- * Pull a stall count from scraped `availability` text (e.g. `291 spaces; …`, OSM `Capacity: 61`).
- * @param {unknown} raw
- * @returns {number | null}
- */
 export function parseTotalSpacesFromAvailability(raw) {
   if (typeof raw !== "string" || raw.trim() === "") return null;
   const s = raw.trim();
@@ -2952,19 +2656,6 @@ function parkingVisitPopupCategorySublineHtml(row) {
 function parkingSpotPopupHtml(row) {
   const costText =
     row.price && String(row.price).trim() !== "" ? row.price : "—";
-  const hourlySpan =
-    row.costHourlyHint === true
-      ? ` <span style="color:#64748b;font-weight:500;font-size:11px">(hourly)</span>`
-      : "";
-  const supRaw =
-    typeof row.priceSupplement === "string" ? row.priceSupplement.trim() : "";
-  const supplementSpan =
-    supRaw !== ""
-      ? ` <span style="color:#94a3b8" aria-hidden="true">·</span> ${escapeHtml(supRaw)}` +
-        (row.priceSupplementHint === true
-          ? ` <span style="color:#64748b;font-weight:500;font-size:11px">(hourly)</span>`
-          : "")
-      : "";
   const sizeText =
     typeof row.totalSpaces === "number" && Number.isFinite(row.totalSpaces)
       ? `${row.totalSpaces} total spaces`
@@ -2984,7 +2675,7 @@ function parkingSpotPopupHtml(row) {
   }
   if (row.address) html += `<br>${escapeHtml(row.address)}`;
   html +=
-    `<br><span style="color:#475569">Cost:</span> ${escapeHtml(costText)}${hourlySpan}${supplementSpan}` +
+    `<br><span style="color:#475569">Cost:</span> ${escapeHtml(costText)}` +
     `<br><span style="color:#475569">Size:</span> ${escapeHtml(sizeText)}`;
   html +=
     `<div class="parking-spot-popup-actions" style="margin-top:10px;display:block;width:100%;clear:both">` +

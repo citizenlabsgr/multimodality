@@ -19,6 +19,7 @@ import {
   parkingDatasetSwatchHtml,
   styleForParkingDatasetKey,
 } from "./shared/parking-map-marker-styles.mjs";
+import { getDataViewParkingPricingRows } from "./shared/parking-pricing.mjs";
 import {
   hideParkingView,
   isParkingRoute,
@@ -827,97 +828,6 @@ function setDataDestinationsViewButtonActive(btn, active) {
     btn.classList.remove("hover:bg-slate-100");
     btn.classList.add("text-slate-900", "hover:bg-sky-200");
   }
-}
-
-/** Display order for `#/data/parking` map popups — unknown keys sort after these. */
-const DATA_VIEW_PARKING_PRICING_KEY_ORDER = [
-  "events",
-  "evening",
-  "hourly",
-  "daytime",
-  "rate",
-  "daily",
-  "weekly",
-  "monthly",
-  "overnight",
-  "weekend",
-];
-
-function dataViewParkingPricingKeyLabel(key) {
-  if (typeof key !== "string" || !key.trim()) return "Price";
-  const map = {
-    events: "Events",
-    evening: "Evening",
-    hourly: "Hourly",
-    daytime: "Daytime",
-    rate: "Rate",
-    daily: "Daily",
-    weekly: "Weekly",
-    monthly: "Monthly",
-    overnight: "Overnight",
-    weekend: "Weekend",
-  };
-  const k = key.trim();
-  if (map[k]) return map[k];
-  return k.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-/**
- * Rows for data-view parking popups: every non-empty `pricing` string (plus numeric
- * values coerced to string). Falls back to one "Cost" row (Free / Not listed).
- * @returns {{ label: string, value: string }[]}
- */
-function getDataViewParkingPricingRows(pricing, categoryKey) {
-  const privateOsm =
-    categoryKey === "osmGarages" ||
-    categoryKey === "osmLots" ||
-    categoryKey === "airGarageGarages" ||
-    categoryKey === "airGarageLots" ||
-    categoryKey === "ellisGarages" ||
-    categoryKey === "ellisLots";
-  const fallbackValue = privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
-  if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)) {
-    return [{ label: "Cost", value: fallbackValue }];
-  }
-  /** @type {{ key: string, label: string, value: string }[]} */
-  const entries = [];
-  for (const [rawKey, rawVal] of Object.entries(pricing)) {
-    if (rawKey == null) continue;
-    const key = String(rawKey).trim();
-    if (!key) continue;
-    if (rawVal == null) continue;
-    if (typeof rawVal === "object") continue;
-    const value =
-      typeof rawVal === "string"
-        ? rawVal.trim()
-        : typeof rawVal === "number" && Number.isFinite(rawVal)
-          ? String(rawVal)
-          : typeof rawVal === "boolean"
-            ? rawVal
-              ? "Yes"
-              : "No"
-            : "";
-    if (!value) continue;
-    entries.push({
-      key,
-      label: dataViewParkingPricingKeyLabel(key),
-      value,
-    });
-  }
-  if (entries.length === 0) {
-    return [{ label: "Cost", value: fallbackValue }];
-  }
-  entries.sort((a, b) => {
-    const ia = DATA_VIEW_PARKING_PRICING_KEY_ORDER.indexOf(a.key);
-    const ib = DATA_VIEW_PARKING_PRICING_KEY_ORDER.indexOf(b.key);
-    const aKnown = ia !== -1;
-    const bKnown = ib !== -1;
-    if (aKnown && bKnown) return ia - ib;
-    if (aKnown) return -1;
-    if (bKnown) return 1;
-    return a.key.localeCompare(b.key);
-  });
-  return entries.map(({ label, value }) => ({ label, value }));
 }
 
 function updateDataViewMap(points, options) {
@@ -1791,6 +1701,8 @@ function renderDataView() {
         segments.push("modes=" + opts.modes.join(","));
       if (opts.q != null && String(opts.q).trim() !== "")
         segments.push("q=" + encodeURIComponent(String(opts.q).trim()));
+      if (opts.pin != null && String(opts.pin).trim() !== "")
+        segments.push("pin=" + encodeURIComponent(String(opts.pin).trim()));
       return (
         "#/data/parking" + (segments.length > 0 ? "?" + segments.join("&") : "")
       );
@@ -1874,7 +1786,10 @@ function renderDataView() {
             <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
             <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
           </div>
-          <input type="search" id="data-parking-q-filter" class="min-w-[10rem] max-w-md flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 sm:min-w-[12rem]" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
+          <div class="data-parking-q-field relative min-w-[10rem] max-w-md flex-1 sm:min-w-[12rem]">
+            <input type="search" id="data-parking-q-filter" class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
+            <button type="button" id="data-parking-q-clear" class="data-parking-q-clear absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Clear search"${qParamTrimmed ? "" : " hidden"}><span class="text-lg leading-none" aria-hidden="true">×</span></button>
+          </div>
         </div>`;
       PARKING_DATA_MODES.forEach((mode) => {
         const btn = dataViewParkingModes.querySelector(
@@ -1917,6 +1832,7 @@ function renderDataView() {
               dataset: dsRaw !== "" ? dsRaw : undefined,
               modes: nextModes,
               q: current.q,
+              pin: current.pin,
             });
           });
         }
@@ -1974,6 +1890,7 @@ function renderDataView() {
                 dataset: value || undefined,
                 modes: snapModes,
                 q: snap.q,
+                pin: snap.pin,
               });
             });
           });
@@ -1981,8 +1898,15 @@ function renderDataView() {
       const qInput = dataViewParkingModes.querySelector(
         "#data-parking-q-filter",
       );
+      const qClear = dataViewParkingModes.querySelector(
+        "#data-parking-q-clear",
+      );
       if (qInput) {
-        qInput.addEventListener("change", () => {
+        const syncDataParkingQClear = () => {
+          if (!qClear) return;
+          qClear.hidden = qInput.value.trim() === "";
+        };
+        const applyDataParkingQFromInput = () => {
           const snap = parseFragment();
           const snapModesParam = snap.modes ? String(snap.modes).trim() : "";
           const snapModes =
@@ -2001,15 +1925,30 @@ function renderDataView() {
             dataset: ds,
             modes: snapModes,
             q: v || undefined,
+            pin: snap.pin,
           });
           if (window.location.hash !== next) window.location.hash = next;
+        };
+        qInput.addEventListener("change", () => {
+          syncDataParkingQClear();
+          applyDataParkingQFromInput();
         });
         qInput.addEventListener("input", () => {
+          syncDataParkingQClear();
           clearTimeout(qInput._dataParkingQDebounce);
           qInput._dataParkingQDebounce = setTimeout(() => {
             qInput.dispatchEvent(new Event("change", { bubbles: true }));
           }, 400);
         });
+        if (qClear) {
+          qClear.addEventListener("click", () => {
+            qInput.value = "";
+            syncDataParkingQClear();
+            applyDataParkingQFromInput();
+            qInput.focus();
+          });
+        }
+        syncDataParkingQClear();
         if (qFilterHadFocus && qInput instanceof HTMLInputElement) {
           qInput.focus();
           if (

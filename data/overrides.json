@@ -7,7 +7,7 @@
     },
     "name": "Founders Brewing Company",
     "pricing": {
-      "events": "$30"
+      "events": 30.0
     },
     "note": "Pricing source was a Mug Club email."
   },
@@ -19,7 +19,7 @@
     },
     "name": "234 Market",
     "pricing": {
-      "events": "$20"
+      "events": 20.0
     },
     "note": "Pricing source was Google Street View."
   },
@@ -31,8 +31,8 @@
     },
     "name": "Studio Park(ing) Ramp",
     "pricing": {
-      "evening": "$30",
-      "events": "$30"
+      "evening": 30.0,
+      "events": 30.0
     },
     "note": "https://www.ellisparking.com/lot/5ce824946c4886000485d40c"
   },
@@ -44,8 +44,8 @@
     },
     "name": "River House",
     "pricing": {
-      "evening": "$17",
-      "events": "$17"
+      "evening": 17.0,
+      "events": 17.0
     },
     "note": "Pricing source was Google Street View."
   },
@@ -59,8 +59,8 @@
     "manager": "AirGarage",
     "address": "45 Ottawa Ave NW, Grand Rapids, MI 49503",
     "pricing": {
-      "hourly": "$4.00",
-      "daily": "$24.00"
+      "hourly": 4.0,
+      "daily": 24.0
     },
     "note": "https://www.airgarage.com/location/downtown-grand-rapids-parking-grand-rapids-mi"
   },
@@ -74,8 +74,8 @@
     "manager": "AirGarage",
     "address": "946 Cherry St SE, Grand Rapids, MI 49506",
     "pricing": {
-      "hourly": "$4.99",
-      "daily": "$24.00"
+      "hourly": 4.99,
+      "daily": 24.0
     },
     "note": "https://www.airgarage.com/location/east-hills-cherry-street-parking-grand-rapids-mi"
   },
@@ -89,8 +89,8 @@
     "manager": "AirGarage",
     "address": "349 Mt Vernon Ave NW, Grand Rapids, MI 49504",
     "pricing": {
-      "hourly": "$4.99",
-      "daily": "$15.00"
+      "hourly": 4.99,
+      "daily": 15.0
     },
     "note": "https://www.airgarage.com/location/swift-printing-parking-grand-rapids-mi"
   },
@@ -104,8 +104,8 @@
     "manager": "AirGarage",
     "address": "433 Bridge St NW, Grand Rapids, MI 49504",
     "pricing": {
-      "hourly": "$4.99",
-      "daily": "$15.00"
+      "hourly": 4.99,
+      "daily": 15.0
     },
     "note": "https://www.airgarage.com/location/bridge-street-parking-grand-rapids-mi"
   },
@@ -119,8 +119,8 @@
     "manager": "AirGarage",
     "address": "412 Bridge St NW, Grand Rapids, MI 49504",
     "pricing": {
-      "hourly": "$4.99",
-      "daily": "$15.00"
+      "hourly": 4.99,
+      "daily": 15.0
     },
     "note": "https://www.airgarage.com/location/red-lion-lot-grand-rapids-mi"
   },
