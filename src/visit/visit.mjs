@@ -3897,11 +3897,51 @@ function fitParkingMapToAllContent(map) {
   }
 
   /**
-   * Finish selected, **no** `park=` yet: frame visible parking pins **and** the venue so the red
-   * finish pin stays on-screen when the pick pool is far from the destination (off-downtown venues).
+   * Finish selected, **no** `park=` yet: frame the **venue** plus the **muted-green recommendation**
+   * pins (same pool as {@link chooseTopParkingStartSpotIds}), not every visible circle — fitting all
+   * DASH-adjacent pins zooms out to the whole corridor. When the auto **best** pick uses DASH,
+   * include its shuttle leg + stops so the preview overlay stays in frame (mirrors the `park=`
+   * branch for a single start).
    */
   if (destLl && !startPt && spotLatLngs.length > 0) {
-    map.fitBounds(L.latLngBounds([...spotLatLngs, destLl]), fitOpts);
+    const finishNoParkFitLatLngs = () => {
+      /** @type {number[][]} */
+      const pts = [destLl];
+      for (const { spotId } of chooseTopParkingStartSpotIds()) {
+        const p = parseParkingSpotIdToken(spotId);
+        if (p) pts.push([p.lat, p.lng]);
+      }
+      const walkCap = resolvedParkingWalkCapMiles();
+      if (Number.isFinite(walkCap) && walkCap > 0) {
+        const bestId = chooseBestParkingStartSpotId();
+        if (typeof bestId === "string" && bestId.length > 0) {
+          const bestPt = parseParkingSpotIdToken(bestId);
+          if (bestPt) {
+            const mm = tryParkingDashMultimodalPath(
+              bestPt.lat,
+              bestPt.lng,
+              destLl[0],
+              destLl[1],
+              walkCap,
+            );
+            if (mm) {
+              pts.push([mm.boardStop.lat, mm.boardStop.lng]);
+              pts.push([mm.alightStop.lat, mm.alightStop.lng]);
+              for (const pt of mm.shuttle) {
+                if (Array.isArray(pt) && pt.length >= 2)
+                  pts.push([pt[0], pt[1]]);
+              }
+            }
+          }
+        }
+      }
+      return pts;
+    };
+    let merged = finishNoParkFitLatLngs();
+    if (merged.length < 2) {
+      merged = [...spotLatLngs.map((s) => [s.lat, s.lng]), destLl];
+    }
+    map.fitBounds(L.latLngBounds(merged), fitOpts);
     return;
   }
 
