@@ -202,6 +202,26 @@ test.describe("Data routes", () => {
     await expect(page).toHaveURL(/#\/data\/parking$/);
     await page.waitForFunction(() => /q=airgarage/.test(window.location.hash));
     await expect(page).toHaveURL(/q=airgarage/);
+    await expect(input).toBeFocused();
+  });
+
+  test("data parking search filter keeps focus after debounced URL update", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-q-filter", { state: "visible" });
+
+    const input = page.locator("#data-parking-q-filter");
+    await input.click();
+    await input.type("gran", { delay: 25 });
+    await page.waitForFunction(() => /q=gran/.test(window.location.hash), {
+      timeout: 6000,
+    });
+    await expect(input).toHaveValue("gran");
+    await expect(input).toBeFocused();
   });
 });
 

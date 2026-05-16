@@ -17,13 +17,22 @@ import {
 } from "../shared/parking-map-marker-styles.mjs";
 
 /**
- * Parking map category ids — same strings as `#/visit?location=` (not `appData.parking` JSON keys).
+ * Parking map filter toggle ids — same strings as `#/visit?location=` (not `appData.parking` JSON keys).
+ * Ellis facilities use **`ellis-garage`** / **`ellis-lot`** in **`park=`** and marker styling; they appear when
+ * **`private-garage`** / **`private-lot`** are enabled (see {@link expandParkingVisitMarkerCategoryKeys}).
  */
 const PARKING_MAP_ITEM_KEYS = [
   "public-garage",
   "public-lot",
   "private-garage",
   "private-lot",
+];
+
+/** Every `#/visit` parking `park=` token / marker `categoryKey` (includes Ellis). */
+const PARKING_SPOT_CATEGORY_KEYS = [
+  ...PARKING_MAP_ITEM_KEYS,
+  "ellis-garage",
+  "ellis-lot",
 ];
 
 /** `#/visit` — slider max (50) means no evening price cap; scale is 0–50 in $5 steps. */
@@ -354,12 +363,14 @@ function snapParkingEveningSliderSteps(raw) {
 
 /**
  * SVG overlap paint order (bottom → top): earlier categories are underneath when circles overlap.
- * Public garages (purple) render above private garages (orange).
+ * Public garages (purple) render above Ellis and private garages (orange); Ellis lots stack with private lots (yellow).
  */
 const PARKING_CATEGORY_PAINT_ORDER = [
   "private-lot",
+  "ellis-lot",
   "public-lot",
   "private-garage",
+  "ellis-garage",
   "public-garage",
 ];
 
@@ -369,10 +380,43 @@ const PARKING_CATEGORY_DATA_KEY = {
   "public-lot": "lots",
   "private-garage": "osmGarages",
   "private-lot": "osmLots",
+  "ellis-garage": "ellisGarages",
+  "ellis-lot": "ellisLots",
 };
+
+function isVisitParkingPrivateStyleCategory(categoryKey) {
+  return (
+    categoryKey === "private-garage" ||
+    categoryKey === "private-lot" ||
+    categoryKey === "ellis-garage" ||
+    categoryKey === "ellis-lot"
+  );
+}
 
 function parkingCategoryDataKey(categoryId) {
   return PARKING_CATEGORY_DATA_KEY[categoryId];
+}
+
+/**
+ * OSM private pins plus AirGarage-only buckets (split in `loadData` for the data map).
+ * @param {string} dataKey — `osmGarages` or `osmLots`
+ * @returns {unknown[]}
+ */
+function parkingItemsForVisitDataKey(dataKey) {
+  const p = appData?.parking;
+  if (!p || typeof dataKey !== "string") return [];
+  if (dataKey === "osmGarages") {
+    const a = p.osmGarages;
+    const b = p.airGarageGarages;
+    return [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])];
+  }
+  if (dataKey === "osmLots") {
+    const a = p.osmLots;
+    const b = p.airGarageLots;
+    return [...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])];
+  }
+  const a = p[dataKey];
+  return Array.isArray(a) ? a : [];
 }
 
 /** Card subheading label (singular) for parking category names. */
@@ -650,14 +694,43 @@ const PARKING_LEGACY_CAT_TOKEN = {
   lots: "public-lot",
   osmGarages: "private-garage",
   osmLots: "private-lot",
+  ellisGarages: "private-garage",
+  ellisLots: "private-lot",
 };
 
 function parkingCategoryIdFromUrlToken(token) {
   const t = String(token).trim();
   if (!t) return null;
+  if (t === "ellis-garage") return "private-garage";
+  if (t === "ellis-lot") return "private-lot";
   if (PARKING_MAP_ITEM_KEYS.includes(t)) return t;
   if (PARKING_LEGACY_CAT_TOKEN[t]) return PARKING_LEGACY_CAT_TOKEN[t];
   return null;
+}
+
+/**
+ * Map filter keys (no Ellis toggles) to marker categories for {@link getAllParkingSpotMarkers}.
+ * @param {string[]} baseKeys
+ * @returns {string[]}
+ */
+function expandParkingVisitMarkerCategoryKeys(baseKeys) {
+  const out = [];
+  const seen = new Set();
+  for (const k of baseKeys) {
+    if (typeof k !== "string") continue;
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(k);
+    }
+    if (k === "private-garage" && !seen.has("ellis-garage")) {
+      seen.add("ellis-garage");
+      out.push("ellis-garage");
+    } else if (k === "private-lot" && !seen.has("ellis-lot")) {
+      seen.add("ellis-lot");
+      out.push("ellis-lot");
+    }
+  }
+  return out;
 }
 
 const PARKING_DESTINATION_PLACEHOLDER = "Where are you going?";
@@ -864,8 +937,7 @@ function darkenCssHex(hex, factor) {
 }
 
 function formatParkingPrice(pricing, categoryKey) {
-  const privateOsm =
-    categoryKey === "private-garage" || categoryKey === "private-lot";
+  const privateOsm = isVisitParkingPrivateStyleCategory(categoryKey);
   if (!pricing || typeof pricing !== "object") {
     return privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
   }
@@ -922,8 +994,7 @@ function parkingMapCostLineForTierText(tierText) {
  * @returns {{ text: string, costHourlyHint: boolean, costSupplement?: string, costSupplementHint?: boolean }}
  */
 function getParkingMapCostDisplay(pricing, categoryKey) {
-  const privateOsm =
-    categoryKey === "private-garage" || categoryKey === "private-lot";
+  const privateOsm = isVisitParkingPrivateStyleCategory(categoryKey);
   if (!pricing || typeof pricing !== "object") {
     return {
       text: privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free",
@@ -1136,7 +1207,7 @@ function parseParkingDestSlugFromHash() {
  * @returns {string}
  */
 function encodeParkingSpotId(categoryKey, lat, lng) {
-  if (!PARKING_MAP_ITEM_KEYS.includes(categoryKey)) return "";
+  if (!PARKING_SPOT_CATEGORY_KEYS.includes(categoryKey)) return "";
   if (
     typeof lat !== "number" ||
     typeof lng !== "number" ||
@@ -1145,6 +1216,18 @@ function encodeParkingSpotId(categoryKey, lat, lng) {
   )
     return "";
   return `${categoryKey}:${lat.toFixed(6)},${lng.toFixed(6)}`;
+}
+
+/**
+ * Ellis once filed **90 Market** as `lotType` 1 (garage); it is a surface lot. Old **`park=`** links may still use **`ellis-garage:`** at this centroid.
+ */
+const LEGACY_ELLIS_GARAGE_SPOT_IDS_AS_LOT = new Map([
+  ["ellis-garage:42.961369,-85.674391", "ellis-lot:42.961369,-85.674391"],
+]);
+
+function rewriteLegacyEllisMisfiledGarageSpotId(id) {
+  if (typeof id !== "string" || id === "") return id;
+  return LEGACY_ELLIS_GARAGE_SPOT_IDS_AS_LOT.get(id) ?? id;
 }
 
 /**
@@ -1163,7 +1246,7 @@ function parseParkingSpotIdToken(raw) {
     if (comma <= 0 || comma >= rest.length - 1) return null;
     const la = rest.slice(0, comma);
     const lo = rest.slice(comma + 1);
-    if (!PARKING_MAP_ITEM_KEYS.includes(cat)) return null;
+    if (!PARKING_SPOT_CATEGORY_KEYS.includes(cat)) return null;
     const lat = Number(la);
     const lng = Number(lo);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -1173,7 +1256,7 @@ function parseParkingSpotIdToken(raw) {
   const parts = s.split("~");
   if (parts.length !== 3) return null;
   const [cat, la, lo] = parts;
-  if (!PARKING_MAP_ITEM_KEYS.includes(cat)) return null;
+  if (!PARKING_SPOT_CATEGORY_KEYS.includes(cat)) return null;
   const lat = Number(la);
   const lng = Number(lo);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
@@ -1184,7 +1267,9 @@ function parseParkingSpotIdToken(raw) {
 function normalizeParkingSpotId(raw) {
   const p = parseParkingSpotIdToken(raw);
   if (!p) return null;
-  return encodeParkingSpotId(p.categoryKey, p.lat, p.lng);
+  const id = encodeParkingSpotId(p.categoryKey, p.lat, p.lng);
+  if (!id) return null;
+  return rewriteLegacyEllisMisfiledGarageSpotId(id);
 }
 
 /** Normalized `park` / legacy `start` / `spot` token from the hash when syntactically valid (no marker filter). */
@@ -1650,9 +1735,10 @@ function getAllParkingSpotMarkers(
   eveningSliderValue,
   walkSliderIndex,
 ) {
-  const keys = Array.isArray(enabledKeys)
+  const baseKeys = Array.isArray(enabledKeys)
     ? enabledKeys
     : getEnabledParkingKeys();
+  const keys = expandParkingVisitMarkerCategoryKeys(baseKeys);
   const budgetCap = resolvedParkingEveningBudgetCap(
     eveningSliderValue === undefined ? undefined : eveningSliderValue,
   );
@@ -1677,8 +1763,8 @@ function getAllParkingSpotMarkers(
   if (!parking) return out;
   for (const categoryId of keys) {
     const dataKey = parkingCategoryDataKey(categoryId);
-    const items = dataKey ? parking[dataKey] : null;
-    if (!Array.isArray(items)) continue;
+    const items = dataKey ? parkingItemsForVisitDataKey(dataKey) : [];
+    if (!items.length) continue;
     const categoryName = singularizeParkingCategoryLabel(
       parking.categoryNames?.[dataKey] || categoryId,
     );
@@ -1954,7 +2040,13 @@ function markerUsesDashMultimodalForRecommendationFromPool(m) {
 function parkingCategoryRecommendationBiasRank(categoryKey) {
   const k = typeof categoryKey === "string" ? categoryKey : "";
   if (k === "public-garage" || k === "public-lot") return 0;
-  if (k === "private-garage" || k === "private-lot") return 1;
+  if (
+    k === "private-garage" ||
+    k === "private-lot" ||
+    k === "ellis-garage" ||
+    k === "ellis-lot"
+  )
+    return 1;
   return 2;
 }
 
@@ -1965,12 +2057,14 @@ function parkingGarageLotFineRankForTie(categoryKey) {
   if (k === "public-lot") return 1;
   if (k === "private-garage") return 2;
   if (k === "private-lot") return 3;
-  return 4;
+  if (k === "ellis-garage") return 4;
+  if (k === "ellis-lot") return 5;
+  return 6;
 }
 
 /**
  * Final tie-break for {@link compareParkingMarkersForRecommendation}: **public-garage** → **public-lot** →
- * **private-garage** → **private-lot**, then **`spotId`** (only reached when higher-order keys tie).
+ * **private-garage** → **private-lot** → **ellis-garage** → **ellis-lot**, then **`spotId`** (only reached when higher-order keys tie).
  * @returns {number}
  */
 function compareParkingMarkersCategoryPreference(a, b) {
@@ -1990,8 +2084,8 @@ function compareParkingMarkersCategoryPreference(a, b) {
  * - **Generous** max walk (&gt; **0.5** mi): **farther** grid-walk miles from the venue first (paid lots away from
  *   the entrance), **then** longest walk to nearest DASH among ties (use approach distance), then paid-tier rank,
  *   then dollars (still paid / within walk-to-stop cap).
- * - **Category** (primary): all **public** (`public-garage` / `public-lot`) before **private** OSM pins, then
- *   distance / DASH / price keys within each tier.
+ * - **Category** (primary): all **public** (`public-garage` / `public-lot`) before **private** OSM and **Ellis**
+ *   pins (`private-garage` / `private-lot` / `ellis-garage` / `ellis-lot`), then distance / DASH / price keys within each tier.
  *
  * Eligibility (pay + walk + category toggles) is already applied by {@link getAllParkingSpotMarkers}.
  *
@@ -2830,6 +2924,7 @@ function parkingSpotResolvedDisplayLabel(row, fallback) {
 
 /**
  * Gray subheading under the popup title: category, and for private pins **`(manager)`** when set.
+ * Skips **`(manager)`** when the category label already includes it (e.g. **Private Parking Garage (Ellis)** from `categoryNames` plus **`manager`: `"Ellis"`**).
  * @param {{ categoryName?: string, categoryKey?: string, manager?: string }} row
  */
 function parkingVisitPopupCategorySublineHtml(row) {
@@ -2837,9 +2932,16 @@ function parkingVisitPopupCategorySublineHtml(row) {
     typeof row.categoryName === "string" ? row.categoryName.trim() : "";
   if (catLine === "") return "";
   const key = row.categoryKey;
-  const isPrivate = key === "private-garage" || key === "private-lot";
+  const isPrivate = isVisitParkingPrivateStyleCategory(key);
   const mgr = typeof row.manager === "string" ? row.manager.trim() : "";
-  const tail = isPrivate && mgr !== "" ? ` (${escapeHtml(mgr)})` : "";
+  const catLower = catLine.toLowerCase();
+  const mgrLower = mgr.toLowerCase();
+  const managerAlreadyInCategoryLine =
+    mgr !== "" && catLower.includes(`(${mgrLower})`);
+  const tail =
+    isPrivate && mgr !== "" && !managerAlreadyInCategoryLine
+      ? ` (${escapeHtml(mgr)})`
+      : "";
   return `${escapeHtml(catLine)}${tail}`;
 }
 
@@ -2954,7 +3056,14 @@ function attachParkingSpotStartButton(marker, row) {
 /** @param {string} categoryKey @param {number} lat @param {number} lng */
 function parkingManagerFromDatasetItem(categoryKey, lat, lng) {
   const dk = parkingCategoryDataKey(categoryKey);
-  const items = dk ? appData?.parking?.[dk] : null;
+  const items =
+    categoryKey === "private-garage" || categoryKey === "private-lot"
+      ? dk
+        ? parkingItemsForVisitDataKey(dk)
+        : []
+      : dk
+        ? appData?.parking?.[dk]
+        : null;
   if (!Array.isArray(items)) return "";
   const lat6 = lat.toFixed(6);
   const lng6 = lng.toFixed(6);
@@ -3084,7 +3193,7 @@ function syncParkingSpots(map) {
   globalThis.__parkingSpotsLayerForTest = g;
 
   const markersByCategory = {};
-  for (const k of PARKING_MAP_ITEM_KEYS) markersByCategory[k] = [];
+  for (const k of PARKING_CATEGORY_PAINT_ORDER) markersByCategory[k] = [];
 
   for (const s of spots) {
     const style = circleStyleForParkingCategoryKey(s.categoryKey);
@@ -4211,7 +4320,14 @@ function disposeAllParkingLegendMiniMaps() {
 function latLngsForParkingLegendCategory(categoryId) {
   const dk = parkingCategoryDataKey(categoryId);
   const parking = appData?.parking;
-  const items = dk ? parking?.[dk] : null;
+  const items =
+    categoryId === "private-garage" || categoryId === "private-lot"
+      ? dk
+        ? parkingItemsForVisitDataKey(dk)
+        : []
+      : dk && parking
+        ? parking[dk]
+        : null;
   if (!Array.isArray(items)) return [];
   const dashStops = getDashStopLatLngsForParkingProximity();
   const out = [];

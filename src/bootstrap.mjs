@@ -249,6 +249,10 @@ const MODES_PAGE_PARKING_KEYS = [
   "lots",
   "osmGarages",
   "osmLots",
+  "airGarageGarages",
+  "airGarageLots",
+  "ellisGarages",
+  "ellisLots",
   "meters",
   "racks",
   "micromobility",
@@ -864,7 +868,13 @@ function dataViewParkingPricingKeyLabel(key) {
  * @returns {{ label: string, value: string }[]}
  */
 function getDataViewParkingPricingRows(pricing, categoryKey) {
-  const privateOsm = categoryKey === "osmGarages" || categoryKey === "osmLots";
+  const privateOsm =
+    categoryKey === "osmGarages" ||
+    categoryKey === "osmLots" ||
+    categoryKey === "airGarageGarages" ||
+    categoryKey === "airGarageLots" ||
+    categoryKey === "ellisGarages" ||
+    categoryKey === "ellisLots";
   const fallbackValue = privateOsm ? PARKING_PRICE_NOT_LISTED_LABEL : "Free";
   if (!pricing || typeof pricing !== "object" || Array.isArray(pricing)) {
     return [{ label: "Cost", value: fallbackValue }];
@@ -1722,6 +1732,7 @@ function renderDataView() {
   }
 
   if (path === "parking") {
+    replaceHashIfLegacyDataParkingCanonicalDataset();
     const parkingKeys = [
       { file: "garages", key: "garages" },
       { file: "lots", key: "lots" },
@@ -1731,11 +1742,14 @@ function renderDataView() {
       { file: "racks", key: "racks" },
       { file: "micromobility", key: "micromobility" },
     ];
+    const parkingKeysWithData = parkingKeys.filter((p) =>
+      dataParkingDatasetPrimaryHasAnyItems(p.key),
+    );
     const params = parseFragment();
     const datasetParam = params.dataset ? String(params.dataset).trim() : "";
     const categoryNames = appData.parking?.categoryNames || {};
     const selectedKey =
-      datasetParam && parkingKeys.some((p) => p.key === datasetParam)
+      datasetParam && parkingKeysWithData.some((p) => p.key === datasetParam)
         ? datasetParam
         : "";
 
@@ -1758,6 +1772,8 @@ function renderDataView() {
       const hay = [
         item?.name,
         item?.address,
+        item?.manager,
+        item?.availability,
         item?.dataOverrideNote,
         item?.note,
       ]
@@ -1780,14 +1796,24 @@ function renderDataView() {
       );
     }
 
-    // Dataset dropdown options: when modes are selected, only show categories that match those modes.
-    const keysForDropdown =
+    // Dataset dropdown options: omit empty categories; when modes are selected, only show categories that match those modes.
+    const keysForDropdown = (
       selectedModes.length === 0
-        ? parkingKeys
-        : parkingKeys.filter((p) => {
-            const categoryModes = appData.parking?.modes?.[p.key] || [];
-            return categoryModes.some((m) => selectedModes.includes(m));
-          });
+        ? parkingKeysWithData
+        : parkingKeysWithData.filter((p) => {
+            const sourceKeys = dataParkingSourceKeysForPrimary(p.key);
+            return sourceKeys.some((k) => {
+              const categoryModes = appData.parking?.modes?.[k] || [];
+              return categoryModes.some((m) => selectedModes.includes(m));
+            });
+          })
+    )
+      .slice()
+      .sort((a, b) => {
+        const la = String(categoryNames[a.key] || a.file);
+        const lb = String(categoryNames[b.key] || b.file);
+        return la.localeCompare(lb, undefined, { sensitivity: "base" });
+      });
     const effectiveKey = keysForDropdown.some((p) => p.key === selectedKey)
       ? selectedKey
       : "";
@@ -1797,6 +1823,21 @@ function renderDataView() {
     );
     if (dataViewParkingModes) {
       dataViewParkingModes.classList.remove("hidden");
+      const prevQInput = document.getElementById("data-parking-q-filter");
+      const qFilterHadFocus =
+        prevQInput != null && prevQInput === document.activeElement;
+      const qFilterSel =
+        qFilterHadFocus &&
+        prevQInput instanceof HTMLInputElement &&
+        typeof prevQInput.selectionStart === "number"
+          ? {
+              start: prevQInput.selectionStart,
+              end:
+                prevQInput.selectionEnd != null
+                  ? prevQInput.selectionEnd
+                  : prevQInput.selectionStart,
+            }
+          : null;
       const allSwatchesMini = keysForDropdown
         .map((p) =>
           parkingDatasetSwatchHtml(
@@ -1969,6 +2010,29 @@ function renderDataView() {
             qInput.dispatchEvent(new Event("change", { bubbles: true }));
           }, 400);
         });
+        if (qFilterHadFocus && qInput instanceof HTMLInputElement) {
+          qInput.focus();
+          if (
+            qFilterSel &&
+            typeof qInput.setSelectionRange === "function" &&
+            typeof qFilterSel.start === "number"
+          ) {
+            const n = qInput.value.length;
+            const a = Math.max(0, Math.min(qFilterSel.start, n));
+            const b = Math.max(
+              0,
+              Math.min(
+                qFilterSel.end != null ? qFilterSel.end : qFilterSel.start,
+                n,
+              ),
+            );
+            try {
+              qInput.setSelectionRange(a, b);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
       }
     }
 
@@ -1978,26 +2042,34 @@ function renderDataView() {
 
     const allParkingPoints = [];
     filteredKeys.forEach((p) => {
-      const items = appData.parking?.[p.key];
-      const categoryName = categoryNames[p.key] || p.file;
-      if (Array.isArray(items)) {
-        items.forEach((item) => {
-          if (!dataParkingItemMatchesSearchQuery(item)) return;
-          const lat = item.location?.latitude ?? item.latitude;
-          const lng = item.location?.longitude ?? item.longitude;
-          if (typeof lat === "number" && typeof lng === "number") {
-            allParkingPoints.push({
-              lat,
-              lng,
-              categoryName,
-              locationName: item.name || "—",
-              parkingItem: { ...item },
-              parkingDatasetKey: p.key,
-              parkingOverrideFields:
-                getParkingDataViewOverrideSourceFields(item),
-            });
-          }
-        });
+      const sourceKeys = dataParkingSourceKeysForPrimary(p.key);
+      const mergeExtras = DATA_PARKING_MERGE_KEYS_BY_PRIMARY[p.key];
+      const useUnifiedCategoryName =
+        Array.isArray(mergeExtras) && mergeExtras.length > 0;
+      for (const sk of sourceKeys) {
+        const items = appData.parking?.[sk];
+        const categoryName = useUnifiedCategoryName
+          ? categoryNames[p.key] || p.file
+          : categoryNames[sk] || categoryNames[p.key] || p.file;
+        if (Array.isArray(items)) {
+          items.forEach((item) => {
+            if (!dataParkingItemMatchesSearchQuery(item)) return;
+            const lat = item.location?.latitude ?? item.latitude;
+            const lng = item.location?.longitude ?? item.longitude;
+            if (typeof lat === "number" && typeof lng === "number") {
+              allParkingPoints.push({
+                lat,
+                lng,
+                categoryName,
+                locationName: item.name || "—",
+                parkingItem: { ...item },
+                parkingDatasetKey: sk,
+                parkingOverrideFields:
+                  getParkingDataViewOverrideSourceFields(item),
+              });
+            }
+          });
+        }
       }
     });
     updateDataViewMap(allParkingPoints);
@@ -2019,6 +2091,10 @@ function renderDataView() {
       lots: "lots",
       osmGarages: "osmGarages",
       osmLots: "osmLots",
+      airGarageGarages: "airGarageGarages",
+      airGarageLots: "airGarageLots",
+      ellisGarages: "ellisGarages",
+      ellisLots: "ellisLots",
       meters: "meters",
       racks: "racks",
       micromobility: "micromobility",
@@ -2041,6 +2117,10 @@ function renderDataView() {
       lots: "lots",
       osmGarages: "osmGarages",
       osmLots: "osmLots",
+      airGarageGarages: "airGarageGarages",
+      airGarageLots: "airGarageLots",
+      ellisGarages: "ellisGarages",
+      ellisLots: "ellisLots",
       meters: "meters",
       racks: "racks",
       micromobility: "micromobility",
@@ -2125,6 +2205,23 @@ function parseFragment() {
   return params;
 }
 
+function replaceHashIfLegacyDataParkingCanonicalDataset() {
+  if (getDataRoutePath() !== "parking") return;
+  const f = parseFragment();
+  const raw = f.dataset != null ? String(f.dataset).trim() : "";
+  if (!raw) return;
+  const canon = DATA_PARKING_DATASET_CANONICAL[raw];
+  if (!canon || canon === raw) return;
+  const q = [];
+  q.push(`dataset=${encodeURIComponent(canon)}`);
+  if (f.modes != null && String(f.modes).trim() !== "")
+    q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
+  if (f.q != null && String(f.q).trim() !== "")
+    q.push(`q=${encodeURIComponent(String(f.q).trim())}`);
+  const next = "#/data/parking?" + q.join("&");
+  if (window.location.hash !== next) history.replaceState(null, "", next);
+}
+
 function replaceDataParkingHistoricalHash(nextPin) {
   const path = getDataRoutePath();
   if (path !== "parking" && !path.startsWith("parking/")) return;
@@ -2153,7 +2250,38 @@ const DATA_VIEW_PARKING_KEY_TO_VISIT_CATEGORY = {
   lots: "public-lot",
   osmGarages: "private-garage",
   osmLots: "private-lot",
+  airGarageGarages: "private-garage",
+  airGarageLots: "private-lot",
+  ellisGarages: "ellis-garage",
+  ellisLots: "ellis-lot",
 };
+
+/** `#/data/parking` — `osmGarages` / `osmLots` picker rows merge these `appData.parking` keys. */
+const DATA_PARKING_MERGE_KEYS_BY_PRIMARY = {
+  osmGarages: ["airGarageGarages", "ellisGarages"],
+  osmLots: ["airGarageLots", "ellisLots"],
+};
+
+/** Legacy `?dataset=` tokens from before private garages/lots merged in the dropdown. */
+const DATA_PARKING_DATASET_CANONICAL = {
+  airGarageGarages: "osmGarages",
+  ellisGarages: "osmGarages",
+  airGarageLots: "osmLots",
+  ellisLots: "osmLots",
+};
+
+function dataParkingSourceKeysForPrimary(primaryKey) {
+  const extra = DATA_PARKING_MERGE_KEYS_BY_PRIMARY[primaryKey];
+  return extra && extra.length ? [primaryKey, ...extra] : [primaryKey];
+}
+
+function dataParkingDatasetPrimaryHasAnyItems(primaryKey) {
+  const parking = appData?.parking;
+  return dataParkingSourceKeysForPrimary(primaryKey).some((k) => {
+    const arr = parking?.[k];
+    return Array.isArray(arr) && arr.length > 0;
+  });
+}
 
 /** Same shape as `#/visit` `park=` / overrides: `private-garage:42.958306,-85.676288` (6 dp). */
 function buildDataParkingVisitPinUrlId(datasetKey, lat, lng) {
