@@ -2482,8 +2482,7 @@ function tryParkingDashMultimodalPath(
     tDirectMin,
     tDashMin,
     useDashOverlay,
-    tooltip:
-      "Estimated trip — walk to DASH, shuttle along the route, then walk to the venue (walk legs are approximate, not turn-by-turn).",
+    tooltip: "Approximate walking + DASH route",
   };
 }
 
@@ -3358,7 +3357,7 @@ function syncParkingStartFinishWalkLine(map) {
     g,
     L,
     directLL,
-    "Approximate walk — not turn-by-turn routing.",
+    "Approximate walking route",
     walkTooltipOpts,
   );
   globalThis.__parkingWalkUsesDashOverlay = false;
