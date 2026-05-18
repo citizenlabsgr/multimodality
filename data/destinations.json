@@ -43,6 +43,15 @@
       }
     },
     {
+      "name": "The Factory",
+      "slug": "the-factory",
+      "hidden": true,
+      "location": {
+        "latitude": 42.96455,
+        "longitude": -85.6696
+      }
+    },
+    {
       "name": "The Pyramid Scheme",
       "slug": "the-pyramid-scheme",
       "location": {
