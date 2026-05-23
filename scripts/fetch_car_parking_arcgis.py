@@ -149,6 +149,15 @@ def build_pricing(attrs: dict) -> dict | None:
     return build_arcgis_pricing(attrs)
 
 
+def _pricing_val(v) -> str | None:
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s or s.lower() in ("no rate", "n/a", "none"):
+        return None
+    return s
+
+
 def build_availability(attrs: dict) -> str | None:
     parts: list[str] = []
     sp = attrs.get("SPACES")
