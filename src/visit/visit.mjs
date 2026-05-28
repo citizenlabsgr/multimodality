@@ -1263,6 +1263,7 @@ function applyParkingDestinationFromSelectChange() {
     undefined,
   );
   if (parkingMap) syncParkingMapOverlays(parkingMap);
+  sel.blur();
 }
 
 /** Programmatic destination choice (map pins); keeps hash + overlays in sync with the dropdown. */
