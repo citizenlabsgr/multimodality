@@ -873,7 +873,7 @@ test.describe("Parking map (#/visit)", () => {
       expect(r.id, JSON.stringify(r)).toMatch(/^public-/);
     });
 
-    test("Acrisure default walk (0.5 mi) recommends farthest multimodal-DASH paid pin when eligible", async ({
+    test("Acrisure default walk (0.8 mi) recommends farthest paid pin from venue when eligible", async ({
       page,
     }) => {
       await page.goto("/#/visit/acrisure-amphitheater?pay=50");
@@ -893,8 +893,6 @@ test.describe("Parking map (#/visit)", () => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const buildPool =
           globalThis.__buildParkingRecommendationMarkerPoolForTest;
-        const dashFn =
-          globalThis.__markerUsesDashMultimodalForRecommendationForTest;
         const pool =
           typeof buildPool === "function" ? buildPool(markers) : markers;
         const dest = window.appData?.destinations?.find(
@@ -907,21 +905,18 @@ test.describe("Parking map (#/visit)", () => {
           typeof globalThis.__chooseBestParkingStartSpotIdForTest !==
             "function" ||
           typeof dLat !== "number" ||
-          typeof dLng !== "number" ||
-          typeof dashFn !== "function"
+          typeof dLng !== "number"
         ) {
           return { ok: false, reason: "setup" };
         }
-        const dashPool = pool.filter((m) => dashFn(m));
-        if (dashPool.length === 0) return { ok: false, reason: "no-dash-pool" };
         const isPublicPin = (m) =>
           m.categoryKey === "public-garage" || m.categoryKey === "public-lot";
         const chosenId = globalThis.__chooseBestParkingStartSpotIdForTest();
         const chosenRow = pool.find((m) => m.spotId === chosenId);
         const bandPool =
           chosenRow != null
-            ? dashPool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
-            : dashPool;
+            ? pool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
+            : pool;
         let maxVenueMi = -Infinity;
         for (const m of bandPool) {
           const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
@@ -933,10 +928,8 @@ test.describe("Parking map (#/visit)", () => {
           Number.isFinite(chosenRow.lng)
             ? gridWalkMiles(chosenRow.lat, chosenRow.lng, dLat, dLng)
             : NaN;
-        const chosenUsesDash = chosenRow ? dashFn(chosenRow) : false;
         return {
           ok:
-            chosenUsesDash &&
             Number.isFinite(chosenVenueMi) &&
             Number.isFinite(maxVenueMi) &&
             Math.abs(chosenVenueMi - maxVenueMi) <= 1e-6,
@@ -1116,7 +1109,7 @@ test.describe("Parking map (#/visit)", () => {
       expect(id).toBe("public-lot:42.974095,-85.670505");
     });
 
-    /** Area 8 Lot in `data/parking/public/lots-arcgis.json`; default walk 0.5 mi, pay omitted (no cap). */
+    /** Area 8 Lot in `data/parking/public/lots-arcgis.json`; default walk 0.8 mi, pay $40. */
     test("Acrisure default walk recommends farthest multimodal paid lot (Area 8)", async ({
       page,
     }) => {
@@ -1999,18 +1992,18 @@ test.describe("Parking map (#/visit)", () => {
       );
     });
 
-    test("after pay is in the URL, sliding to default any price keeps pay=50", async ({
+    test("after pay is in the URL, sliding to default $40 keeps pay=40", async ({
       page,
     }) => {
       await page.goto("/#/visit?pay=25");
       await waitForParkingData(page);
       await page.evaluate(() => {
         const el = document.getElementById("parkingMaxEveningSlider");
-        el.value = "50";
+        el.value = "40";
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).toHaveURL(/[?&]pay=50(?:&|$)/);
+      await expect(page).toHaveURL(/[?&]pay=40(?:&|$)/);
     });
   });
 
@@ -2018,24 +2011,24 @@ test.describe("Parking map (#/visit)", () => {
     test("hydrates walk and shows mi + minute hint", async ({ page }) => {
       await page.goto("/#/visit");
       await waitForParkingData(page);
-      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("5");
+      await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("8");
       await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-        "0.5 mi (~12 min)",
+        "0.8 mi (~19 min)",
       );
     });
 
-    test("after walk is in the URL, sliding to default 0.5 mi keeps walk=0.5", async ({
+    test("after walk is in the URL, sliding to default 0.8 mi keeps walk=0.8", async ({
       page,
     }) => {
       await page.goto("/#/visit?walk=0.4");
       await waitForParkingData(page);
       await page.evaluate(() => {
         const el = document.getElementById("parkingMaxWalkSlider");
-        el.value = "5";
+        el.value = "8";
         el.dispatchEvent(new Event("input", { bubbles: true }));
         el.dispatchEvent(new Event("change", { bubbles: true }));
       });
-      await expect(page).toHaveURL(/[?&]walk=0\.5(?:&|$)/);
+      await expect(page).toHaveURL(/[?&]walk=0\.8(?:&|$)/);
     });
 
     test("hydrates maximum walk distance 1.5 mi", async ({ page }) => {
@@ -2349,13 +2342,11 @@ test.describe("Parking map (#/visit)", () => {
 
     await page.locator("#parkingResetBtn").click();
     await expect(page).toHaveURL(/#\/visit$/, { timeout: 15_000 });
-    await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("50");
-    await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText(
-      "Any price",
-    );
-    await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("5");
+    await expect(page.locator("#parkingMaxEveningSlider")).toHaveValue("40");
+    await expect(page.locator("#parkingMaxEveningBudgetOut")).toHaveText("$40");
+    await expect(page.locator("#parkingMaxWalkSlider")).toHaveValue("8");
     await expect(page.locator("#parkingMaxWalkBudgetOut")).toHaveText(
-      "0.5 mi (~12 min)",
+      "0.8 mi (~19 min)",
     );
     await expect(page.locator("#parkingDestinationSelect")).toHaveValue("");
     await expect(page.locator("#parkingDestChevron")).toBeVisible();
