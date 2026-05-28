@@ -2675,6 +2675,95 @@ test.describe("Parking map (#/visit)", () => {
  */
 const DEFAULT_APP_PAGE = "/";
 
+async function closeParkingMapPopups(page) {
+  await page.evaluate(() => {
+    const map = globalThis.__parkingMapForTest;
+    if (map && typeof map.closePopup === "function") map.closePopup();
+  });
+}
+
+/** Opens popup on a green suggestion or committed pick marker at `spotId`. */
+async function openParkingMarkerPopupForSpot(page, spotId) {
+  await closeParkingMapPopups(page);
+  const colon = spotId.indexOf(":");
+  if (colon <= 0) throw new Error(`invalid spotId for popup: ${spotId}`);
+  const rest = spotId.slice(colon + 1);
+  const comma = rest.indexOf(",");
+  if (comma <= 0) throw new Error(`invalid spotId for popup: ${spotId}`);
+  const lat = Number(rest.slice(0, comma));
+  const lng = Number(rest.slice(comma + 1));
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    throw new Error(`invalid spotId for popup: ${spotId}`);
+  }
+  const wantLat = lat.toFixed(6);
+  const wantLng = lng.toFixed(6);
+  const opened = await page.evaluate(
+    ({ wantLat, wantLng }) => {
+      const map = globalThis.__parkingMapForTest;
+      const L = globalThis.L;
+      if (!map || !L) return false;
+      let marker = null;
+      function visit(layer) {
+        if (marker || !layer) return;
+        if (
+          layer instanceof L.Marker &&
+          typeof layer.getLatLng === "function"
+        ) {
+          const ll = layer.getLatLng();
+          if (ll.lat.toFixed(6) === wantLat && ll.lng.toFixed(6) === wantLng) {
+            marker = layer;
+            return;
+          }
+        }
+        if (typeof layer.eachLayer === "function") layer.eachLayer(visit);
+      }
+      map.eachLayer(visit);
+      if (marker && typeof marker.openPopup === "function") {
+        marker.openPopup();
+        return true;
+      }
+      return false;
+    },
+    { wantLat, wantLng },
+  );
+  expect(opened).toBe(true);
+}
+
+/** Clicks **Plan to park here** on the ★ **best** muted-green suggestion (same as user commit). */
+async function commitBestParkingSuggestion(page) {
+  await page.waitForFunction(
+    () => {
+      const id = globalThis.__chooseBestParkingStartSpotIdForTest?.();
+      return typeof id === "string" && id.length > 0;
+    },
+    { timeout: 15_000 },
+  );
+  const bestId = await page.evaluate(
+    () => globalThis.__chooseBestParkingStartSpotIdForTest?.() ?? "",
+  );
+  expect(bestId).toBeTruthy();
+  await openParkingMarkerPopupForSpot(page, bestId);
+  const popup = page.locator(".leaflet-popup").last();
+  const btn = popup.locator("[data-parking-start-btn]");
+  await expect(btn).toBeVisible({ timeout: 5000 });
+  await expect(popup.locator("[data-parking-start-btn-label]")).toHaveText(
+    "Plan to park here",
+  );
+  await btn.click();
+  await expect(page).toHaveURL(/[?&]park=/);
+  await page.waitForFunction(
+    () => {
+      const body = document.querySelector("#parkingRouteInstructionsBody");
+      return (
+        body != null &&
+        !String(body.textContent || "").includes("isn't on the map")
+      );
+    },
+    { timeout: 10_000 },
+  );
+  await closeParkingMapPopups(page);
+}
+
 /**
  * `#/visit` layout snapshots: **`{device}-{n}-{variant}.png`** (e.g. **`desktop-1-blank.png`**).
  * Hash paths are under `${DEFAULT_APP_PAGE}#/…`.
@@ -2689,8 +2778,8 @@ const PARKING_SNAPSHOT_CASES = [
   {
     n: "3",
     variant: "start",
-    hashPath:
-      "visit/acrisure-amphitheater?walk=0.5&park=private-lot:42.972319,-85.682491",
+    hashPath: "visit/acrisure-amphitheater?walk=0.5",
+    commitBestSuggestion: true,
   },
 ];
 
@@ -2703,7 +2792,7 @@ const PARKING_SNAPSHOT_VIEWPORTS = [
 /** Fixed layout captures for `#/visit` via Playwright snapshot compare (`snapshotPathTemplate` in playwright.config.js). */
 async function assertParkingViewportScreenshot(
   page,
-  { hashPath, snapshotName, width, height },
+  { hashPath, snapshotName, width, height, commitBestSuggestion },
 ) {
   await page.setViewportSize({ width, height });
   await page.goto(`${DEFAULT_APP_PAGE}#/${hashPath}`);
@@ -2719,6 +2808,9 @@ async function assertParkingViewportScreenshot(
   );
   await expect(page.locator("#parkingView")).toBeVisible();
   await expect(page.locator("#parkingMapChrome")).toBeVisible();
+  if (commitBestSuggestion) {
+    await commitBestParkingSuggestion(page);
+  }
   await page.evaluate(() => globalThis.__parkingMapForTest?.invalidateSize?.());
   await new Promise((r) => setTimeout(r, 400));
 
@@ -2758,7 +2850,12 @@ test.describe(
     /** Avoid hammering `live-server` / data fetches — parallel runs caused flaky loads and unstable tiles. */
     test.describe.configure({ mode: "serial", timeout: 45_000 });
 
-    for (const { n, variant, hashPath } of PARKING_SNAPSHOT_CASES) {
+    for (const {
+      n,
+      variant,
+      hashPath,
+      commitBestSuggestion,
+    } of PARKING_SNAPSHOT_CASES) {
       test.describe(`${n}-${variant}`, () => {
         for (const {
           name: device,
@@ -2771,6 +2868,7 @@ test.describe(
               snapshotName: `${device}-${n}-${variant}`,
               width,
               height,
+              commitBestSuggestion: commitBestSuggestion === true,
             });
           });
         }

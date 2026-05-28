@@ -1011,6 +1011,17 @@ function getParkingSpotIdForHash() {
 }
 
 /**
+ * Green pick marker: visible committed id, else syntactically valid `park=` when **`walk` ≠ 0** so a
+ * shared link still shows one saturated pin (not muted suggestions) even if filters hide the circle.
+ */
+function getParkingCommittedSpotIdForPickMarker() {
+  const visible = getParkingSpotIdForHash();
+  if (visible) return visible;
+  if (getParkingMaxWalkSliderValueForHash() === 0) return undefined;
+  return normalizeParkingSpotIdFromHashRaw();
+}
+
+/**
  * Both a **destination** (path or `finish=` / legacy venue keys) and committed **`park=`** / legacy **`start=`** / **`spot=`** are in the URL —
  * trip step digits (**1**–**4**) appear on map pins; otherwise badges stay blank.
  */
@@ -3042,7 +3053,7 @@ function syncParkingSpotPickMarker(map) {
     parkingSpotPickLayerGroup = null;
   }
 
-  const committed = getParkingSpotIdForHash();
+  const committed = getParkingCommittedSpotIdForPickMarker();
   if (typeof committed === "string" && committed.length > 0) {
     const p = parseParkingSpotIdToken(committed);
     if (!p) return;
