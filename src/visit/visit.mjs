@@ -45,9 +45,8 @@ const PARKING_SPOT_CATEGORY_KEYS = [
 /** `#/visit` — slider max (50) means no evening price cap; scale is 0–50 in $5 steps. */
 const PARKING_MAX_EVENING_SLIDER_CEILING = 50;
 const PARKING_MAX_EVENING_SLIDER_STEP = 5;
-/** When `pay` is omitted from the URL, default to max (`Any price`) for a short `#/visit` link. */
-const PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE =
-  PARKING_MAX_EVENING_SLIDER_CEILING;
+/** When `pay` is omitted from the URL, default to **$40** for a short `#/visit` link. */
+const PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE = 40;
 const PARKING_PAY_QUERY_KEY = "pay";
 const PARKING_PAY_QUERY_KEY_LEGACY = "maxEvening";
 
@@ -55,13 +54,13 @@ const PARKING_PAY_QUERY_KEY_LEGACY = "maxEvening";
  * Grid-style walk miles (N–S + E–W, no diagonal shortcut) to the **nearest DASH stop** from each pin
  * (minute hints from **`parkingRoutePace.walkMinutesPerMile`**, default ~2.5 mph).
  * **Internal/DOM index:** **0** → no distance; **1…15** → **0.1…1.5 mi**.
- * **default** index **5** = **0.5 mi** (URL omits `walk`).
+ * **default** index **8** = **0.8 mi** (URL omits `walk`).
  */
 const PARKING_MAX_WALK_MI_MAX = 1.5;
 const PARKING_MAX_WALK_SLIDER_CEILING_IDX = Math.round(
   PARKING_MAX_WALK_MI_MAX * 10,
 );
-const PARKING_DEFAULT_WALK_SLIDER_INDEX = 5;
+const PARKING_DEFAULT_WALK_SLIDER_INDEX = 8;
 const PARKING_WALK_QUERY_KEY = "walk";
 const PARKING_WALK_QUERY_KEY_LEGACY = "maxWalk";
 /** Show feet (with minute hint) when below this cap — slider **0.1–0.4 mi**; **0.5+** as miles. */
@@ -239,7 +238,7 @@ function getParkingWalkCapMilesFromHash() {
     raw = params.get(PARKING_WALK_QUERY_KEY_LEGACY);
   }
   if (raw == null || String(raw).trim() === "") {
-    return 0.5;
+    return 0.8;
   }
   const t = String(raw).trim().toLowerCase();
   if (t === "0" || t === "0.0") return 0;
@@ -1012,6 +1011,17 @@ function getParkingSpotIdForHash() {
 }
 
 /**
+ * Green pick marker: visible committed id, else syntactically valid `park=` when **`walk` ≠ 0** so a
+ * shared link still shows one saturated pin (not muted suggestions) even if filters hide the circle.
+ */
+function getParkingCommittedSpotIdForPickMarker() {
+  const visible = getParkingSpotIdForHash();
+  if (visible) return visible;
+  if (getParkingMaxWalkSliderValueForHash() === 0) return undefined;
+  return normalizeParkingSpotIdFromHashRaw();
+}
+
+/**
  * Both a **destination** (path or `finish=` / legacy venue keys) and committed **`park=`** / legacy **`start=`** / **`spot=`** are in the URL —
  * trip step digits (**1**–**4**) appear on map pins; otherwise badges stay blank.
  */
@@ -1118,6 +1128,8 @@ function buildParkingHashFromState(
         );
       }
     } else if (sliderVal !== PARKING_DEFAULT_MAX_EVENING_SLIDER_VALUE) {
+      parts.push(`${PARKING_PAY_QUERY_KEY}=${Math.round(sliderVal)}`);
+    } else if (stickyPw.pay) {
       parts.push(`${PARKING_PAY_QUERY_KEY}=${Math.round(sliderVal)}`);
     }
   }
@@ -1453,7 +1465,7 @@ function getAllParkingSpotMarkers(
   const destLl = getParkingDestinationLatLng();
   const dashStops = getDashStopLatLngsForParkingProximity();
   /**
-   * **`walk`** omitted from URL defaults to **0.5** mi — never **0** unless explicit **`walk=0`**.
+   * **`walk`** omitted from URL defaults to **0.8** mi — never **0** unless explicit **`walk=0`**.
    * **`walk=0`** uses {@link PARKING_WALK_ZERO_EFFECTIVE_FEET} ft (~**0.019** mi) grid-walk for this filter only.
    */
   const applyWalkCap =
@@ -3041,7 +3053,7 @@ function syncParkingSpotPickMarker(map) {
     parkingSpotPickLayerGroup = null;
   }
 
-  const committed = getParkingSpotIdForHash();
+  const committed = getParkingCommittedSpotIdForPickMarker();
   if (typeof committed === "string" && committed.length > 0) {
     const p = parseParkingSpotIdToken(committed);
     if (!p) return;
