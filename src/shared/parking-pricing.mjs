@@ -470,6 +470,17 @@ export function getParkingMapCostDisplay(pricing, categoryKey) {
 }
 
 /**
+ * Whether the spot has a known cost: parseable dollars (including $0) or displayed as **Free**.
+ * @param {Record<string, unknown> | null | undefined} pricing
+ * @param {string} categoryKey
+ */
+export function parkingSpotHasKnownCost(pricing, categoryKey) {
+  const ceil = parkingSpotEveningPriceCeilingOrAbsent(pricing, categoryKey);
+  if (typeof ceil === "number" && Number.isFinite(ceil)) return true;
+  return getParkingMapCostDisplay(pricing, categoryKey).text === "Free";
+}
+
+/**
  * @param {Record<string, unknown> | null | undefined} pricing
  * @param {string} categoryKey
  * @returns {{ label: string, value: string }[]}

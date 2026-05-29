@@ -272,16 +272,11 @@ body.parking-legend-modal-open {
   justify-content: flex-start;
   align-items: center;
   gap: 0.5rem 1rem;
+  overflow: visible;
 }
 
 .data-parking-toolbar__back {
   flex-shrink: 0;
-}
-
-.data-parking-toolbar__cluster--modes {
-  flex: 1 1 auto;
-  justify-content: center;
-  min-width: 0;
 }
 
 .data-parking-toolbar__cluster {
@@ -297,6 +292,24 @@ body.parking-legend-modal-open {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   padding-bottom: 1px;
+}
+
+.data-parking-toolbar__cluster.data-parking-toolbar__cluster--modes {
+  flex: 1 1 auto;
+  justify-content: center;
+  min-width: 0;
+  overflow: visible;
+}
+
+.data-parking-toolbar__dataset {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.data-parking-toolbar__dataset .data-parking-dataset-dropdown {
+  flex: 0 0 auto;
+  width: 14rem;
+  min-width: 14rem;
 }
 
 .data-parking-toolbar__cluster .data-view-btn-group {
@@ -323,17 +336,16 @@ body.parking-legend-modal-open {
   max-width: none;
 }
 
-.data-parking-toolbar .data-view-filter-row .data-parking-dataset-dropdown {
-  flex: 0 0 auto;
-  width: 14rem;
-  min-width: 14rem;
-}
-
 .data-parking-toolbar .data-view-filter-row .data-parking-q-field {
   flex: 0 0 auto;
   width: 14rem;
   min-width: 14rem;
   max-width: 14rem;
+}
+
+.data-parking-toolbar .data-view-filter-row .data-parking-known-cost-label {
+  flex: 0 0 auto;
+  margin-left: 1rem;
 }
 
 /* `#/data/destinations` — back left, visibility toggles centered */

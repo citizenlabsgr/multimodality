@@ -19,7 +19,10 @@ import {
   parkingDatasetSwatchHtml,
   styleForParkingDatasetKey,
 } from "./shared/parking-map-marker-styles.mjs";
-import { getDataViewParkingPricingRows } from "./shared/parking-pricing.mjs";
+import {
+  getDataViewParkingPricingRows,
+  parkingSpotHasKnownCost,
+} from "./shared/parking-pricing.mjs";
 import {
   hideParkingView,
   isParkingRoute,
@@ -1685,6 +1688,7 @@ function renderDataView() {
 
     const qParamRaw = params.q != null ? String(params.q) : "";
     const qParamTrimmed = qParamRaw.trim();
+    const costFilter = parseDataParkingCostFilter(params);
     function dataParkingItemMatchesSearchQuery(item) {
       if (!qParamTrimmed) return true;
       const needle = qParamTrimmed.toLowerCase();
@@ -1702,6 +1706,14 @@ function renderDataView() {
       return hay.includes(needle);
     }
 
+    function dataParkingItemMatchesKnownCostFilter(item, datasetKey) {
+      if (costFilter === "all") return true;
+      const known = parkingSpotHasKnownCost(item?.pricing, datasetKey);
+      if (costFilter === "known") return known;
+      if (costFilter === "unknown") return !known;
+      return true;
+    }
+
     function buildDataParkingHash(opts) {
       const segments = [];
       if (opts.dataset)
@@ -1712,6 +1724,8 @@ function renderDataView() {
         segments.push("q=" + encodeURIComponent(String(opts.q).trim()));
       if (opts.pin != null && String(opts.pin).trim() !== "")
         segments.push("pin=" + encodeURIComponent(String(opts.pin).trim()));
+      if (opts.cost === "known" || opts.cost === "unknown")
+        segments.push("cost=" + opts.cost);
       return (
         "#/data/parking" + (segments.length > 0 ? "?" + segments.join("&") : "")
       );
@@ -1796,20 +1810,26 @@ function renderDataView() {
               <span class="data-view-btn-group__label">Parking Modes:</span>
               ${modeButtonsHtml}
             </div>
-          </div>
-        </div>
-        <div class="data-parking-toolbar__row">
-          <div class="data-parking-toolbar__cluster data-parking-toolbar__cluster--filters">
-            <div class="data-view-filter-row">
+            <div class="data-view-filter-row data-parking-toolbar__dataset">
               <label for="data-parking-dataset" class="data-view-filter-row__label">Dataset:</label>
               <div class="data-parking-dataset-dropdown relative">
                 <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
                 <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
               </div>
+            </div>
+          </div>
+        </div>
+        <div class="data-parking-toolbar__row">
+          <div class="data-parking-toolbar__cluster data-parking-toolbar__cluster--filters">
+            <div class="data-view-filter-row">
               <div class="data-parking-q-field relative">
                 <input type="search" id="data-parking-q-filter" class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
                 <button type="button" id="data-parking-q-clear" class="data-parking-q-clear absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Clear search"${qParamTrimmed ? "" : " hidden"}><span class="text-lg leading-none" aria-hidden="true">×</span></button>
               </div>
+              <label class="data-parking-known-cost-label inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-700">
+                <input type="checkbox" id="data-parking-known-cost-filter" class="data-parking-known-cost-filter rounded border-slate-300 text-sky-600 focus:ring-sky-500" aria-label="Filter parking by known cost" />
+                <span class="data-parking-known-cost-filter__text">Known cost</span>
+              </label>
             </div>
           </div>
         </div>`;
@@ -1843,6 +1863,7 @@ function renderDataView() {
               modes: nextModes,
               q: current.q,
               pin: current.pin,
+              cost: parseDataParkingCostFilter(current),
             });
           });
         }
@@ -1901,6 +1922,7 @@ function renderDataView() {
                 modes: snapModes,
                 q: snap.q,
                 pin: snap.pin,
+                cost: parseDataParkingCostFilter(snap),
               });
             });
           });
@@ -1936,6 +1958,7 @@ function renderDataView() {
             modes: snapModes,
             q: v || undefined,
             pin: snap.pin,
+            cost: parseDataParkingCostFilter(snap),
           });
           if (window.location.hash !== next) window.location.hash = next;
         };
@@ -1983,6 +2006,50 @@ function renderDataView() {
           }
         }
       }
+      const costCheckbox = dataViewParkingModes.querySelector(
+        "#data-parking-known-cost-filter",
+      );
+      function syncDataParkingKnownCostUi(el, filter) {
+        el.indeterminate = filter === "unknown";
+        el.checked = filter === "known";
+        el.setAttribute(
+          "aria-checked",
+          filter === "known"
+            ? "true"
+            : filter === "unknown"
+              ? "mixed"
+              : "false",
+        );
+      }
+      if (costCheckbox) {
+        syncDataParkingKnownCostUi(costCheckbox, costFilter);
+        costCheckbox.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          const snap = parseFragment();
+          const snapModesParam = snap.modes ? String(snap.modes).trim() : "";
+          const snapModes =
+            snapModesParam === ""
+              ? []
+              : snapModesParam
+                  .split(",")
+                  .map((s) => s.trim())
+                  .filter((m) => PARKING_DATA_MODES.includes(m));
+          const ds =
+            snap.dataset != null && String(snap.dataset).trim() !== ""
+              ? String(snap.dataset).trim()
+              : undefined;
+          const nextCost = nextDataParkingCostFilter(
+            parseDataParkingCostFilter(snap),
+          );
+          window.location.hash = buildDataParkingHash({
+            dataset: ds,
+            modes: snapModes,
+            q: snap.q,
+            pin: snap.pin,
+            cost: nextCost === "all" ? undefined : nextCost,
+          });
+        });
+      }
     }
 
     const filteredKeys = effectiveKey
@@ -2003,6 +2070,7 @@ function renderDataView() {
         if (Array.isArray(items)) {
           items.forEach((item) => {
             if (!dataParkingItemMatchesSearchQuery(item)) return;
+            if (!dataParkingItemMatchesKnownCostFilter(item, sk)) return;
             const lat = item.location?.latitude ?? item.latitude;
             const lng = item.location?.longitude ?? item.longitude;
             if (typeof lat === "number" && typeof lng === "number") {
@@ -2154,6 +2222,23 @@ function parseFragment() {
   return params;
 }
 
+const DATA_PARKING_COST_FILTER_CYCLE = ["all", "known", "unknown"];
+
+/** @param {Record<string, unknown>} params parsed URL fragment */
+function parseDataParkingCostFilter(params) {
+  const raw =
+    params?.cost != null ? String(params.cost).trim().toLowerCase() : "";
+  if (raw === "known" || raw === "unknown") return raw;
+  return "all";
+}
+
+function nextDataParkingCostFilter(current) {
+  const i = DATA_PARKING_COST_FILTER_CYCLE.indexOf(current);
+  return DATA_PARKING_COST_FILTER_CYCLE[
+    (Math.max(0, i) + 1) % DATA_PARKING_COST_FILTER_CYCLE.length
+  ];
+}
+
 function replaceHashIfLegacyDataParkingCanonicalDataset() {
   if (getDataRoutePath() !== "parking") return;
   const f = parseFragment();
@@ -2167,6 +2252,8 @@ function replaceHashIfLegacyDataParkingCanonicalDataset() {
     q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
   if (f.q != null && String(f.q).trim() !== "")
     q.push(`q=${encodeURIComponent(String(f.q).trim())}`);
+  const cost = parseDataParkingCostFilter(f);
+  if (cost !== "all") q.push(`cost=${cost}`);
   const next = "#/data/parking?" + q.join("&");
   if (window.location.hash !== next) history.replaceState(null, "", next);
 }
@@ -2183,6 +2270,8 @@ function replaceDataParkingHistoricalHash(nextPin) {
       q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
     if (f.q != null && String(f.q).trim() !== "")
       q.push(`q=${encodeURIComponent(String(f.q).trim())}`);
+    const cost = parseDataParkingCostFilter(f);
+    if (cost !== "all") q.push(`cost=${cost}`);
   } else if (f.modes != null && String(f.modes).trim() !== "") {
     q.push(`modes=${encodeURIComponent(String(f.modes).trim())}`);
   }

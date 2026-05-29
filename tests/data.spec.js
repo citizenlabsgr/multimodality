@@ -42,7 +42,9 @@ test.describe("Data index and navigation", () => {
     await page.waitForSelector("#data-parking-dataset", { state: "visible" });
 
     await expect(page.locator("#dataViewParkingModes")).toBeVisible();
-    await page.locator("#dataViewParkingModes .data-view-toolbar__back-link").click();
+    await page
+      .locator("#dataViewParkingModes .data-view-toolbar__back-link")
+      .click();
     await expect(page).toHaveURL(/#\/data$/);
     await expect(page.locator("#dataViewIndex")).toBeVisible();
     await expect(page.locator("#dataViewParkingModes")).toBeHidden();
@@ -382,6 +384,146 @@ test.describe("Data routes", () => {
     );
     await expect(input).toBeFocused();
   });
+
+  test("should cycle known-cost tri-state checkbox and update URL", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-known-cost-filter", {
+      state: "visible",
+    });
+
+    const checkbox = page.locator("#data-parking-known-cost-filter");
+    const label = page.locator(".data-parking-known-cost-filter__text");
+
+    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+    await expect(label).toHaveText("Known cost");
+
+    await checkbox.click();
+    await expect(page).toHaveURL(/cost=known/);
+    await expect(checkbox).toHaveAttribute("aria-checked", "true");
+    await expect(label).toHaveText("Known cost");
+
+    await checkbox.click();
+    await expect(page).toHaveURL(/cost=unknown/);
+    await expect(checkbox).toHaveAttribute("aria-checked", "mixed");
+    await expect(label).toHaveText("Known cost");
+
+    await checkbox.click();
+    await expect(page).toHaveURL(/#\/data\/parking$/);
+    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+    await expect(label).toHaveText("Known cost");
+  });
+
+  test("should filter parking markers by cost=known vs unknown", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    const markerCount = () =>
+      page.evaluate(
+        () =>
+          document.querySelectorAll(
+            "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+          ).length,
+      );
+
+    await page.goto("/#/data/parking?dataset=osmGarages");
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 0,
+    );
+    const allCount = await markerCount();
+    expect(allCount).toBeGreaterThan(0);
+
+    await page.goto("/#/data/parking?dataset=osmGarages&cost=known");
+    await page.waitForTimeout(300);
+    const knownCount = await markerCount();
+    expect(knownCount).toBeGreaterThan(0);
+    expect(knownCount).toBeLessThan(allCount);
+
+    await page.goto("/#/data/parking?dataset=osmGarages&cost=unknown");
+    await page.waitForTimeout(300);
+    const unknownCount = await markerCount();
+    expect(unknownCount).toBeGreaterThan(0);
+    expect(knownCount + unknownCount).toBe(allCount);
+
+    await page.goto("/#/data/parking?dataset=garages");
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 0,
+    );
+    const garagesAll = await markerCount();
+
+    await page.goto("/#/data/parking?dataset=garages&cost=known");
+    await page.waitForTimeout(300);
+    const garagesKnown = await markerCount();
+    expect(garagesKnown).toBe(garagesAll);
+  });
+
+  test("should treat spots displayed as Free as known cost", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    const markerCount = () =>
+      page.evaluate(
+        () =>
+          document.querySelectorAll(
+            "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+          ).length,
+      );
+
+    await page.goto("/#/data/parking?dataset=racks");
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 0,
+    );
+    const allRacks = await markerCount();
+    expect(allRacks).toBeGreaterThan(0);
+
+    await page.goto("/#/data/parking?dataset=racks&cost=known");
+    await page.waitForTimeout(300);
+    const knownRacks = await markerCount();
+    expect(knownRacks).toBe(allRacks);
+
+    await page.goto("/#/data/parking?dataset=racks&cost=unknown");
+    await page.waitForTimeout(300);
+    const unknownRacks = await markerCount();
+    expect(unknownRacks).toBe(0);
+  });
+
+  test("should preserve cost= when toggling parking mode buttons", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    await page.goto("/#/data/parking?cost=unknown");
+    await page.waitForSelector(".data-parking-mode-btn[data-mode=drive]", {
+      state: "visible",
+    });
+    await page.locator('.data-parking-mode-btn[data-mode="drive"]').click();
+    await page.waitForTimeout(400);
+    const hash = await page.evaluate(() => window.location.hash);
+    expect(hash).toContain("cost=unknown");
+    expect(hash).toMatch(/modes=drive/);
+  });
 });
 
 test.describe("Data destinations", () => {
@@ -578,28 +720,24 @@ async function assertDataPageScreenshot(
   });
 }
 
-test.describe(
-  "@snapshot Data page layout",
-  { tag: "@snapshot" },
-  () => {
-    test.describe.configure({ mode: "serial", timeout: 45_000 });
+test.describe("@snapshot Data page layout", { tag: "@snapshot" }, () => {
+  test.describe.configure({ mode: "serial", timeout: 45_000 });
 
-    for (const {
-      slug,
-      hashPath,
-      minMarkers,
-      minMapLayers,
-    } of DATA_SNAPSHOT_CASES) {
-      test(slug, { tag: "@snapshot" }, async ({ page }) => {
-        await assertDataPageScreenshot(page, {
-          hashPath,
-          snapshotName: `data-${slug}`,
-          width: DATA_SNAPSHOT_WIDTH,
-          height: DATA_SNAPSHOT_HEIGHT,
-          minMarkers,
-          minMapLayers,
-        });
+  for (const {
+    slug,
+    hashPath,
+    minMarkers,
+    minMapLayers,
+  } of DATA_SNAPSHOT_CASES) {
+    test(slug, { tag: "@snapshot" }, async ({ page }) => {
+      await assertDataPageScreenshot(page, {
+        hashPath,
+        snapshotName: `data-${slug}`,
+        width: DATA_SNAPSHOT_WIDTH,
+        height: DATA_SNAPSHOT_HEIGHT,
+        minMarkers,
+        minMapLayers,
       });
-    }
-  },
-);
+    });
+  }
+});
