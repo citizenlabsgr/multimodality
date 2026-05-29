@@ -815,19 +815,21 @@ function dataDestinationsHiddenOnlyIconSvg() {
   );
 }
 
-function setDataDestinationsViewButtonActive(btn, active) {
+function dataViewBackLinkHtml() {
+  return `<div class="data-view-toolbar__back"><a href="#/data" class="data-view-toolbar__back-link" title="Back to data" aria-label="Back to data">←</a></div>`;
+}
+
+function dataViewBackLinkInlineHtml() {
+  return `<a href="#/data" class="data-view-toolbar__back-link" title="Back to data" aria-label="Back to data">←</a>`;
+}
+
+function dataViewToggleButtonHtml(className, mode, label) {
+  return `<button type="button" class="data-view-toggle-btn ${className}" data-mode="${escapeHtml(mode)}" aria-pressed="false" title="${escapeHtml(label)}">${label}</button>`;
+}
+
+function setDataViewToggleButtonActive(btn, active) {
   if (!btn) return;
   btn.setAttribute("aria-pressed", active ? "true" : "false");
-  btn.classList.toggle("bg-sky-100", active);
-  btn.classList.toggle("border-sky-500", active);
-  btn.classList.toggle("border-slate-300", !active);
-  if (!active) {
-    btn.classList.add("bg-white", "text-slate-700", "hover:bg-slate-100");
-    btn.classList.remove("text-slate-900", "hover:bg-sky-200");
-  } else {
-    btn.classList.remove("hover:bg-slate-100");
-    btn.classList.add("text-slate-900", "hover:bg-sky-200");
-  }
 }
 
 function updateDataViewMap(points, options) {
@@ -1345,6 +1347,9 @@ function updateDataViewMap(points, options) {
   } catch {
     /* ignore */
   }
+  if (dataMap) {
+    globalThis.__dataMapForTest = dataMap;
+  }
 }
 
 // Path after /data/ (e.g. "parking", "parking/premium-ramps"). Returns "" for #/data. Strips query string.
@@ -1382,7 +1387,7 @@ function renderDataView() {
   dataView.classList.remove("hidden");
   document.querySelector("main")?.classList.add("data-view-active");
 
-  const isIndex = path === "" || path === "parking";
+  const isIndex = path === "";
   const hideDetail = isIndex || path === "destinations" || path === "routes";
   dataViewIndex.classList.toggle("hidden", !isIndex);
   dataViewDetail.classList.toggle("hidden", hideDetail);
@@ -1435,21 +1440,26 @@ function renderDataView() {
       const visiblePressed = destViewMode === "visible";
       const hiddenPressed = destViewMode === "hidden";
       dataViewDestinationsBar.innerHTML = `
-        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">←</a>
-        <div class="flex flex-1 flex-wrap items-center justify-center gap-2 min-w-0" role="group" aria-label="Destination visibility">
-          <span class="text-sm font-medium text-slate-700">Destinations:</span>
-          <button type="button" class="data-dest-view-btn inline-flex items-center gap-1.5 rounded-lg border py-2 px-3 text-sm font-medium transition-colors" data-dest-view="visible" aria-pressed="${visiblePressed ? "true" : "false"}" title="Show only venues on the visit map browse list (tap again for all)">${dataDestinationsVisibleIconSvg()}<span>Visible</span></button>
-          <button type="button" class="data-dest-view-btn inline-flex items-center gap-1.5 rounded-lg border py-2 px-3 text-sm font-medium transition-colors" data-dest-view="hidden" aria-pressed="${hiddenPressed ? "true" : "false"}" title="Show only venues hidden from the visit map until linked (tap again for all)">${dataDestinationsHiddenOnlyIconSvg()}<span>Hidden</span></button>
-        </div>
-        <div class="flex items-center gap-2 shrink-0 md:min-w-[10.5rem]" aria-hidden="true"></div>`;
+        <div class="data-destinations-toolbar__row">
+          <div class="data-destinations-toolbar__back">
+            ${dataViewBackLinkInlineHtml()}
+          </div>
+          <div class="data-destinations-toolbar__cluster">
+            <div class="data-view-btn-group" role="group" aria-label="Destination visibility">
+              <span class="data-view-btn-group__label">Destinations:</span>
+              <button type="button" class="data-view-toggle-btn data-view-toggle-btn--icon data-dest-view-btn" data-dest-view="visible" aria-pressed="${visiblePressed ? "true" : "false"}" title="Show only venues on the visit map browse list (tap again for all)">${dataDestinationsVisibleIconSvg()}<span>Visible</span></button>
+              <button type="button" class="data-view-toggle-btn data-view-toggle-btn--icon data-dest-view-btn" data-dest-view="hidden" aria-pressed="${hiddenPressed ? "true" : "false"}" title="Show only venues hidden from the visit map until linked (tap again for all)">${dataDestinationsHiddenOnlyIconSvg()}<span>Hidden</span></button>
+            </div>
+          </div>
+        </div>`;
       const btnVisible = dataViewDestinationsBar.querySelector(
         '.data-dest-view-btn[data-dest-view="visible"]',
       );
       const btnHidden = dataViewDestinationsBar.querySelector(
         '.data-dest-view-btn[data-dest-view="hidden"]',
       );
-      setDataDestinationsViewButtonActive(btnVisible, visiblePressed);
-      setDataDestinationsViewButtonActive(btnHidden, hiddenPressed);
+      setDataViewToggleButtonActive(btnVisible, visiblePressed);
+      setDataViewToggleButtonActive(btnHidden, hiddenPressed);
       btnVisible?.addEventListener("click", () => {
         const next = destViewMode === "visible" ? "all" : "visible";
         window.location.hash = buildDataDestinationsHash({ view: next });
@@ -1507,19 +1517,30 @@ function renderDataView() {
     const dataViewRoutesModes = document.getElementById("dataViewRoutesModes");
     if (dataViewRoutesModes) {
       dataViewRoutesModes.classList.remove("hidden");
-      const modeButtonsHtml = ROUTES_DATA_MODES.map(
-        (mode) =>
-          `<button type="button" class="data-routes-mode-btn rounded-lg border border-slate-300 py-2 px-3 text-sm font-medium transition-colors" data-mode="${escapeHtml(mode)}" title="${escapeHtml(MODE_DISPLAY_LABELS[mode] || mode)}">${MODE_DISPLAY_LABELS[mode] || mode}</button>`,
+      const modeButtonsHtml = ROUTES_DATA_MODES.map((mode) =>
+        dataViewToggleButtonHtml(
+          "data-routes-mode-btn",
+          mode,
+          MODE_DISPLAY_LABELS[mode] || mode,
+        ),
       ).join("");
       dataViewRoutesModes.innerHTML = `
-        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
-        <div class="flex flex-1 flex-wrap items-center justify-center gap-2">
-          <span class="text-sm font-medium text-slate-700">Route modes:</span>
-          ${modeButtonsHtml}
-        </div>
-        <div class="flex items-center gap-2">
-          <label for="data-routes-dataset" class="text-sm font-medium text-slate-700">Dataset:</label>
-          <select id="data-routes-dataset" disabled class="data-routes-dataset-select cursor-default rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700" aria-label="Dataset (Public Bus Routes)"><option selected>Public Bus Routes</option></select>
+        <div class="data-routes-toolbar__row">
+          <div class="data-routes-toolbar__back">
+            ${dataViewBackLinkInlineHtml()}
+          </div>
+          <div class="data-routes-toolbar__modes">
+            <div class="data-view-btn-group" role="group" aria-label="Route modes">
+              <span class="data-view-btn-group__label">Route modes:</span>
+              ${modeButtonsHtml}
+            </div>
+          </div>
+          <div class="data-routes-toolbar__dataset">
+            <label for="data-routes-dataset" class="data-view-filter-row__label">Dataset:</label>
+            <div class="data-routes-dataset-dropdown relative min-w-[11rem]">
+              <button type="button" id="data-routes-dataset" disabled class="data-view-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 cursor-default" aria-label="Dataset (Public Bus Routes)" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true"><span class="min-w-0 flex-1 truncate">Public Bus Routes</span><span class="shrink-0 text-slate-500" aria-hidden="true">▾</span></button>
+            </div>
+          </div>
         </div>`;
       ROUTES_DATA_MODES.forEach((mode) => {
         const btn = dataViewRoutesModes.querySelector(
@@ -1527,19 +1548,7 @@ function renderDataView() {
         );
         if (btn) {
           const active = selectedModes.includes(mode);
-          btn.classList.toggle("bg-sky-100", active);
-          btn.classList.toggle("border-sky-500", active);
-          btn.classList.toggle("border-slate-300", !active);
-          if (!active) {
-            btn.classList.add(
-              "bg-white",
-              "text-slate-700",
-              "hover:bg-slate-100",
-            );
-          } else {
-            btn.classList.remove("hover:bg-slate-100");
-            btn.classList.add("text-slate-900", "hover:bg-sky-200");
-          }
+          setDataViewToggleButtonActive(btn, active);
           btn.addEventListener("click", () => {
             const current = parseFragment();
             const currentModes =
@@ -1760,35 +1769,48 @@ function renderDataView() {
         .join("");
       const triggerInner =
         effectiveKey === ""
-          ? `<span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span class="min-w-0 truncate">All</span><span class="ml-1 shrink-0 text-slate-500" aria-hidden="true">▾</span>`
-          : `${parkingDatasetSwatchHtml(styleForParkingDatasetKey(effectiveKey))}<span class="min-w-0 truncate">${escapeHtml(categoryNames[effectiveKey] || effectiveKey)}</span><span class="ml-1 shrink-0 text-slate-500" aria-hidden="true">▾</span>`;
+          ? `<span class="flex min-w-0 flex-1 items-center gap-2"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span class="whitespace-nowrap">All</span></span><span class="ml-auto shrink-0 text-slate-500" aria-hidden="true">▾</span>`
+          : `<span class="flex min-w-0 flex-1 items-center gap-2">${parkingDatasetSwatchHtml(styleForParkingDatasetKey(effectiveKey))}<span class="whitespace-nowrap">${escapeHtml(categoryNames[effectiveKey] || effectiveKey)}</span></span><span class="ml-auto shrink-0 text-slate-500" aria-hidden="true">▾</span>`;
       const menuRows = [
         `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${effectiveKey === "" ? " bg-slate-100" : ""}" data-dataset-value="" aria-selected="${effectiveKey === "" ? "true" : "false"}"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span>All</span></button>`,
         ...keysForDropdown.map((p) => {
           const label = categoryNames[p.key] || p.file;
           const sel = effectiveKey === p.key;
-          return `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${sel ? " bg-slate-100" : ""}" data-dataset-value="${escapeHtml(p.key)}" aria-selected="${sel ? "true" : "false"}">${parkingDatasetSwatchHtml(styleForParkingDatasetKey(p.key))}<span class="min-w-0 truncate">${escapeHtml(label)}</span></button>`;
+          return `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${sel ? " bg-slate-100" : ""}" data-dataset-value="${escapeHtml(p.key)}" aria-selected="${sel ? "true" : "false"}">${parkingDatasetSwatchHtml(styleForParkingDatasetKey(p.key))}<span class="whitespace-nowrap">${escapeHtml(label)}</span></button>`;
         }),
       ].join("");
-      const modeButtonsHtml = PARKING_DATA_MODES.map(
-        (mode) =>
-          `<button type="button" class="data-parking-mode-btn rounded-lg border border-slate-300 py-2 px-3 text-sm font-medium transition-colors" data-mode="${escapeHtml(mode)}" title="${escapeHtml(MODE_DISPLAY_LABELS[mode] || mode)}">${MODE_DISPLAY_LABELS[mode] || mode}</button>`,
+      const modeButtonsHtml = PARKING_DATA_MODES.map((mode) =>
+        dataViewToggleButtonHtml(
+          "data-parking-mode-btn",
+          mode,
+          MODE_DISPLAY_LABELS[mode] || mode,
+        ),
       ).join("");
       dataViewParkingModes.innerHTML = `
-        <a href="#/data" class="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900" title="Back to data" aria-label="Back to data">${"←"}</a>
-        <div class="flex-1 flex justify-center items-center gap-2 flex-wrap">
-          <span class="text-sm font-medium text-slate-700">Parking Modes:</span>
-          ${modeButtonsHtml}
-        </div>
-        <div class="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
-          <label for="data-parking-dataset" class="text-sm font-medium text-slate-700 shrink-0">Dataset:</label>
-          <div class="data-parking-dataset-dropdown relative min-w-[10rem] max-w-[min(100%,18rem)]">
-            <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
-            <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
+        <div class="data-parking-toolbar__row data-parking-toolbar__row--modes">
+          <div class="data-parking-toolbar__back">
+            ${dataViewBackLinkInlineHtml()}
           </div>
-          <div class="data-parking-q-field relative min-w-[10rem] max-w-md flex-1 sm:min-w-[12rem]">
-            <input type="search" id="data-parking-q-filter" class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
-            <button type="button" id="data-parking-q-clear" class="data-parking-q-clear absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Clear search"${qParamTrimmed ? "" : " hidden"}><span class="text-lg leading-none" aria-hidden="true">×</span></button>
+          <div class="data-parking-toolbar__cluster data-parking-toolbar__cluster--modes">
+            <div class="data-view-btn-group" role="group" aria-label="Parking modes">
+              <span class="data-view-btn-group__label">Parking Modes:</span>
+              ${modeButtonsHtml}
+            </div>
+          </div>
+        </div>
+        <div class="data-parking-toolbar__row">
+          <div class="data-parking-toolbar__cluster data-parking-toolbar__cluster--filters">
+            <div class="data-view-filter-row">
+              <label for="data-parking-dataset" class="data-view-filter-row__label">Dataset:</label>
+              <div class="data-parking-dataset-dropdown relative">
+                <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
+                <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
+              </div>
+              <div class="data-parking-q-field relative">
+                <input type="search" id="data-parking-q-filter" class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
+                <button type="button" id="data-parking-q-clear" class="data-parking-q-clear absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Clear search"${qParamTrimmed ? "" : " hidden"}><span class="text-lg leading-none" aria-hidden="true">×</span></button>
+              </div>
+            </div>
           </div>
         </div>`;
       PARKING_DATA_MODES.forEach((mode) => {
@@ -1797,19 +1819,7 @@ function renderDataView() {
         );
         if (btn) {
           const active = selectedModes.includes(mode);
-          btn.classList.toggle("bg-sky-100", active);
-          btn.classList.toggle("border-sky-500", active);
-          btn.classList.toggle("border-slate-300", !active);
-          if (!active) {
-            btn.classList.add(
-              "bg-white",
-              "text-slate-700",
-              "hover:bg-slate-100",
-            );
-          } else {
-            btn.classList.remove("hover:bg-slate-100");
-            btn.classList.add("text-slate-900", "hover:bg-sky-200");
-          }
+          setDataViewToggleButtonActive(btn, active);
           btn.addEventListener("click", () => {
             const current = parseFragment();
             const modesStr =
