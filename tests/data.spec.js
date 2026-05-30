@@ -3,6 +3,93 @@ import { installConsoleErrorAssertions } from "./helpers/console-errors.js";
 
 installConsoleErrorAssertions(test);
 
+test.describe("Data index and navigation", () => {
+  async function waitForAppDataLoaded(page) {
+    await page.waitForFunction(
+      () =>
+        typeof window.appData !== "undefined" &&
+        window.appData &&
+        window.appData.parking &&
+        Array.isArray(window.appData.parking.garages),
+    );
+  }
+
+  test("should show dataset links at #/data with no section toolbars", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data");
+
+    await expect(page.locator("#dataView")).toBeVisible();
+    await expect(page.locator("#dataViewIndex")).toBeVisible();
+    await expect(page.locator("#dataViewIndex a")).toHaveCount(3);
+    await expect(page.locator("#dataViewIndex")).toContainText("parking");
+    await expect(page.locator("#dataViewParkingModes")).toBeHidden();
+    await expect(page.locator("#dataViewDestinationsBar")).toBeHidden();
+    await expect(page.locator("#dataViewRoutesModes")).toBeHidden();
+    await expect(page.locator("#dataViewMap")).toBeHidden();
+  });
+
+  test("back link from parking hides toolbar and returns to data index", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-dataset", { state: "visible" });
+
+    await expect(page.locator("#dataViewParkingModes")).toBeVisible();
+    await page
+      .locator("#dataViewParkingModes .data-view-toolbar__back-link")
+      .click();
+    await expect(page).toHaveURL(/#\/data$/);
+    await expect(page.locator("#dataViewIndex")).toBeVisible();
+    await expect(page.locator("#dataViewParkingModes")).toBeHidden();
+    await expect(page.locator("#dataViewMap")).toBeHidden();
+  });
+
+  test("back link from destinations hides toolbar and returns to data index", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/destinations");
+    await page.waitForSelector("#dataViewMap", { state: "visible" });
+
+    await expect(page.locator("#dataViewDestinationsBar")).toBeVisible();
+    await page
+      .locator("#dataViewDestinationsBar .data-view-toolbar__back-link")
+      .click();
+    await expect(page).toHaveURL(/#\/data$/);
+    await expect(page.locator("#dataViewIndex")).toBeVisible();
+    await expect(page.locator("#dataViewDestinationsBar")).toBeHidden();
+    await expect(page.locator("#dataViewMap")).toBeHidden();
+  });
+
+  test("back link from routes hides toolbar and returns to data index", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/routes");
+    await page.waitForSelector("#dataViewMap", { state: "visible" });
+
+    await expect(page.locator("#dataViewRoutesModes")).toBeVisible();
+    await page
+      .locator("#dataViewRoutesModes .data-view-toolbar__back-link")
+      .click();
+    await expect(page).toHaveURL(/#\/data$/);
+    await expect(page.locator("#dataViewIndex")).toBeVisible();
+    await expect(page.locator("#dataViewRoutesModes")).toBeHidden();
+    await expect(page.locator("#dataViewMap")).toBeHidden();
+  });
+});
+
 test.describe("Data routes", () => {
   async function waitForAppDataLoaded(page) {
     await page.waitForFunction(
@@ -61,6 +148,38 @@ test.describe("Data routes", () => {
     await expect(page).toHaveURL(/#\/data\/parking\?modes=bike/);
   });
 
+  test("should open parking dataset dropdown panel when trigger is clicked", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-dataset", { state: "visible" });
+
+    const trigger = page.locator("#data-parking-dataset");
+    const panel = page.locator("#data-parking-dataset-panel");
+    const garagesOption = page.locator(
+      '.data-parking-dataset-option[data-dataset-value="garages"]',
+    );
+
+    await expect(panel).toHaveClass(/hidden/);
+    await trigger.click();
+    await expect(panel).not.toHaveClass(/hidden/);
+    await expect(trigger).toHaveAttribute("aria-expanded", "true");
+    await expect(garagesOption).toBeVisible();
+
+    const optionReceivesClick = await garagesOption.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      const topEl = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return el === topEl || el.contains(topEl);
+    });
+    expect(optionReceivesClick).toBe(true);
+  });
+
   test("should change dataset dropdown and update URL at #/data/parking", async ({
     page,
   }) => {
@@ -78,6 +197,21 @@ test.describe("Data routes", () => {
       .click();
     await page.waitForTimeout(300);
     await expect(page).toHaveURL(/#\/data\/parking\?dataset=garages/);
+
+    await trigger.click();
+    await page
+      .locator('.data-parking-dataset-option[data-dataset-value="osmGarages"]')
+      .click();
+    await page.waitForTimeout(300);
+    await expect(page).toHaveURL(/#\/data\/parking\?dataset=osmGarages/);
+    await expect(trigger).toContainText("Private Parking Garages");
+    const labelFits = await trigger.evaluate((el) => {
+      const label = el.querySelector("span.whitespace-nowrap");
+      if (!label) return false;
+      const rect = label.getBoundingClientRect();
+      return label.scrollWidth <= rect.width + 1;
+    });
+    expect(labelFits).toBe(true);
 
     await trigger.click();
     await page
@@ -250,6 +384,146 @@ test.describe("Data routes", () => {
     );
     await expect(input).toBeFocused();
   });
+
+  test("should cycle known-cost tri-state checkbox and update URL", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    await page.goto("/#/data/parking");
+    await page.waitForSelector("#data-parking-known-cost-filter", {
+      state: "visible",
+    });
+
+    const checkbox = page.locator("#data-parking-known-cost-filter");
+    const label = page.locator(".data-parking-known-cost-filter__text");
+
+    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+    await expect(label).toHaveText("Known cost");
+
+    await checkbox.click();
+    await expect(page).toHaveURL(/cost=known/);
+    await expect(checkbox).toHaveAttribute("aria-checked", "true");
+    await expect(label).toHaveText("Known cost");
+
+    await checkbox.click();
+    await expect(page).toHaveURL(/cost=unknown/);
+    await expect(checkbox).toHaveAttribute("aria-checked", "mixed");
+    await expect(label).toHaveText("Known cost");
+
+    await checkbox.click();
+    await expect(page).toHaveURL(/#\/data\/parking$/);
+    await expect(checkbox).toHaveAttribute("aria-checked", "false");
+    await expect(label).toHaveText("Known cost");
+  });
+
+  test("should filter parking markers by cost=known vs unknown", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    const markerCount = () =>
+      page.evaluate(
+        () =>
+          document.querySelectorAll(
+            "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+          ).length,
+      );
+
+    await page.goto("/#/data/parking?dataset=osmGarages");
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 0,
+    );
+    const allCount = await markerCount();
+    expect(allCount).toBeGreaterThan(0);
+
+    await page.goto("/#/data/parking?dataset=osmGarages&cost=known");
+    await page.waitForTimeout(300);
+    const knownCount = await markerCount();
+    expect(knownCount).toBeGreaterThan(0);
+    expect(knownCount).toBeLessThan(allCount);
+
+    await page.goto("/#/data/parking?dataset=osmGarages&cost=unknown");
+    await page.waitForTimeout(300);
+    const unknownCount = await markerCount();
+    expect(unknownCount).toBeGreaterThan(0);
+    expect(knownCount + unknownCount).toBe(allCount);
+
+    await page.goto("/#/data/parking?dataset=garages");
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 0,
+    );
+    const garagesAll = await markerCount();
+
+    await page.goto("/#/data/parking?dataset=garages&cost=known");
+    await page.waitForTimeout(300);
+    const garagesKnown = await markerCount();
+    expect(garagesKnown).toBe(garagesAll);
+  });
+
+  test("should treat spots displayed as Free as known cost", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    const markerCount = () =>
+      page.evaluate(
+        () =>
+          document.querySelectorAll(
+            "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+          ).length,
+      );
+
+    await page.goto("/#/data/parking?dataset=racks");
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll(
+          "#dataViewMap .leaflet-marker-pane .leaflet-marker-icon",
+        ).length > 0,
+    );
+    const allRacks = await markerCount();
+    expect(allRacks).toBeGreaterThan(0);
+
+    await page.goto("/#/data/parking?dataset=racks&cost=known");
+    await page.waitForTimeout(300);
+    const knownRacks = await markerCount();
+    expect(knownRacks).toBe(allRacks);
+
+    await page.goto("/#/data/parking?dataset=racks&cost=unknown");
+    await page.waitForTimeout(300);
+    const unknownRacks = await markerCount();
+    expect(unknownRacks).toBe(0);
+  });
+
+  test("should preserve cost= when toggling parking mode buttons", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+
+    await page.goto("/#/data/parking?cost=unknown");
+    await page.waitForSelector(".data-parking-mode-btn[data-mode=drive]", {
+      state: "visible",
+    });
+    await page.locator('.data-parking-mode-btn[data-mode="drive"]').click();
+    await page.waitForTimeout(400);
+    const hash = await page.evaluate(() => window.location.hash);
+    expect(hash).toContain("cost=unknown");
+    expect(hash).toMatch(/modes=drive/);
+  });
 });
 
 test.describe("Data destinations", () => {
@@ -353,4 +627,117 @@ test.describe("Data destinations", () => {
       { timeout: 10_000 },
     );
   });
+});
+
+/**
+ * `#/data/*` layout snapshots: **`data-{slug}.png`** (e.g. **`data-parking.png`**) at **1000×900**.
+ */
+const DATA_SNAPSHOT_CASES = [
+  { slug: "parking", hashPath: "data/parking", minMarkers: 50 },
+  { slug: "destinations", hashPath: "data/destinations", minMarkers: 1 },
+  { slug: "routes", hashPath: "data/routes", minMapLayers: 1 },
+];
+
+const DATA_SNAPSHOT_WIDTH = 1000;
+const DATA_SNAPSHOT_HEIGHT = 900;
+
+async function assertDataPageScreenshot(
+  page,
+  { hashPath, snapshotName, width, height, minMarkers, minMapLayers },
+) {
+  const dataTimeout = { timeout: 20_000 };
+  await page.setViewportSize({ width, height });
+  await page.goto(`/#/${hashPath}`);
+  await page.waitForFunction(
+    () => typeof globalThis.L !== "undefined",
+    dataTimeout,
+  );
+  await page.waitForFunction(
+    () =>
+      Array.isArray(window.appData?.parking?.garages) &&
+      window.appData.parking.garages.length > 0,
+    dataTimeout,
+  );
+  await expect(page.locator("#dataView")).toBeVisible();
+
+  if (minMarkers != null || minMapLayers != null) {
+    await expect(page.locator("#dataViewMap")).toBeVisible();
+    await page.waitForFunction(
+      () => typeof globalThis.__dataMapForTest?.getZoom === "function",
+      { timeout: 15_000 },
+    );
+    if (minMarkers != null) {
+      await page.waitForFunction(
+        (min) =>
+          document.querySelectorAll("#dataViewMap .leaflet-marker-icon")
+            .length >= min,
+        minMarkers,
+        { timeout: 15_000 },
+      );
+    }
+    if (minMapLayers != null) {
+      await page.waitForFunction(
+        (min) => {
+          const markers = document.querySelectorAll(
+            "#dataViewMap .leaflet-marker-icon",
+          ).length;
+          const paths = document.querySelectorAll(
+            "#dataViewMap .leaflet-overlay-pane path",
+          ).length;
+          return markers + paths >= min;
+        },
+        minMapLayers,
+        { timeout: 15_000 },
+      );
+    }
+    await page.evaluate(() => globalThis.__dataMapForTest?.invalidateSize?.());
+    await new Promise((r) => setTimeout(r, 400));
+  } else {
+    await expect(page.locator("#dataViewIndex")).toBeVisible();
+    await expect(page.locator("#dataViewMap")).toBeHidden();
+  }
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addStyleTag({
+    content: `
+      *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+      }
+    `,
+  });
+  await page.evaluate(
+    () =>
+      new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      ),
+  );
+
+  await expect(page).toHaveScreenshot(`${snapshotName}.png`, {
+    fullPage: true,
+    timeout: 20_000,
+    maxDiffPixels: 900,
+  });
+}
+
+test.describe("@snapshot Data page layout", { tag: "@snapshot" }, () => {
+  test.describe.configure({ mode: "serial", timeout: 45_000 });
+
+  for (const {
+    slug,
+    hashPath,
+    minMarkers,
+    minMapLayers,
+  } of DATA_SNAPSHOT_CASES) {
+    test(slug, { tag: "@snapshot" }, async ({ page }) => {
+      await assertDataPageScreenshot(page, {
+        hashPath,
+        snapshotName: `data-${slug}`,
+        width: DATA_SNAPSHOT_WIDTH,
+        height: DATA_SNAPSHOT_HEIGHT,
+        minMarkers,
+        minMapLayers,
+      });
+    });
+  }
 });
