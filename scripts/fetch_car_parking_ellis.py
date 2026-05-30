@@ -30,8 +30,8 @@ import urllib.request
 from pathlib import Path
 
 ELLIS_BASE = "https://www.ellisparking.com"
-# Short `manager` / dataset title label in JSON (full vendor: ELLIS_BASE).
-ELLIS_MANAGER = "Ellis"
+# Short `owner` / dataset title label in JSON (full vendor: ELLIS_BASE).
+ELLIS_OWNER = "Ellis"
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "scripts"))
 from parking_pricing_schema import ellis_rates_to_pricing as rates_to_pricing  # noqa: E402
@@ -190,7 +190,7 @@ def lot_to_item(
             "latitude": round(lat, 6),
             "longitude": round(lon, 6),
         },
-        "manager": ELLIS_MANAGER,
+        "owner": ELLIS_OWNER,
     }
     if name:
         item["name"] = str(name).strip()
@@ -330,7 +330,7 @@ def main() -> int:
     OUT_GARAGES.write_text(
         json.dumps(
             {
-                "name": f"{ELLIS_MANAGER} garages",
+                "name": f"{ELLIS_OWNER} garages",
                 "modes": ["drive"],
                 "note": note_g,
                 "items": garages,
@@ -343,7 +343,7 @@ def main() -> int:
     OUT_LOTS.write_text(
         json.dumps(
             {
-                "name": f"{ELLIS_MANAGER} lots",
+                "name": f"{ELLIS_OWNER} lots",
                 "modes": ["drive"],
                 "note": note_l,
                 "items": lots,

@@ -14,7 +14,7 @@ test.describe("Data index and navigation", () => {
     );
   }
 
-  test("should show dataset links at #/data with no section toolbars", async ({
+  test("should redirect #/data to default tab and show tab bar", async ({
     page,
   }) => {
     await page.goto("/#/visit");
@@ -22,71 +22,41 @@ test.describe("Data index and navigation", () => {
     await waitForAppDataLoaded(page);
     await page.goto("/#/data");
 
+    await expect(page).toHaveURL(/#\/data\/destinations$/);
     await expect(page.locator("#dataView")).toBeVisible();
-    await expect(page.locator("#dataViewIndex")).toBeVisible();
-    await expect(page.locator("#dataViewIndex a")).toHaveCount(3);
-    await expect(page.locator("#dataViewIndex")).toContainText("parking");
-    await expect(page.locator("#dataViewParkingModes")).toBeHidden();
-    await expect(page.locator("#dataViewDestinationsBar")).toBeHidden();
-    await expect(page.locator("#dataViewRoutesModes")).toBeHidden();
-    await expect(page.locator("#dataViewMap")).toBeHidden();
+    await expect(page.locator("#dataViewTabs")).toBeVisible();
+    await expect(page.locator("#dataViewTabs .data-view-tab")).toHaveCount(3);
+    await expect(
+      page.locator('#dataViewTabs .data-view-tab[aria-selected="true"]'),
+    ).toContainText("Destinations");
+    await expect(page.locator("#dataViewDestinationsBar")).toBeVisible();
+    await expect(page.locator("#dataViewMap")).toBeVisible();
   });
 
-  test("back link from parking hides toolbar and returns to data index", async ({
-    page,
-  }) => {
+  test("tab links update URL when switching sections", async ({ page }) => {
     await page.goto("/#/visit");
     await page.waitForSelector("#parkingDestinationSelect");
     await waitForAppDataLoaded(page);
     await page.goto("/#/data/parking");
     await page.waitForSelector("#data-parking-dataset", { state: "visible" });
 
-    await expect(page.locator("#dataViewParkingModes")).toBeVisible();
-    await page
-      .locator("#dataViewParkingModes .data-view-toolbar__back-link")
-      .click();
-    await expect(page).toHaveURL(/#\/data$/);
-    await expect(page.locator("#dataViewIndex")).toBeVisible();
-    await expect(page.locator("#dataViewParkingModes")).toBeHidden();
-    await expect(page.locator("#dataViewMap")).toBeHidden();
-  });
+    await expect(
+      page.locator('#dataViewTabs .data-view-tab[aria-selected="true"]'),
+    ).toContainText("Parking");
 
-  test("back link from destinations hides toolbar and returns to data index", async ({
-    page,
-  }) => {
-    await page.goto("/#/visit");
-    await page.waitForSelector("#parkingDestinationSelect");
-    await waitForAppDataLoaded(page);
-    await page.goto("/#/data/destinations");
-    await page.waitForSelector("#dataViewMap", { state: "visible" });
-
+    await page.locator('#dataViewTabs a[href="#/data/destinations"]').click();
+    await expect(page).toHaveURL(/#\/data\/destinations$/);
     await expect(page.locator("#dataViewDestinationsBar")).toBeVisible();
-    await page
-      .locator("#dataViewDestinationsBar .data-view-toolbar__back-link")
-      .click();
-    await expect(page).toHaveURL(/#\/data$/);
-    await expect(page.locator("#dataViewIndex")).toBeVisible();
-    await expect(page.locator("#dataViewDestinationsBar")).toBeHidden();
-    await expect(page.locator("#dataViewMap")).toBeHidden();
-  });
+    await expect(
+      page.locator('#dataViewTabs .data-view-tab[aria-selected="true"]'),
+    ).toContainText("Destinations");
 
-  test("back link from routes hides toolbar and returns to data index", async ({
-    page,
-  }) => {
-    await page.goto("/#/visit");
-    await page.waitForSelector("#parkingDestinationSelect");
-    await waitForAppDataLoaded(page);
-    await page.goto("/#/data/routes");
-    await page.waitForSelector("#dataViewMap", { state: "visible" });
-
+    await page.locator('#dataViewTabs a[href="#/data/routes"]').click();
+    await expect(page).toHaveURL(/#\/data\/routes$/);
     await expect(page.locator("#dataViewRoutesModes")).toBeVisible();
-    await page
-      .locator("#dataViewRoutesModes .data-view-toolbar__back-link")
-      .click();
-    await expect(page).toHaveURL(/#\/data$/);
-    await expect(page.locator("#dataViewIndex")).toBeVisible();
-    await expect(page.locator("#dataViewRoutesModes")).toBeHidden();
-    await expect(page.locator("#dataViewMap")).toBeHidden();
+    await expect(
+      page.locator('#dataViewTabs .data-view-tab[aria-selected="true"]'),
+    ).toContainText("Routes");
   });
 });
 
@@ -627,6 +597,52 @@ test.describe("Data destinations", () => {
       { timeout: 10_000 },
     );
   });
+
+  test("Visible and Hidden can both be selected; union shows all markers", async ({
+    page,
+  }) => {
+    await page.goto("/#/visit");
+    await page.waitForSelector("#parkingDestinationSelect");
+    await waitForAppDataLoaded(page);
+    await page.goto("/#/data/destinations");
+    await expect(page.locator("#dataViewDestinationsBar")).toBeVisible();
+
+    const allCount = await page.evaluate(() => {
+      const list = window.appData?.destinations || [];
+      let n = 0;
+      for (const d of list) {
+        if (typeof d.latitude === "number" && typeof d.longitude === "number") {
+          n += 1;
+        }
+      }
+      return n;
+    });
+
+    await page.locator('.data-dest-view-btn[data-dest-view="visible"]').click();
+    await expect(page).toHaveURL(/#\/data\/destinations\?view=visible/);
+    await expect(
+      page.locator('.data-dest-view-btn[data-dest-view="visible"]'),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.locator('.data-dest-view-btn[data-dest-view="hidden"]'),
+    ).toHaveAttribute("aria-pressed", "false");
+
+    await page.locator('.data-dest-view-btn[data-dest-view="hidden"]').click();
+    await expect(page).toHaveURL(/#\/data\/destinations\?view=visible,hidden/);
+    await expect(
+      page.locator('.data-dest-view-btn[data-dest-view="visible"]'),
+    ).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.locator('.data-dest-view-btn[data-dest-view="hidden"]'),
+    ).toHaveAttribute("aria-pressed", "true");
+    await page.waitForFunction(
+      (expected) =>
+        document.querySelectorAll("#dataViewMap .leaflet-marker-icon")
+          .length === expected,
+      allCount,
+      { timeout: 10_000 },
+    );
+  });
 });
 
 /**
@@ -693,7 +709,7 @@ async function assertDataPageScreenshot(
     await page.evaluate(() => globalThis.__dataMapForTest?.invalidateSize?.());
     await new Promise((r) => setTimeout(r, 400));
   } else {
-    await expect(page.locator("#dataViewIndex")).toBeVisible();
+    await expect(page.locator("#dataViewTabs")).toBeVisible();
     await expect(page.locator("#dataViewMap")).toBeHidden();
   }
 

@@ -122,6 +122,12 @@
       </div>
       <div id="dataView" class="hidden">
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+          <nav
+            id="dataViewTabs"
+            class="data-view-tabs hidden"
+            role="tablist"
+            aria-label="Data explorer"
+          ></nav>
           <div
             id="dataViewParkingModes"
             class="data-parking-toolbar hidden mt-2 mb-3"
@@ -134,7 +140,6 @@
             id="dataViewRoutesModes"
             class="data-routes-toolbar hidden mt-2 mb-3"
           ></div>
-          <div id="dataViewIndex" class="space-y-1"></div>
           <div
             id="dataViewMap"
             class="hidden mt-2 mb-2 rounded-lg border border-slate-200 overflow-hidden"

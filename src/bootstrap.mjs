@@ -818,12 +818,32 @@ function dataDestinationsHiddenOnlyIconSvg() {
   );
 }
 
-function dataViewBackLinkHtml() {
-  return `<div class="data-view-toolbar__back"><a href="#/data" class="data-view-toolbar__back-link" title="Back to data" aria-label="Back to data">←</a></div>`;
+const DATA_VIEW_TAB_IDS = ["destinations", "parking", "routes"];
+
+const DATA_VIEW_TAB_LABELS = {
+  destinations: "Destinations",
+  parking: "Parking",
+  routes: "Routes",
+};
+
+const DATA_VIEW_DEFAULT_TAB = "destinations";
+
+/** Map `#/data/<path>` to a tab id, or null for JSON detail paths. */
+function dataViewTabFromPath(path) {
+  if (DATA_VIEW_TAB_IDS.includes(path)) return path;
+  if (path.startsWith("parking/")) return "parking";
+  return null;
 }
 
-function dataViewBackLinkInlineHtml() {
-  return `<a href="#/data" class="data-view-toolbar__back-link" title="Back to data" aria-label="Back to data">←</a>`;
+function renderDataViewTabs(activeTab) {
+  const tabsEl = document.getElementById("dataViewTabs");
+  if (!tabsEl) return;
+  tabsEl.classList.remove("hidden");
+  tabsEl.innerHTML = DATA_VIEW_TAB_IDS.map((id) => {
+    const selected = id === activeTab;
+    const label = DATA_VIEW_TAB_LABELS[id] || id;
+    return `<a href="#/data/${id}" role="tab" class="data-view-tab${selected ? " data-view-tab--active" : ""}" aria-selected="${selected ? "true" : "false"}" tabindex="${selected ? "0" : "-1"}">${escapeHtml(label)}</a>`;
+  }).join("");
 }
 
 function dataViewToggleButtonHtml(className, mode, label) {
@@ -1005,19 +1025,19 @@ function updateDataViewMap(points, options) {
         rows.push(
           `<tr><th style="${thStyle}">Address</th><td style="${tdStyle}">${escapeHtml(parkingAddress)}</td></tr>`,
         );
-      const parkingManager =
+      const parkingOwner =
         p.parkingItem &&
-        typeof p.parkingItem.manager === "string" &&
-        p.parkingItem.manager.trim() !== ""
-          ? p.parkingItem.manager.trim()
+        typeof p.parkingItem.owner === "string" &&
+        p.parkingItem.owner.trim() !== ""
+          ? p.parkingItem.owner.trim()
           : "";
-      if (parkingManager) {
-        const managerTd =
-          ovf?.manager === true
-            ? `<span style="color:#b91c1c">${escapeHtml(parkingManager)}</span>`
-            : escapeHtml(parkingManager);
+      if (parkingOwner) {
+        const ownerTd =
+          ovf?.owner === true
+            ? `<span style="color:#b91c1c">${escapeHtml(parkingOwner)}</span>`
+            : escapeHtml(parkingOwner);
         rows.push(
-          `<tr><th style="${thStyle}">Manager</th><td style="${tdStyle}">${managerTd}</td></tr>`,
+          `<tr><th style="${thStyle}">Owner</th><td style="${tdStyle}">${ownerTd}</td></tr>`,
         );
       }
       const pricingRows = getDataViewParkingPricingRows(
@@ -1368,19 +1388,23 @@ function getDataRoutePath() {
 function renderDataView() {
   const appView = document.getElementById("appView");
   const dataView = document.getElementById("dataView");
-  const dataViewIndex = document.getElementById("dataViewIndex");
   const dataViewDetail = document.getElementById("dataViewDetail");
   const dataViewDetailTitle = document.getElementById("dataViewDetailTitle");
   const dataViewContent = document.getElementById("dataViewContent");
 
   if (!appView || !dataView || !appData) return;
 
-  const path = getDataRoutePath();
+  let path = getDataRoutePath();
   if (path === null) return;
 
   if (path === "strategies" || path.startsWith("strategies/")) {
-    window.location.hash = "#/data";
-    return;
+    history.replaceState(null, "", `#/data/${DATA_VIEW_DEFAULT_TAB}`);
+    path = DATA_VIEW_DEFAULT_TAB;
+  }
+
+  if (path === "") {
+    history.replaceState(null, "", `#/data/${DATA_VIEW_DEFAULT_TAB}`);
+    path = DATA_VIEW_DEFAULT_TAB;
   }
 
   hideModesView();
@@ -1390,29 +1414,18 @@ function renderDataView() {
   dataView.classList.remove("hidden");
   document.querySelector("main")?.classList.add("data-view-active");
 
-  const isIndex = path === "";
-  const hideDetail = isIndex || path === "destinations" || path === "routes";
-  dataViewIndex.classList.toggle("hidden", !isIndex);
+  const activeTab = dataViewTabFromPath(path);
+  const hideDetail =
+    path === "destinations" || path === "routes" || path === "parking";
   dataViewDetail.classList.toggle("hidden", hideDetail);
   document.getElementById("dataViewParkingModes")?.classList.add("hidden");
   document.getElementById("dataViewDestinationsBar")?.classList.add("hidden");
   document.getElementById("dataViewRoutesModes")?.classList.add("hidden");
   document.getElementById("dataViewMap")?.classList.add("hidden");
+  document.getElementById("dataViewTabs")?.classList.add("hidden");
 
-  if (path === "") {
-    // Index: list datasets with links
-    const geoLinks = [
-      { href: "#/data/destinations", label: "destinations" },
-      { href: "#/data/parking", label: "parking" },
-      { href: "#/data/routes", label: "routes" },
-    ];
-    dataViewIndex.innerHTML = geoLinks
-      .map(
-        (l) =>
-          `<a href="${l.href}" class="block text-blue-600 hover:underline">${l.label}</a>`,
-      )
-      .join("");
-    return;
+  if (activeTab) {
+    renderDataViewTabs(activeTab);
   }
 
   if (path === "destinations") {
@@ -1420,18 +1433,18 @@ function renderDataView() {
       ? appData.destinations
       : [];
     const params = parseFragment();
-    const viewRaw = params.view ? String(params.view).trim().toLowerCase() : "";
-    const destViewMode =
-      viewRaw === "hidden"
-        ? "hidden"
-        : viewRaw === "visible"
-          ? "visible"
-          : "all";
+    const viewParam = params.view ? String(params.view).trim() : "";
+    const selectedViews =
+      viewParam === ""
+        ? []
+        : viewParam
+            .split(",")
+            .map((v) => v.trim().toLowerCase())
+            .filter((v) => v === "visible" || v === "hidden");
 
-    function buildDataDestinationsHash(opts) {
+    function buildDataDestinationsHash(selected) {
       const q = [];
-      if (opts.view === "visible") q.push("view=visible");
-      if (opts.view === "hidden") q.push("view=hidden");
+      if (selected.length > 0) q.push("view=" + selected.join(","));
       return "#/data/destinations" + (q.length > 0 ? "?" + q.join("&") : "");
     }
 
@@ -1440,18 +1453,14 @@ function renderDataView() {
     );
     if (dataViewDestinationsBar) {
       dataViewDestinationsBar.classList.remove("hidden");
-      const visiblePressed = destViewMode === "visible";
-      const hiddenPressed = destViewMode === "hidden";
+      const visiblePressed = selectedViews.includes("visible");
+      const hiddenPressed = selectedViews.includes("hidden");
       dataViewDestinationsBar.innerHTML = `
         <div class="data-destinations-toolbar__row">
-          <div class="data-destinations-toolbar__back">
-            ${dataViewBackLinkInlineHtml()}
-          </div>
           <div class="data-destinations-toolbar__cluster">
             <div class="data-view-btn-group" role="group" aria-label="Destination visibility">
-              <span class="data-view-btn-group__label">Destinations:</span>
-              <button type="button" class="data-view-toggle-btn data-view-toggle-btn--icon data-dest-view-btn" data-dest-view="visible" aria-pressed="${visiblePressed ? "true" : "false"}" title="Show only venues on the visit map browse list (tap again for all)">${dataDestinationsVisibleIconSvg()}<span>Visible</span></button>
-              <button type="button" class="data-view-toggle-btn data-view-toggle-btn--icon data-dest-view-btn" data-dest-view="hidden" aria-pressed="${hiddenPressed ? "true" : "false"}" title="Show only venues hidden from the visit map until linked (tap again for all)">${dataDestinationsHiddenOnlyIconSvg()}<span>Hidden</span></button>
+              <button type="button" class="data-view-toggle-btn data-view-toggle-btn--icon data-dest-view-btn" data-dest-view="visible" aria-pressed="${visiblePressed ? "true" : "false"}" title="Show venues on the visit map browse list">${dataDestinationsVisibleIconSvg()}<span>Visible</span></button>
+              <button type="button" class="data-view-toggle-btn data-view-toggle-btn--icon data-dest-view-btn" data-dest-view="hidden" aria-pressed="${hiddenPressed ? "true" : "false"}" title="Show venues hidden from the visit map until linked">${dataDestinationsHiddenOnlyIconSvg()}<span>Hidden</span></button>
             </div>
           </div>
         </div>`;
@@ -1464,21 +1473,47 @@ function renderDataView() {
       setDataViewToggleButtonActive(btnVisible, visiblePressed);
       setDataViewToggleButtonActive(btnHidden, hiddenPressed);
       btnVisible?.addEventListener("click", () => {
-        const next = destViewMode === "visible" ? "all" : "visible";
-        window.location.hash = buildDataDestinationsHash({ view: next });
+        const current = parseFragment();
+        const viewRaw = current.view ? String(current.view).trim() : "";
+        const currentViews =
+          viewRaw === ""
+            ? []
+            : viewRaw
+                .split(",")
+                .map((v) => v.trim().toLowerCase())
+                .filter((v) => v === "visible" || v === "hidden");
+        const idx = currentViews.indexOf("visible");
+        const nextViews =
+          idx >= 0
+            ? currentViews.filter((_, i) => i !== idx)
+            : [...currentViews, "visible"];
+        window.location.hash = buildDataDestinationsHash(nextViews);
       });
       btnHidden?.addEventListener("click", () => {
-        const next = destViewMode === "hidden" ? "all" : "hidden";
-        window.location.hash = buildDataDestinationsHash({ view: next });
+        const current = parseFragment();
+        const viewRaw = current.view ? String(current.view).trim() : "";
+        const currentViews =
+          viewRaw === ""
+            ? []
+            : viewRaw
+                .split(",")
+                .map((v) => v.trim().toLowerCase())
+                .filter((v) => v === "visible" || v === "hidden");
+        const idx = currentViews.indexOf("hidden");
+        const nextViews =
+          idx >= 0
+            ? currentViews.filter((_, i) => i !== idx)
+            : [...currentViews, "hidden"];
+        window.location.hash = buildDataDestinationsHash(nextViews);
       });
     }
     const destinationPoints = destinations
       .filter((d) => {
-        if (destViewMode === "hidden")
-          return isDestinationHiddenFromPublicMaps(d);
-        if (destViewMode === "visible")
-          return !isDestinationHiddenFromPublicMaps(d);
-        return true;
+        if (selectedViews.length === 0) return true;
+        const hidden = isDestinationHiddenFromPublicMaps(d);
+        if (selectedViews.includes("visible") && !hidden) return true;
+        if (selectedViews.includes("hidden") && hidden) return true;
+        return false;
       })
       .filter(
         (d) =>
@@ -1493,7 +1528,6 @@ function renderDataView() {
         destinationHiddenFromPublicMaps: isDestinationHiddenFromPublicMaps(d),
       }));
     updateDataViewMap(destinationPoints);
-    dataViewIndex.classList.add("hidden");
     dataViewDetail.classList.add("hidden");
     return;
   }
@@ -1529,19 +1563,18 @@ function renderDataView() {
       ).join("");
       dataViewRoutesModes.innerHTML = `
         <div class="data-routes-toolbar__row">
-          <div class="data-routes-toolbar__back">
-            ${dataViewBackLinkInlineHtml()}
-          </div>
-          <div class="data-routes-toolbar__modes">
-            <div class="data-view-btn-group" role="group" aria-label="Route modes">
-              <span class="data-view-btn-group__label">Route modes:</span>
-              ${modeButtonsHtml}
+          <div class="data-routes-toolbar__cluster">
+            <div class="data-routes-toolbar__modes">
+              <div class="data-view-btn-group" role="group" aria-label="Modes">
+                <span class="data-view-btn-group__label">Modes:</span>
+                ${modeButtonsHtml}
+              </div>
             </div>
-          </div>
-          <div class="data-routes-toolbar__dataset">
-            <label for="data-routes-dataset" class="data-view-filter-row__label">Dataset:</label>
-            <div class="data-routes-dataset-dropdown relative min-w-[11rem]">
-              <button type="button" id="data-routes-dataset" disabled class="data-view-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 cursor-default" aria-label="Dataset (Public Bus Routes)" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true"><span class="min-w-0 flex-1 truncate">Public Bus Routes</span><span class="shrink-0 text-slate-500" aria-hidden="true">▾</span></button>
+            <div class="data-routes-toolbar__dataset">
+              <label for="data-routes-dataset" class="data-view-filter-row__label">Dataset:</label>
+              <div class="data-routes-dataset-dropdown relative min-w-[11rem]">
+                <button type="button" id="data-routes-dataset" disabled class="data-view-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 cursor-default" aria-label="Dataset (Public Bus Routes)" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true"><span class="min-w-0 flex-1 truncate">Public Bus Routes</span><span class="shrink-0 text-slate-500" aria-hidden="true">▾</span></button>
+              </div>
             </div>
           </div>
         </div>`;
@@ -1648,7 +1681,6 @@ function renderDataView() {
       extraPolylines,
       fitBoundsFromMarkersOnly: true,
     });
-    dataViewIndex.classList.add("hidden");
     dataViewDetail.classList.add("hidden");
     return;
   }
@@ -1695,7 +1727,7 @@ function renderDataView() {
       const hay = [
         item?.name,
         item?.address,
-        item?.manager,
+        item?.owner ?? item?.manager,
         item?.availability,
         item?.dataOverrideNote,
         item?.note,
@@ -1802,12 +1834,9 @@ function renderDataView() {
       ).join("");
       dataViewParkingModes.innerHTML = `
         <div class="data-parking-toolbar__row data-parking-toolbar__row--modes">
-          <div class="data-parking-toolbar__back">
-            ${dataViewBackLinkInlineHtml()}
-          </div>
           <div class="data-parking-toolbar__cluster data-parking-toolbar__cluster--modes">
-            <div class="data-view-btn-group" role="group" aria-label="Parking modes">
-              <span class="data-view-btn-group__label">Parking Modes:</span>
+            <div class="data-view-btn-group" role="group" aria-label="Modes">
+              <span class="data-view-btn-group__label">Modes:</span>
               ${modeButtonsHtml}
             </div>
             <div class="data-view-filter-row data-parking-toolbar__dataset">
@@ -1823,7 +1852,7 @@ function renderDataView() {
           <div class="data-parking-toolbar__cluster data-parking-toolbar__cluster--filters">
             <div class="data-view-filter-row">
               <div class="data-parking-q-field relative">
-                <input type="search" id="data-parking-q-filter" class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Filter by name or address" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
+                <input type="search" id="data-parking-q-filter" class="w-full rounded-lg border border-slate-300 bg-white py-2 pl-3 pr-9 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Filter by name, address, or owner" autocomplete="off" aria-label="Filter parking by text" value="${escapeHtml(qParamTrimmed)}" />
                 <button type="button" id="data-parking-q-clear" class="data-parking-q-clear absolute right-1 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus:ring-2 focus:ring-sky-500" aria-label="Clear search"${qParamTrimmed ? "" : " hidden"}><span class="text-lg leading-none" aria-hidden="true">×</span></button>
               </div>
               <label class="data-parking-known-cost-label inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-medium text-slate-700">
@@ -2092,12 +2121,11 @@ function renderDataView() {
     updateDataViewMap(allParkingPoints);
     openDataMapParkingPopupMatchingPin(params.pin);
 
-    dataViewIndex.classList.add("hidden");
     dataViewDetail.classList.add("hidden");
     return;
   }
 
-  // Detail: show one dataset
+  // Detail: show one dataset (e.g. parking/garages JSON)
   let title = path;
   let data = null;
 

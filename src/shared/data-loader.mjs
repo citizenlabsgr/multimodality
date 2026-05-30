@@ -112,7 +112,7 @@ const parkingDataOverrideSourceFields = new WeakMap();
 
 /**
  * @param {unknown} item — a parking row from `appData.parking.*`
- * @returns {{ name?: true, pricing?: true, manager?: true } | null}
+ * @returns {{ name?: true, pricing?: true, owner?: true } | null}
  */
 export function getParkingDataViewOverrideSourceFields(item) {
   if (item == null || typeof item !== "object") return null;
@@ -127,9 +127,9 @@ export function getParkingDataViewOverrideSourceFields(item) {
  * Use **`location`: `{ latitude, longitude }`** for pin coordinates (root-level lat/lng aliases still parse).
  * Each object may include **`note`** (string) for editors only — it is not copied onto pins or shown in the app.
  * Optional **`address`** (string) replaces the matched pin's address when non-empty.
- * Optional **`manager`** (string) sets who operates the lot or garage (shown in **`#/visit`** for private pins).
+ * Optional **`owner`** (string) sets who owns or operates the lot or garage (shown in **`#/visit`** for private pins).
  * **`hidden`: true** removes the matched pin from the merged dataset (no `#/visit` / `#/data` marker).
- * Private lots with AirGarage pricing often use **`manager`: `"AirGarage"`**; listing URLs are usually
+ * Private lots with AirGarage pricing often use **`owner`: `"AirGarage"`**; listing URLs are usually
  * `https://www.airgarage.com/location/` + kebab-case name + `-grand-rapids-mi` (confirm in browser — not stored in **`note`**).
  * @param {object} parking — merged `appData.parking` buckets
  * @param {unknown[] | null} list
@@ -230,7 +230,7 @@ function applyParkingDataOverrides(parking, list) {
 
     const item = arr[idx];
     const next = { ...item };
-    /** @type {{ name?: true, pricing?: true, manager?: true }} */
+    /** @type {{ name?: true, pricing?: true, owner?: true }} */
     const fromOverride = {};
     if (typeof ov.name === "string" && ov.name.trim()) {
       next.name = ov.name.trim();
@@ -255,22 +255,28 @@ function applyParkingDataOverrides(parking, list) {
     if (typeof ov.address === "string" && ov.address.trim()) {
       next.address = ov.address.trim();
     }
-    if (typeof ov.manager === "string" && ov.manager.trim()) {
-      next.manager = ov.manager.trim();
-      fromOverride.manager = true;
+    const ownerRaw =
+      typeof ov.owner === "string" && ov.owner.trim()
+        ? ov.owner.trim()
+        : typeof ov.manager === "string" && ov.manager.trim()
+          ? ov.manager.trim()
+          : "";
+    if (ownerRaw) {
+      next.owner = ownerRaw;
+      fromOverride.owner = true;
     }
     if (typeof ov.note === "string" && ov.note.trim()) {
       next.dataOverrideNote = ov.note.trim();
     }
-    if (fromOverride.name || fromOverride.pricing || fromOverride.manager) {
+    if (fromOverride.name || fromOverride.pricing || fromOverride.owner) {
       parkingDataOverrideSourceFields.set(next, fromOverride);
     }
     arr[idx] = next;
   }
 }
 
-/** Official public inventory defaults to municipal operation when **`manager`** is omitted. */
-function ensureDefaultManagersOnPublicDriveParking(parking) {
+/** Official public inventory defaults to municipal operation when **`owner`** is omitted. */
+function ensureDefaultOwnersOnPublicDriveParking(parking) {
   const city = "City";
   for (const key of ["garages", "lots"]) {
     const arr = parking[key];
@@ -278,9 +284,9 @@ function ensureDefaultManagersOnPublicDriveParking(parking) {
     for (let i = 0; i < arr.length; i++) {
       const item = arr[i];
       if (!item || typeof item !== "object") continue;
-      const m = item.manager;
-      if (typeof m === "string" && m.trim() !== "") continue;
-      arr[i] = { ...item, manager: city };
+      const o = item.owner ?? item.manager;
+      if (typeof o === "string" && o.trim() !== "") continue;
+      arr[i] = { ...item, owner: city };
     }
   }
 }
@@ -366,15 +372,15 @@ function dedupeOsmParkingNearEllis(parking) {
   }
 }
 
-const AIRGARAGE_MANAGER_LABEL = "AirGarage";
+const AIRGARAGE_OWNER_LABEL = "AirGarage";
 
-function parkingManagerTrimmed(item) {
-  const m = item?.manager;
-  return typeof m === "string" ? m.trim() : "";
+function parkingOwnerTrimmed(item) {
+  const o = item?.owner ?? item?.manager;
+  return typeof o === "string" ? o.trim() : "";
 }
 
 /**
- * Move pins with manager AirGarage into their own buckets for `#/data/parking` (drive map).
+ * Move pins with owner AirGarage into their own buckets for `#/data/parking` (drive map).
  * `#/visit` merges them back with OSM via {@link parkingItemsForVisitDataKey} in `visit.mjs`.
  */
 function splitAirGarageParkingIntoOwnCategories(parking) {
@@ -390,7 +396,7 @@ function splitAirGarageParkingIntoOwnCategories(parking) {
     const rest = [];
     const air = [];
     for (const item of arr) {
-      if (parkingManagerTrimmed(item) === AIRGARAGE_MANAGER_LABEL) {
+      if (parkingOwnerTrimmed(item) === AIRGARAGE_OWNER_LABEL) {
         air.push(item);
       } else {
         rest.push(item);
@@ -579,7 +585,7 @@ export async function loadData() {
 
     dedupeOsmParkingNearOfficial(parking);
     applyParkingDataOverrides(parking, overridesList);
-    ensureDefaultManagersOnPublicDriveParking(parking);
+    ensureDefaultOwnersOnPublicDriveParking(parking);
     dedupeOsmParkingNearEllis(parking);
     splitAirGarageParkingIntoOwnCategories(parking);
     applyDriveParkingDatasetDisplayNames(parking);
