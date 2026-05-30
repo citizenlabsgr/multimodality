@@ -56,7 +56,7 @@
       "longitude": -85.67193
     },
     "name": "Downtown Grand Rapids Parking",
-    "manager": "AirGarage",
+    "owner": "AirGarage",
     "address": "45 Ottawa Ave NW, Grand Rapids, MI 49503",
     "pricing": {
       "hourly": 4.0,
@@ -71,7 +71,7 @@
       "longitude": -85.646478
     },
     "name": "East Hills Cherry Street Parking",
-    "manager": "AirGarage",
+    "owner": "AirGarage",
     "address": "946 Cherry St SE, Grand Rapids, MI 49506",
     "pricing": {
       "hourly": 4.99,
@@ -86,7 +86,7 @@
       "longitude": -85.677352
     },
     "name": "Swift Printing Parking",
-    "manager": "AirGarage",
+    "owner": "AirGarage",
     "address": "349 Mt Vernon Ave NW, Grand Rapids, MI 49504",
     "pricing": {
       "hourly": 4.99,
@@ -101,7 +101,7 @@
       "longitude": -85.681926
     },
     "name": "Bridge Street Parking",
-    "manager": "AirGarage",
+    "owner": "AirGarage",
     "address": "433 Bridge St NW, Grand Rapids, MI 49504",
     "pricing": {
       "hourly": 4.99,
@@ -116,7 +116,7 @@
       "longitude": -85.679696
     },
     "name": "Red Lion Lot",
-    "manager": "AirGarage",
+    "owner": "AirGarage",
     "address": "412 Bridge St NW, Grand Rapids, MI 49504",
     "pricing": {
       "hourly": 4.99,

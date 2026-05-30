@@ -8,7 +8,7 @@
         "latitude": 42.967794,
         "longitude": -85.668944
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "210 Ionia",
       "address": "210 Ionia Ave NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 204 spaces; Monthly from $210; North of Commerce Building corner of Lyon and Ionia Early Bird Discount program available, please call (616) 458-1179 for details. Residential Rate : $245 (24/7 access) Monthly Rate: $210 (Monday - Friday 6am - 6pm)&nbsp;",
@@ -23,7 +23,7 @@
         "latitude": 42.964667,
         "longitude": -85.667546
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "9-17 Library",
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 125 spaces; Monthly from $195; Corner of Library and Division Monthly parking is on a Waiting list, call (616) 458-1179 for details",
@@ -38,7 +38,7 @@
         "latitude": 42.961379,
         "longitude": -85.672669
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "Arena Place",
       "address": "55 Ottawa Ave SW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 250 spaces; Located near the Van Andel Arena",
@@ -53,7 +53,7 @@
         "latitude": 42.954605,
         "longitude": -85.670565
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "Downtown Market",
       "address": "435 Ionia Ave SW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 225 spaces; Surface parking lot&nbsp; 1st 1/2 hour free $3.00 per half upto a $24.00 Max",
@@ -68,7 +68,7 @@
         "latitude": 42.971496,
         "longitude": -85.672041
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "Michigan State University Innovation Park (GRIP)",
       "address": "432 Monroe Ave NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 600 spaces; Monthly from $168.83; Please call to be added to the waitlist 616-458-1179",
@@ -83,7 +83,7 @@
         "latitude": 42.966771,
         "longitude": -85.671237
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "Midtown Parking Garage",
       "address": "130 Lyon Street NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 665 spaces; Monthly from $240; Midtown Multi-Level Parking Garage Behind Waters Buliding Entrances off both Pearl and Lyon Street between Monroe and Ottawa. Overnight Parking: &nbsp;$38.00 per 24 hour period &nbsp;No in/out p rivileges &nbsp; Monthly Rate: $240 (Monda\u2026",
@@ -98,7 +98,7 @@
         "latitude": 42.965954,
         "longitude": -85.670936
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "Sears",
       "address": "Grand Rapids, MI",
       "availability": "Grand Rapids; 56 spaces; On Pearl Between Ledyard and McKay Tower &nbsp; Overnight Parking: &nbsp;$38.00 per 24 hour period &nbsp;No in/out p rivileges &nbsp;",
@@ -113,7 +113,7 @@
         "latitude": 42.966456,
         "longitude": -85.67011
       },
-      "manager": "Ellis",
+      "owner": "Ellis",
       "name": "Warner Ramp",
       "address": "151 Ionia Ave NW, Grand Rapids, MI, 49503",
       "availability": "Grand Rapids; 125 spaces; Entrance on Ionia&nbsp; &nbsp; Overnight Max: $38.00 per 24 hour period",

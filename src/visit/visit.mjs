@@ -1445,7 +1445,7 @@ function buildParkingFilterBar() {
 /**
  * @param {number | undefined} eveningSliderValue — 0–50 in $5 steps from UI; 50 = no cap. Omit to use `pay` from the hash.
  * @param {number | undefined} walkSliderIndex — internal **0** = no distance; omit to use `walk` from the hash.
- * @returns {Array<{ lat: number, lng: number, name: string, address: string, categoryKey: string, categoryName: string, manager?: string, price: string, costHourlyHint: boolean, totalSpaces: number | null, spotId: string }>}
+ * @returns {Array<{ lat: number, lng: number, name: string, address: string, categoryKey: string, categoryName: string, owner?: string, price: string, costHourlyHint: boolean, totalSpaces: number | null, spotId: string }>}
  */
 function getAllParkingSpotMarkers(
   enabledKeys,
@@ -1524,10 +1524,10 @@ function getAllParkingSpotMarkers(
       let eveningSortDollars = Number.POSITIVE_INFINITY;
       if (typeof ceil === "number") eveningSortDollars = ceil;
 
-      const managerRaw = item?.manager;
-      const manager =
-        typeof managerRaw === "string" && managerRaw.trim() !== ""
-          ? managerRaw.trim()
+      const ownerRaw = item?.owner ?? item?.manager;
+      const owner =
+        typeof ownerRaw === "string" && ownerRaw.trim() !== ""
+          ? ownerRaw.trim()
           : "";
 
       out.push({
@@ -1540,7 +1540,7 @@ function getAllParkingSpotMarkers(
             : "",
         categoryKey: categoryId,
         categoryName,
-        manager,
+        owner,
         price: cost.text,
         costHourlyHint: cost.costHourlyHint,
         priceSupplement:
@@ -2639,9 +2639,9 @@ function parkingSpotResolvedDisplayLabel(row, fallback) {
 }
 
 /**
- * Gray subheading under the popup title: category, and for private pins **`(manager)`** when set.
- * Skips **`(manager)`** when the category label already includes it (e.g. **Private Parking Garage (Ellis)** from `categoryNames` plus **`manager`: `"Ellis"`**).
- * @param {{ categoryName?: string, categoryKey?: string, manager?: string }} row
+ * Gray subheading under the popup title: category, and for private pins **`(owner)`** when set.
+ * Skips **`(owner)`** when the category label already includes it (e.g. **Private Parking Garage (Ellis)** from `categoryNames` plus **`owner`: `"Ellis"`**).
+ * @param {{ categoryName?: string, categoryKey?: string, owner?: string }} row
  */
 function parkingVisitPopupCategorySublineHtml(row) {
   const catLine =
@@ -2649,21 +2649,21 @@ function parkingVisitPopupCategorySublineHtml(row) {
   if (catLine === "") return "";
   const key = row.categoryKey;
   const isPrivate = isVisitParkingPrivateStyleCategory(key);
-  const mgr = typeof row.manager === "string" ? row.manager.trim() : "";
+  const own = typeof row.owner === "string" ? row.owner.trim() : "";
   const catLower = catLine.toLowerCase();
-  const mgrLower = mgr.toLowerCase();
-  const managerAlreadyInCategoryLine =
-    mgr !== "" && catLower.includes(`(${mgrLower})`);
+  const ownLower = own.toLowerCase();
+  const ownerAlreadyInCategoryLine =
+    own !== "" && catLower.includes(`(${ownLower})`);
   const tail =
-    isPrivate && mgr !== "" && !managerAlreadyInCategoryLine
-      ? ` (${escapeHtml(mgr)})`
+    isPrivate && own !== "" && !ownerAlreadyInCategoryLine
+      ? ` (${escapeHtml(own)})`
       : "";
   return `${escapeHtml(catLine)}${tail}`;
 }
 
 /**
  * Shared Leaflet popup HTML for a parking spot row (circle or green start pin).
- * @param {{ name: string, categoryName: string, categoryKey?: string, manager?: string, price?: string, costHourlyHint?: boolean, priceSupplement?: string, priceSupplementHint?: boolean, totalSpaces?: number | null, address?: string }} row
+ * @param {{ name: string, categoryName: string, categoryKey?: string, owner?: string, price?: string, costHourlyHint?: boolean, priceSupplement?: string, priceSupplementHint?: boolean, totalSpaces?: number | null, address?: string }} row
  */
 function parkingSpotPopupHtml(row) {
   const costText =
@@ -2757,7 +2757,7 @@ function attachParkingSpotStartButton(marker, row) {
 }
 
 /** @param {string} categoryKey @param {number} lat @param {number} lng */
-function parkingManagerFromDatasetItem(categoryKey, lat, lng) {
+function parkingOwnerFromDatasetItem(categoryKey, lat, lng) {
   const dk = parkingCategoryDataKey(categoryKey);
   const items =
     categoryKey === "private-garage" || categoryKey === "private-lot"
@@ -2776,8 +2776,8 @@ function parkingManagerFromDatasetItem(categoryKey, lat, lng) {
     const ilng = loc?.longitude ?? item?.longitude;
     if (typeof ilat !== "number" || typeof ilng !== "number") continue;
     if (ilat.toFixed(6) === lat6 && ilng.toFixed(6) === lng6) {
-      const m = item?.manager;
-      return typeof m === "string" && m.trim() !== "" ? m.trim() : "";
+      const o = item?.owner ?? item?.manager;
+      return typeof o === "string" && o.trim() !== "" ? o.trim() : "";
     }
   }
   return "";
@@ -2794,7 +2794,7 @@ function parkingSpotRowFallback(spotId, parsed) {
     spotId,
     name: "Parking location",
     categoryName,
-    manager: parkingManagerFromDatasetItem(cat, parsed.lat, parsed.lng),
+    owner: parkingOwnerFromDatasetItem(cat, parsed.lat, parsed.lng),
     price: "",
     costHourlyHint: false,
     totalSpaces: null,
