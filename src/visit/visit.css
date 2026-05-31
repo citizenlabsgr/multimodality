@@ -72,6 +72,25 @@ main.parking-map-active {
   flex-shrink: 0;
 }
 
+.parking-map-control-locate {
+  top: 48px;
+}
+
+.parking-map-control-locate-icon {
+  width: 23px;
+  height: 23px;
+}
+
+.parking-map-control-locate--active {
+  color: rgb(202 138 4);
+  border-color: rgb(202 138 4);
+}
+
+.parking-map-control-help[aria-busy="true"] {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 /* Parking legend modal — Leaflet fills the Tailwind-sized tile */
 .parking-legend-mini-map.leaflet-container {
   height: 100%;
@@ -187,11 +206,11 @@ main.parking-map-active {
   border: 1px solid transparent;
 }
 
-/* Drive (park here) — green fill + faint neutral edge (slate-300) */
+/* Drive (from your location) — yellow to match the map drive line / steering-wheel pin */
 .parking-route-step-badge--drive {
-  color: rgb(22 101 52);
-  background-color: rgb(220 252 231);
-  border-color: rgb(203 213 225);
+  color: rgb(146 64 14);
+  background-color: rgb(254 249 195);
+  border-color: rgb(250 204 21);
 }
 
 .parking-route-step-badge--walk {

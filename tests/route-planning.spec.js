@@ -5,10 +5,11 @@ import {
   FALLBACK_PARKING_WALK_MINUTES_PER_MILE,
   FALLBACK_PARKING_DASH_MILES_PER_HOUR,
   FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES,
+  FALLBACK_PARKING_DRIVE_MILES_PER_HOUR,
 } from "../src/visit/route-planning.mjs";
 
 test.describe("Parking route planning", () => {
-  test("defaults match ~2.5 mph walk, 12 mph DASH, and boarding wait", () => {
+  test("defaults match ~2.5 mph walk, 12 mph DASH, boarding wait, and 25 mph drive", () => {
     const pace = resolveParkingRoutePace({});
     expect(pace.walkMinutesPerMile).toBe(
       FALLBACK_PARKING_WALK_MINUTES_PER_MILE,
@@ -17,6 +18,7 @@ test.describe("Parking route planning", () => {
     expect(pace.dashBoardingWaitMinutes).toBe(
       FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES,
     );
+    expect(pace.driveMilesPerHour).toBe(FALLBACK_PARKING_DRIVE_MILES_PER_HOUR);
   });
 
   test("prefers walking direct when it takes less time than park + DASH + walk", () => {
@@ -83,10 +85,12 @@ test.describe("Parking route planning", () => {
       walkMinutesPerMile: 18,
       dashMilesPerHour: 10,
       dashBoardingWaitMinutes: 3,
+      driveMilesPerHour: 30,
     });
     expect(pace.walkMinutesPerMile).toBe(18);
     expect(pace.dashMilesPerHour).toBe(10);
     expect(pace.dashBoardingWaitMinutes).toBe(3);
+    expect(pace.driveMilesPerHour).toBe(30);
 
     const r = compareParkingWalkVersusDashMinutes({
       directMi: 1,

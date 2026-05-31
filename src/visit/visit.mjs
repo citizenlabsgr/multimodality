@@ -156,6 +156,34 @@ function parkingInstructionDashOnboardMetrics(multimodal) {
   return `${rideM} min ride`;
 }
 
+/** Right-column copy: haversine drive from the user's location (`parkingRoutePace.driveMilesPerHour`). */
+function parkingInstructionDriveEstimateMetrics(
+  fromLat,
+  fromLng,
+  toLat,
+  toLng,
+) {
+  const miles = haversineMiles(fromLat, fromLng, toLat, toLng);
+  if (!Number.isFinite(miles) || miles <= 0) return "";
+  const mph = resolveParkingRoutePace(
+    appData?.parkingRoutePace,
+  ).driveMilesPerHour;
+  const min = Math.max(1, Math.round((miles / mph) * 60));
+  return `${min}+ min drive`;
+}
+
+/** Drive-step badge lines when the user's location is included on the map. */
+function parkingDriveStepMetricsForParkingSpot(parkingLat, parkingLng) {
+  if (!parkingUserLocationIncluded || !parkingUserLocation) return [];
+  const line = parkingInstructionDriveEstimateMetrics(
+    parkingUserLocation.lat,
+    parkingUserLocation.lng,
+    parkingLat,
+    parkingLng,
+  );
+  return line ? [line] : [];
+}
+
 /**
  * One route step: main instruction (left) and optional badge(s) (right).
  * @param {string} mainHtml
@@ -689,6 +717,38 @@ function wavyApproxWalkChordLatLngs(a, b) {
 }
 
 /**
+ * Single smooth swoop along a chord — for the drive line from the user's location (not the walk wiggle).
+ * @param {[number, number]} a [lat, lng]
+ * @param {[number, number]} b [lat, lng]
+ * @returns {number[][]}
+ */
+function swoopedDriveChordLatLngs(a, b) {
+  const lat1 = a[0];
+  const lng1 = a[1];
+  const lat2 = b[0];
+  const lng2 = b[1];
+  const dlat = lat2 - lat1;
+  const dlng = lng2 - lng1;
+  const len = Math.sqrt(dlat * dlat + dlng * dlng);
+  if (len < 1e-14) return [a, b];
+  const perpLat = -dlng / len;
+  const perpLng = dlat / len;
+  const chordMi = haversineMiles(lat1, lng1, lat2, lng2);
+  const ampDeg = Math.min(0.0027, Math.max(0.0006, chordMi * 0.0014));
+  const samples = Math.max(24, Math.min(64, Math.round(28 + chordMi * 96)));
+  const out = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const bulge = 4 * t * (1 - t);
+    out.push([
+      lat1 + t * dlat + bulge * ampDeg * perpLat,
+      lng1 + t * dlng + bulge * ampDeg * perpLng,
+    ]);
+  }
+  return out;
+}
+
+/**
  * Symmetric fitBounds padding in px. Leaflet combines TL+BR into one point for
  * getBoundsZoom, so max-zoom uses 2× each axis.
  */
@@ -704,6 +764,12 @@ let parkingSpotsLayerGroup = null;
 let parkingDestinationLayerGroup = null;
 let parkingSpotPickLayerGroup = null;
 let parkingStartFinishLineLayerGroup = null;
+let parkingUserLocationLayerGroup = null;
+/** @type {{ lat: number, lng: number } | null} */
+let parkingUserLocation = null;
+let parkingUserLocationIncluded = false;
+let parkingUserLocationError = "";
+let parkingLocateControlDelegated = false;
 let parkingFilterBarDelegated = false;
 let parkingDestinationSelectDelegated = false;
 let parkingResetDelegated = false;
@@ -2028,6 +2094,22 @@ if (typeof globalThis !== "undefined") {
     parkingTripStepNumbersHashReady;
   globalThis.__markerUsesDashMultimodalForRecommendationForTest =
     markerUsesDashMultimodalForRecommendationFromPool;
+  globalThis.__parkingInstructionDriveEstimateMetricsForTest =
+    parkingInstructionDriveEstimateMetrics;
+  globalThis.__setParkingUserLocationForTest = (lat, lng, included = true) => {
+    if (lat == null || lng == null) {
+      parkingUserLocation = null;
+      parkingUserLocationIncluded = false;
+      return;
+    }
+    parkingUserLocation = { lat: Number(lat), lng: Number(lng) };
+    parkingUserLocationIncluded = included !== false;
+  };
+  globalThis.__setParkingUserLocationIncludedForTest = (included) => {
+    parkingUserLocationIncluded = included === true;
+  };
+  globalThis.__syncParkingRouteInstructionsPanelForTest =
+    syncParkingRouteInstructionsPanel;
 }
 
 /** Session memo — `appData.busRoutes` is static after load; key is `event` | `regular` | `all`. */
@@ -3494,6 +3576,193 @@ function attachParkingDestinationClearButton(marker, name) {
   });
 }
 
+function parkingUserLocationSteeringWheelSvgParts(stroke, width) {
+  return (
+    `<circle cx="16" cy="16" r="10" fill="none" stroke="${stroke}" stroke-width="${width}"/>` +
+    `<circle cx="16" cy="16" r="3" fill="none" stroke="${stroke}" stroke-width="${width}"/>` +
+    `<line x1="16" y1="13" x2="16" y2="6" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round"/>` +
+    `<line x1="18.6" y1="17.5" x2="24.66" y2="21" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round"/>` +
+    `<line x1="13.4" y1="17.5" x2="7.34" y2="21" stroke="${stroke}" stroke-width="${width}" stroke-linecap="round"/>`
+  );
+}
+
+function parkingUserLocationSteeringWheelControlIconSvg() {
+  return (
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" ' +
+    'class="parking-map-control-help-icon parking-map-control-locate-icon" aria-hidden="true">' +
+    '<circle cx="12" cy="12" r="7.5"/>' +
+    '<circle cx="12" cy="12" r="2.25"/>' +
+    '<line x1="12" y1="9.75" x2="12" y2="4.5"/>' +
+    '<line x1="13.95" y1="13.125" x2="18.5" y2="15.75"/>' +
+    '<line x1="10.05" y1="13.125" x2="5.5" y2="15.75"/>' +
+    "</svg>"
+  );
+}
+
+function parkingUserLocationMarkerIcon(L) {
+  const svg =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">' +
+    parkingUserLocationSteeringWheelSvgParts("#ffffff", "2.75") +
+    parkingUserLocationSteeringWheelSvgParts("#ca8a04", "1.75") +
+    "</svg>";
+  return L.icon({
+    iconUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -14],
+  });
+}
+
+function updateParkingLocateButtonState() {
+  const btn = document.getElementById("parkingLocateBtn");
+  if (!btn) return;
+  const on = parkingUserLocationIncluded;
+  const showing = on && parkingUserLocation != null;
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.classList.toggle("parking-map-control-locate--active", showing);
+  if (parkingUserLocationError && on) {
+    btn.title = parkingUserLocationError;
+    btn.setAttribute("aria-label", parkingUserLocationError);
+    return;
+  }
+  if (on) {
+    btn.title = "Hide my location on the map";
+    btn.setAttribute("aria-label", "Hide my location on the map");
+    return;
+  }
+  btn.title = "Show my location on the map";
+  btn.setAttribute("aria-label", "Show my location on the map");
+}
+
+function refreshParkingUserLocationOnMap() {
+  if (!parkingMap) return;
+  syncParkingUserLocationMarker(parkingMap);
+  syncParkingRouteInstructionsPanel();
+}
+
+function requestParkingUserLocation(opts) {
+  const prefetch = opts?.prefetch === true;
+  if (typeof navigator === "undefined" || !navigator.geolocation) {
+    if (!prefetch) {
+      parkingUserLocationError = "Location unavailable in this browser";
+      if (parkingUserLocationIncluded) parkingUserLocationIncluded = false;
+      updateParkingLocateButtonState();
+      refreshParkingUserLocationOnMap();
+    }
+    return;
+  }
+  const btn = document.getElementById("parkingLocateBtn");
+  if (!prefetch) btn?.setAttribute("aria-busy", "true");
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      if (!prefetch) btn?.removeAttribute("aria-busy");
+      parkingUserLocationError = "";
+      parkingUserLocation = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+      };
+      if (prefetch) parkingUserLocationIncluded = true;
+      updateParkingLocateButtonState();
+      if (parkingUserLocationIncluded) refreshParkingUserLocationOnMap();
+    },
+    (err) => {
+      if (!prefetch) btn?.removeAttribute("aria-busy");
+      if (!prefetch) {
+        parkingUserLocationError =
+          err?.code === 1
+            ? "Location permission denied"
+            : "Could not get your location";
+        if (parkingUserLocationIncluded) parkingUserLocationIncluded = false;
+        updateParkingLocateButtonState();
+        refreshParkingUserLocationOnMap();
+      }
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+  );
+}
+
+function setParkingUserLocationIncluded(next) {
+  const on = next === true;
+  if (on === parkingUserLocationIncluded) return;
+  parkingUserLocationIncluded = on;
+  parkingUserLocationError = "";
+  updateParkingLocateButtonState();
+  if (on && !parkingUserLocation) {
+    requestParkingUserLocation({ prefetch: false });
+    return;
+  }
+  refreshParkingUserLocationOnMap();
+}
+
+function toggleParkingUserLocationIncluded() {
+  setParkingUserLocationIncluded(!parkingUserLocationIncluded);
+}
+
+function resolveParkingUserLocationLineEndLatLng() {
+  const startId = getParkingEffectiveStartSpotId();
+  if (startId) {
+    const start = parseParkingSpotIdToken(startId);
+    if (start) return [start.lat, start.lng];
+  }
+  return getParkingDestinationLatLng();
+}
+
+function syncParkingUserLocationMarker(map) {
+  const L = globalThis.L;
+  if (!map || !L) return;
+
+  if (parkingUserLocationLayerGroup) {
+    try {
+      map.removeLayer(parkingUserLocationLayerGroup);
+    } catch {
+      /* ignore */
+    }
+    parkingUserLocationLayerGroup = null;
+  }
+
+  if (!parkingUserLocationIncluded || !parkingUserLocation) return;
+
+  const { lat, lng } = parkingUserLocation;
+  parkingUserLocationLayerGroup = L.layerGroup().addTo(map);
+
+  const endLl = resolveParkingUserLocationLineEndLatLng();
+  if (endLl) {
+    const curveLl = swoopedDriveChordLatLngs([lat, lng], endLl);
+    const line = L.polyline(curveLl, {
+      color: "#ca8a04",
+      weight: 2.5,
+      opacity: 0.55,
+      lineCap: "round",
+      lineJoin: "round",
+      interactive: false,
+    });
+    line.addTo(parkingUserLocationLayerGroup);
+  }
+
+  const marker = L.marker([lat, lng], {
+    icon: parkingUserLocationMarkerIcon(L),
+    zIndexOffset: 1200,
+  });
+  marker.bindPopup(
+    '<div style="font-size:12px;line-height:1.35"><strong>Your location</strong></div>',
+  );
+  marker.addTo(parkingUserLocationLayerGroup);
+}
+
+function ensureParkingLocateControl() {
+  if (parkingLocateControlDelegated) return;
+  const btn = document.getElementById("parkingLocateBtn");
+  if (!btn) return;
+  parkingLocateControlDelegated = true;
+  btn.innerHTML = parkingUserLocationSteeringWheelControlIconSvg();
+  updateParkingLocateButtonState();
+  btn.addEventListener("click", (e) => {
+    e.preventDefault();
+    toggleParkingUserLocationIncluded();
+  });
+}
+
 function syncParkingDestinationMarker(map) {
   const L = globalThis.L;
   if (!map || !L) return;
@@ -3816,6 +4085,10 @@ function syncParkingRouteInstructionsPanel() {
         )
       : escapeHtml(parkLabel);
   const parkMainHtml = `<strong>Park</strong> at ${parkLabelHtml}`;
+  const driveMetrics = parkingDriveStepMetricsForParkingSpot(
+    start.lat,
+    start.lng,
+  );
 
   const venueMapsHref = parkingGoogleMapsHref(
     destLl[0],
@@ -3856,7 +4129,7 @@ function syncParkingRouteInstructionsPanel() {
       ) < 2e-5;
 
     const steps = [];
-    steps.push(parkingRouteStepLi(parkMainHtml, [], "drive"));
+    steps.push(parkingRouteStepLi(parkMainHtml, driveMetrics, "drive"));
     const w1m = parkingInstructionWalkEstimateMetrics(multimodal.walk1Mi);
     const w2m = parkingInstructionWalkEstimateMetrics(multimodal.walk2Mi);
     const waitM = parkingInstructionDashWaitMetrics(multimodal);
@@ -3948,7 +4221,7 @@ function syncParkingRouteInstructionsPanel() {
   const doorMi = gridWalkMiles(start.lat, start.lng, destLl[0], destLl[1]);
   const doorMetrics = parkingInstructionWalkEstimateMetrics(doorMi);
   const steps = [
-    parkingRouteStepLi(parkMainHtml, [], "drive"),
+    parkingRouteStepLi(parkMainHtml, driveMetrics, "drive"),
     parkingRouteStepLi(
       `<strong>Walk</strong> to ${venueNameHtml}`,
       doorMetrics ? [doorMetrics] : [],
@@ -3969,6 +4242,7 @@ function syncParkingMapOverlays(map, opts) {
   syncParkingSpotPickMarker(map);
   syncParkingStartFinishWalkLine(map);
   syncParkingDestinationMarker(map);
+  syncParkingUserLocationMarker(map);
   syncParkingRouteInstructionsPanel();
   if (doFit) fitParkingMapToAllContent(map);
 }
@@ -4391,6 +4665,7 @@ export function renderParkingView() {
   syncParkingHashStripStartWhenWalkZero();
   ensureParkingResetDelegation();
   ensureParkingLegendModal();
+  ensureParkingLocateControl();
   document.getElementById("parkingMapChrome")?.classList.remove("hidden");
 
   applyParkingRouteLayoutShell();
@@ -4401,6 +4676,7 @@ export function renderParkingView() {
       if (map) {
         map.invalidateSize();
         syncParkingMapOverlays(map);
+        requestParkingUserLocation({ prefetch: true });
       }
       syncParkingLegendModalFromHash();
     });

@@ -41,7 +41,8 @@
   "parkingRoutePace": {
     "walkMinutesPerMile": 24,
     "dashMilesPerHour": 12,
-    "dashBoardingWaitMinutes": 5
+    "dashBoardingWaitMinutes": 5,
+    "driveMilesPerHour": 25
   },
   "linkTexts": {
     "viewTransitRoute": "View transit route on Google Maps",

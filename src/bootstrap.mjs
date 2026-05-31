@@ -9,7 +9,6 @@ import {
   haversineMiles,
   roundCoord5,
   MODES_PAGE_EMPTY_MAP_CENTER,
-  FALLBACK_DATA,
   PARKING_PRICE_NOT_LISTED_LABEL,
   getParkingDataViewOverrideSourceFields,
 } from "./shared/data-loader.mjs";
@@ -108,9 +107,7 @@ const DATA_ROUTES_STOP_MAX_MILES_FROM_CENTER = 1.5;
 let validModes = null;
 
 function modesPageOrderedList() {
-  const base = Array.isArray(validModes)
-    ? validModes
-    : FALLBACK_DATA.validModes;
+  const base = Array.isArray(validModes) ? validModes : [];
   return MODES_PAGE_ORDER.filter((m) => base.includes(m));
 }
 
@@ -2404,6 +2401,18 @@ async function init() {
     prepareParkingShellVisibility();
   }
   await loadData();
+  if (!appData) {
+    const appView = document.getElementById("appView");
+    if (appView) {
+      appView.textContent =
+        "Could not load app data. Check the console and refresh.";
+      appView.classList.remove("hidden");
+    }
+    hideDataView();
+    hideModesView();
+    hideParkingView();
+    return;
+  }
   rewriteDeferredDestinationHashIfNeeded();
   if (isParkingRoute()) {
     prepareParkingShellVisibility();
