@@ -85,7 +85,9 @@ test.describe("Data routes", () => {
     await expect(
       page.locator("#data-parking-dataset.data-parking-dataset-trigger"),
     ).toBeVisible();
-    await expect(page.locator("#data-parking-dataset")).toContainText("All");
+    await expect(page.locator("#data-parking-dataset")).toContainText(
+      "All Datasets",
+    );
     await expect(page.locator("#dataViewMap")).toBeVisible();
   });
 

@@ -1571,9 +1571,8 @@ function renderDataView() {
               </div>
             </div>
             <div class="data-routes-toolbar__dataset">
-              <label for="data-routes-dataset" class="data-view-filter-row__label">Dataset:</label>
               <div class="data-routes-dataset-dropdown relative min-w-[11rem]">
-                <button type="button" id="data-routes-dataset" disabled class="data-view-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 cursor-default" aria-label="Dataset (Public Bus Routes)" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true"><span class="min-w-0 flex-1 truncate">Public Bus Routes</span><span class="shrink-0 text-slate-500" aria-hidden="true">▾</span></button>
+                <button type="button" id="data-routes-dataset" disabled class="data-view-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-left text-sm text-slate-700 cursor-default" aria-label="All Datasets" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true"><span class="min-w-0 flex-1 truncate">All Datasets</span><span class="shrink-0 text-slate-500" aria-hidden="true">▾</span></button>
               </div>
             </div>
           </div>
@@ -1815,10 +1814,10 @@ function renderDataView() {
         .join("");
       const triggerInner =
         effectiveKey === ""
-          ? `<span class="flex min-w-0 flex-1 items-center gap-2"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span class="whitespace-nowrap">All</span></span><span class="ml-auto shrink-0 text-slate-500" aria-hidden="true">▾</span>`
+          ? `<span class="flex min-w-0 flex-1 items-center gap-2"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span class="whitespace-nowrap">All Datasets</span></span><span class="ml-auto shrink-0 text-slate-500" aria-hidden="true">▾</span>`
           : `<span class="flex min-w-0 flex-1 items-center gap-2">${parkingDatasetSwatchHtml(styleForParkingDatasetKey(effectiveKey))}<span class="whitespace-nowrap">${escapeHtml(categoryNames[effectiveKey] || effectiveKey)}</span></span><span class="ml-auto shrink-0 text-slate-500" aria-hidden="true">▾</span>`;
       const menuRows = [
-        `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${effectiveKey === "" ? " bg-slate-100" : ""}" data-dataset-value="" aria-selected="${effectiveKey === "" ? "true" : "false"}"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span>All</span></button>`,
+        `<button type="button" role="option" class="data-parking-dataset-option flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50${effectiveKey === "" ? " bg-slate-100" : ""}" data-dataset-value="" aria-selected="${effectiveKey === "" ? "true" : "false"}"><span class="inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">${allSwatchesMini}</span><span>All Datasets</span></button>`,
         ...keysForDropdown.map((p) => {
           const label = categoryNames[p.key] || p.file;
           const sel = effectiveKey === p.key;
@@ -1840,7 +1839,6 @@ function renderDataView() {
               ${modeButtonsHtml}
             </div>
             <div class="data-view-filter-row data-parking-toolbar__dataset">
-              <label for="data-parking-dataset" class="data-view-filter-row__label">Dataset:</label>
               <div class="data-parking-dataset-dropdown relative">
                 <button type="button" id="data-parking-dataset" class="data-parking-dataset-trigger flex w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-left text-sm text-slate-800 hover:bg-slate-50" aria-haspopup="listbox" aria-expanded="false">${triggerInner}</button>
                 <div id="data-parking-dataset-panel" class="data-parking-dataset-panel absolute right-0 top-full z-[1000] mt-1 hidden max-h-[min(24rem,70vh)] w-max min-w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-lg" role="listbox" aria-label="Parking dataset">${menuRows}</div>
