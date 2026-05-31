@@ -132,5 +132,62 @@
     },
     "hidden": true,
     "note": "This is a fire station."
+  },
+  {
+    "category": "private-garage",
+    "location": {
+      "latitude": 42.96592,
+      "longitude": -85.67298
+    },
+    "hidden": true,
+    "note": "Google Street View shows Tenant Parking Only."
+  },
+  {
+    "category": "private-garage",
+    "location": {
+      "latitude": 42.969591,
+      "longitude": -85.669295
+    },
+    "hidden": true,
+    "note": "Google Street View shows private property."
+  },
+  {
+    "category": "private-lot",
+    "location": {
+      "latitude": 42.963462,
+      "longitude": -85.670913
+    },
+    "pricing": {
+      "hourly": 1.75
+    },
+    "note": "These appear to be metered parking spots on Google Street View."
+  },
+  {
+    "category": "private-lot",
+    "location": {
+      "latitude": 42.962573,
+      "longitude": -85.673628
+    },
+    "name": "Market Ave Event Lot",
+    "owner": "AirGarage",
+    "address": "32 Market Ave SW, Grand Rapids, MI 49503",
+    "pricing": {
+      "hourly": 8.0
+    },
+    "note": "https://www.airgarage.com/location/market-ave-event-lot-grand-rapids-mi"
+  },
+  {
+    "category": "private-lot",
+    "location": {
+      "latitude": 42.972258,
+      "longitude": -85.679261
+    },
+    "name": "Golden Saint Parking",
+    "owner": "AirGarage",
+    "address": "423 First St NW, Grand Rapids, MI 49504",
+    "pricing": {
+      "hourly": 2.0
+    },
+    "note": "https://www.airgarage.com/location/golden-saint-parking-grand-rapids-mi"
   }
 ]

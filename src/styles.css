@@ -340,6 +340,7 @@ body.parking-legend-modal-open {
   justify-content: center;
   min-width: 0;
   overflow: visible;
+  gap: 0.5rem 1.5rem;
 }
 
 .data-parking-toolbar__dataset {
@@ -445,7 +446,7 @@ body.parking-legend-modal-open {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: 1.5rem;
   max-width: 100%;
   min-width: 0;
 }
