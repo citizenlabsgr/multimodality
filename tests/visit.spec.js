@@ -189,10 +189,38 @@ test.describe("Parking map (#/visit)", () => {
       walk: window.appData?.parkingRoutePace?.walkMinutesPerMile,
       dash: window.appData?.parkingRoutePace?.dashMilesPerHour,
       dashWait: window.appData?.parkingRoutePace?.dashBoardingWaitMinutes,
+      drive: window.appData?.parkingRoutePace?.driveMilesPerHour,
     }));
     expect(pace.walk).toBe(24);
     expect(pace.dash).toBe(12);
     expect(pace.dashWait).toBe(5);
+    expect(pace.drive).toBe(25);
+  });
+
+  test("route panel drive badge estimates from user location when known", async ({
+    page,
+  }) => {
+    await page.goto(
+      "/#/visit/devos-performance-hall?walk=0.4&park=public-lot:42.969938,-85.681874",
+    );
+    await waitForParkingData(page);
+    await waitForParkingLeafletMap(page);
+    const panel = page.locator("#parkingRouteInstructionsBody");
+    await expect(panel).toContainText("Park at", { timeout: 15_000 });
+    const driveBadge = panel.locator(".parking-route-step-badge--drive");
+    await page.evaluate(() => {
+      globalThis.__setParkingUserLocationForTest?.(null, null, false);
+      globalThis.__syncParkingRouteInstructionsPanelForTest?.();
+    });
+    await expect(driveBadge).toHaveText("15+ min drive");
+
+    await page.evaluate(() => {
+      globalThis.__setParkingUserLocationForTest?.(42.95, -85.67);
+      globalThis.__syncParkingRouteInstructionsPanelForTest?.();
+    });
+
+    await expect(driveBadge).not.toHaveText("15+ min drive");
+    await expect(driveBadge).toHaveText(/\d+\+ min drive/);
   });
 
   test("preserves destination and category filters in the URL across reload", async ({

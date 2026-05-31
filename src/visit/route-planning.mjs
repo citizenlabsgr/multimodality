@@ -8,10 +8,12 @@ export const FALLBACK_PARKING_WALK_MINUTES_PER_MILE = 24;
 export const FALLBACK_PARKING_DASH_MILES_PER_HOUR = 12;
 /** Typical wait at the stop before the next DASH shuttle (`#/visit` multimodal time). */
 export const FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES = 5;
+/** Urban driving pace for `#/visit` drive-step estimates from the user's location. */
+export const FALLBACK_PARKING_DRIVE_MILES_PER_HOUR = 25;
 
 /**
  * @param {unknown} configObj — `appData.parkingRoutePace` or subset
- * @returns {{ walkMinutesPerMile: number; dashMilesPerHour: number; dashBoardingWaitMinutes: number }}
+ * @returns {{ walkMinutesPerMile: number; dashMilesPerHour: number; dashBoardingWaitMinutes: number; driveMilesPerHour: number }}
  */
 export function resolveParkingRoutePace(configObj) {
   const o = configObj != null && typeof configObj === "object" ? configObj : {};
@@ -20,6 +22,8 @@ export function resolveParkingRoutePace(configObj) {
   const d = /** @type {{ dashMilesPerHour?: unknown }} */ (o).dashMilesPerHour;
   const wait = /** @type {{ dashBoardingWaitMinutes?: unknown }} */ (o)
     .dashBoardingWaitMinutes;
+  const drive = /** @type {{ driveMilesPerHour?: unknown }} */ (o)
+    .driveMilesPerHour;
   return {
     walkMinutesPerMile:
       typeof w === "number" && Number.isFinite(w) && w > 0
@@ -33,6 +37,10 @@ export function resolveParkingRoutePace(configObj) {
       typeof wait === "number" && Number.isFinite(wait) && wait >= 0
         ? wait
         : FALLBACK_PARKING_DASH_BOARDING_WAIT_MINUTES,
+    driveMilesPerHour:
+      typeof drive === "number" && Number.isFinite(drive) && drive > 0
+        ? drive
+        : FALLBACK_PARKING_DRIVE_MILES_PER_HOUR,
   };
 }
 

@@ -419,58 +419,6 @@ function applyDriveParkingDatasetDisplayNames(parking) {
   parking.categoryNames.airGarageLots = "Private Parking Lots (AirGarage)";
 }
 
-export const FALLBACK_DATA = {
-  validModes: [
-    "drive",
-    "rideshare",
-    "transit",
-    "micromobility",
-    "shuttle",
-    "bike",
-  ],
-  modeLabels: {
-    drive: "driving",
-    rideshare: "Uber/Lyft",
-    transit: "The Rapid",
-    bike: "biking",
-    micromobility: "Lime",
-    walk: "walking",
-    shuttle: "DASH",
-  },
-  costLabels: {
-    drive: "Willing to pay",
-    rideshare: "Willing to pay",
-    transit: "Willing to pay",
-    bike: "Willing to pay",
-    micromobility: "Willing to pay",
-    walk: "Willing to pay",
-    shuttle: "Willing to pay",
-  },
-  defaults: {
-    flexibilityEarlyMins: 15,
-    flexibilityLateMins: 0,
-    people: 1,
-    walkMiles: 1.5,
-    parkingMins: 10,
-    costDollars: 40,
-  },
-  parkingPrivateUnknown: {
-    lotAssumedDollars: 20,
-    garageAssumedDollars: 30,
-    cardCopy:
-      "Typical cost is a planning estimate when no rate is listed—confirm posted prices before you park.",
-  },
-  parkingRoutePace: {
-    walkMinutesPerMile: 24,
-    dashMilesPerHour: 12,
-    dashBoardingWaitMinutes: 5,
-  },
-  destinations: [],
-  linkTexts: {},
-  parking: {},
-  busRoutes: null,
-};
-
 export let appData = null;
 
 /** When true, the venue stays out of browse UI and map placeholder pins until linked (e.g. `#/<slug>` → `#/visit/<slug>`). */
@@ -609,6 +557,6 @@ export async function loadData() {
     };
   } catch (error) {
     console.error("Failed to load data:", error);
-    appData = { ...FALLBACK_DATA };
+    appData = null;
   }
 }
