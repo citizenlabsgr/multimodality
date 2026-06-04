@@ -221,6 +221,12 @@ test.describe("Parking map (#/visit)", () => {
 
     await expect(driveBadge).not.toHaveText("15+ min drive");
     await expect(driveBadge).toHaveText(/\d+\+ min drive/);
+
+    const floored = await page.evaluate(() => {
+      const fn = globalThis.__parkingInstructionDriveEstimateMetricsForTest;
+      return fn?.(42.97, -85.68, 42.9701, -85.6801) ?? "";
+    });
+    expect(floored).toBe("5+ min drive");
   });
 
   test("preserves destination and category filters in the URL across reload", async ({

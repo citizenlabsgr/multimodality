@@ -156,6 +156,9 @@ function parkingInstructionDashOnboardMetrics(multimodal) {
   return `${rideM} min ride`;
 }
 
+/** Minimum drive badge when the user's location is on the map (e.g. **5+ min drive**). */
+const PARKING_DRIVE_ESTIMATE_DISPLAY_MIN_MINUTES = 5;
+
 /** Right-column copy: haversine drive from the user's location (`parkingRoutePace.driveMilesPerHour`). */
 function parkingInstructionDriveEstimateMetrics(
   fromLat,
@@ -168,7 +171,10 @@ function parkingInstructionDriveEstimateMetrics(
   const mph = resolveParkingRoutePace(
     appData?.parkingRoutePace,
   ).driveMilesPerHour;
-  const min = Math.max(1, Math.round((miles / mph) * 60));
+  const min = Math.max(
+    PARKING_DRIVE_ESTIMATE_DISPLAY_MIN_MINUTES,
+    Math.round((miles / mph) * 60),
+  );
   return `${min}+ min drive`;
 }
 
