@@ -31,7 +31,7 @@ run:
 
 .PHONY: icons
 icons:
-	@set -e; cd images; SVG=grand-rapids-city-logo.svg; BG='#f8e119'; \
+	@ set -e; cd images; SVG=grand-rapids-city-logo.svg; BG='#f8e119'; \
 	rsvg-convert -w 720 -h 720 -b "$$BG" "$$SVG" | magick - -filter Lanczos -resize 180x180 apple-touch-icon.png; \
 	rsvg-convert -w 768 -h 768 -b "$$BG" "$$SVG" | magick - -filter Lanczos -resize 192x192 icon-192.png; \
 	rsvg-convert -w 2048 -h 2048 -b "$$BG" "$$SVG" | magick - -filter Lanczos -resize 512x512 icon-512.png; \
@@ -45,3 +45,4 @@ data:
 	python scripts/fetch_car_parking_ellis.py
 	python scripts/fetch_bike_parking.py
 	python scripts/fetch_lime_parking.py
+	make format
