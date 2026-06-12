@@ -8,6 +8,10 @@ import {
   PARKING_PRICE_NOT_LISTED_LABEL,
 } from "../shared/data-loader.mjs";
 import {
+  gridWalkMilesForPedestrians,
+  parseRailwaySegments,
+} from "../shared/rail-walk.mjs";
+import {
   compareParkingWalkVersusDashMinutes,
   resolveParkingRoutePace,
 } from "./route-planning.mjs";
@@ -78,6 +82,26 @@ const PARKING_WALK_ZERO_EFFECTIVE_FEET = 100;
 
 function parkingWalkMinutesPerMileFromConfig() {
   return resolveParkingRoutePace(appData?.parkingRoutePace).walkMinutesPerMile;
+}
+
+/** Session memo — rail segment list from `data/railways.json`. */
+let _parkingRailSegmentsMemo = undefined;
+let _parkingRailSegmentsMemoReady = false;
+
+/** @returns {Array<Array<[number, number]>>} */
+function getParkingRailSegments() {
+  if (_parkingRailSegmentsMemoReady) return _parkingRailSegmentsMemo;
+  _parkingRailSegmentsMemoReady = true;
+  _parkingRailSegmentsMemo = parseRailwaySegments(appData?.railways);
+  return _parkingRailSegmentsMemo;
+}
+
+/** Grid-walk miles for `#/visit` route times, filters, and ranking — inflated when rails block the path. */
+function parkingGridWalkMiles(lat1, lng1, lat2, lng2) {
+  return gridWalkMilesForPedestrians(lat1, lng1, lat2, lng2, {
+    railSegments: getParkingRailSegments(),
+    railWalkBarrier: appData?.railWalkBarrier,
+  });
 }
 
 /** @param {unknown} dom — `<input>` value (**0–15**) */
@@ -1664,7 +1688,7 @@ function parkingMarkerEstimatedTotalWalkMiles(m) {
    *  pin draws a single direct-walk leg, so total walk = grid-walk distance to venue. */
   const v = mm
     ? mm.walk1Mi + mm.walk2Mi
-    : gridWalkMiles(m.lat, m.lng, dLat, dLng);
+    : parkingGridWalkMiles(m.lat, m.lng, dLat, dLng);
   m._estimatedTotalWalkMilesCached = v;
   return v;
 }
@@ -1886,8 +1910,8 @@ function compareParkingMarkersForRecommendation(a, b) {
     return compareParkingMarkersCategoryPreference(a, b);
   }
 
-  const da = gridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
-  const db = gridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
+  const da = parkingGridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
+  const db = parkingGridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
 
   const catA = parkingCategoryRecommendationBiasRank(a.categoryKey);
   const catB = parkingCategoryRecommendationBiasRank(b.categoryKey);
@@ -2065,8 +2089,8 @@ function chooseTopParkingStartSpotIds(enabledKeysOverride) {
     if (Math.abs(sa - sb) > 1e-9) return sb - sa;
     /** Same-dollar tie: prefer the farther one so this role rarely sits on the same pin as **best**. */
     if (Array.isArray(destLl) && destLl.length >= 2) {
-      const da = gridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
-      const db = gridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
+      const da = parkingGridWalkMiles(a.lat, a.lng, destLl[0], destLl[1]);
+      const db = parkingGridWalkMiles(b.lat, b.lng, destLl[0], destLl[1]);
       if (Math.abs(da - db) > 1e-9) return db - da;
     }
     return compareParkingMarkersCategoryPreference(a, b);
@@ -2286,7 +2310,7 @@ function nearestDashStopWalkMiles(lat, lng, dashStops) {
     return Number.POSITIVE_INFINITY;
   let best = Infinity;
   for (const s of dashStops) {
-    const d = gridWalkMiles(lat, lng, s.lat, s.lng);
+    const d = parkingGridWalkMiles(lat, lng, s.lat, s.lng);
     if (d < best) best = d;
   }
   return best;
@@ -2446,7 +2470,7 @@ function nearestParkingDashStopFromPoints(lat, lng, dashPoints) {
   let best = null;
   let bestD = Infinity;
   for (const p of dashPoints) {
-    const d = gridWalkMiles(lat, lng, p.lat, p.lng);
+    const d = parkingGridWalkMiles(lat, lng, p.lat, p.lng);
     if (d < bestD) {
       bestD = d;
       best = p;
@@ -2507,7 +2531,7 @@ function tryParkingDashMultimodalPath(
   if (!board || !alight) return null;
 
   const w1 = board.walkMi;
-  const w2 = gridWalkMiles(alight.lat, alight.lng, destLat, destLng);
+  const w2 = parkingGridWalkMiles(alight.lat, alight.lng, destLat, destLng);
 
   const walkCapFinite =
     typeof walkCapMiles === "number" &&
@@ -2516,7 +2540,7 @@ function tryParkingDashMultimodalPath(
   /** Cap applies to approach to DASH only; see JSDoc — `w2` can exceed cap when the venue is far from stops. */
   if (walkCapFinite && w1 > walkCapMiles) return null;
 
-  const directMi = gridWalkMiles(startLat, startLng, destLat, destLng);
+  const directMi = parkingGridWalkMiles(startLat, startLng, destLat, destLng);
   /** Finite max-walk and grid-walk parking→venue distance already fits — prefer direct walk overlay only. */
   if (walkCapFinite && directMi <= walkCapMiles + 1e-9) return null;
 
@@ -2612,7 +2636,7 @@ function parkingSpotEveryDisplayedWalkLegWithinResolvedCap(
   ) {
     return true;
   }
-  const doorMi = gridWalkMiles(lat, lng, destLat, destLng);
+  const doorMi = parkingGridWalkMiles(lat, lng, destLat, destLng);
   if (doorMi <= resolvedWalkCapMiles + eps) return true;
   const mm = tryParkingDashMultimodalPath(
     lat,
@@ -4224,7 +4248,12 @@ function syncParkingRouteInstructionsPanel() {
     return;
   }
 
-  const doorMi = gridWalkMiles(start.lat, start.lng, destLl[0], destLl[1]);
+  const doorMi = parkingGridWalkMiles(
+    start.lat,
+    start.lng,
+    destLl[0],
+    destLl[1],
+  );
   const doorMetrics = parkingInstructionWalkEstimateMetrics(doorMi);
   const steps = [
     parkingRouteStepLi(parkMainHtml, driveMetrics, "drive"),
