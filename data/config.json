@@ -44,6 +44,9 @@
     "dashBoardingWaitMinutes": 5,
     "driveMilesPerHour": 25
   },
+  "railWalkBarrier": {
+    "extraMilesWhenCrossing": 0.35
+  },
   "linkTexts": {
     "viewTransitRoute": "View transit route on Google Maps",
     "findLots": "Find lots on Google Maps",

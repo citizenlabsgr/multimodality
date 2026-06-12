@@ -548,12 +548,23 @@ export async function loadData() {
       }
     }
 
+    let railways = null;
+    const railwaysRes = await fetch("data/railways.json");
+    if (railwaysRes.ok) {
+      try {
+        railways = await railwaysRes.json();
+      } catch {
+        railways = null;
+      }
+    }
+
     appData = {
       ...config,
       destinations,
       linkTexts: config.linkTexts || {},
       parking,
       busRoutes,
+      railways,
     };
   } catch (error) {
     console.error("Failed to load data:", error);

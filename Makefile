@@ -45,4 +45,5 @@ data:
 	python scripts/fetch_car_parking_ellis.py
 	python scripts/fetch_bike_parking.py
 	python scripts/fetch_lime_parking.py
+	python scripts/fetch_railways.py
 	make format
