@@ -740,11 +740,14 @@ test.describe("Parking map (#/visit)", () => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const buildPool =
           globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const minSpaces =
+          globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest;
         const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
         const choose = globalThis.__chooseBestParkingStartSpotIdForTest;
         if (!markers.length || typeof cmp !== "function") return false;
-        const pool =
+        let pool =
           typeof buildPool === "function" ? buildPool(markers) : markers;
+        pool = typeof minSpaces === "function" ? minSpaces(pool) : pool;
         if (!pool.length) return false;
         const sorted = [...pool].sort(cmp);
         return sorted[0]?.spotId === choose();
@@ -797,11 +800,14 @@ test.describe("Parking map (#/visit)", () => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const buildPool =
           globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const minSpaces =
+          globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest;
         const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
         const choose = globalThis.__chooseBestParkingStartSpotIdForTest;
         if (!markers.length || typeof cmp !== "function") return false;
-        const pool =
+        let pool =
           typeof buildPool === "function" ? buildPool(markers) : markers;
+        pool = typeof minSpaces === "function" ? minSpaces(pool) : pool;
         if (!pool.length) return false;
         const sorted = [...pool].sort(cmp);
         return sorted[0]?.spotId === choose();
@@ -825,12 +831,16 @@ test.describe("Parking map (#/visit)", () => {
         const cmp = globalThis.__compareParkingMarkersForRecommendationForTest;
         const pool =
           typeof buildPool === "function" ? buildPool(markers) : markers;
+        const minSpaces =
+          globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest;
+        const bestPool =
+          typeof minSpaces === "function" ? minSpaces(pool) : pool;
         const hasKnownDollarPin =
           typeof filt === "function" ? filt(markers).length > 0 : false;
-        if (!pool.length || typeof cmp !== "function") {
+        if (!bestPool.length || typeof cmp !== "function") {
           return { anyPick: false, matchesSort: false };
         }
-        const sorted = [...pool].sort(cmp);
+        const sorted = [...bestPool].sort(cmp);
         const id = globalThis.__chooseBestParkingStartSpotIdForTest();
         return {
           anyPick: true,
@@ -927,15 +937,19 @@ test.describe("Parking map (#/visit)", () => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const buildPool =
           globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const minSpaces =
+          globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest;
         const pool =
           typeof buildPool === "function" ? buildPool(markers) : markers;
+        const eligibleBest =
+          typeof minSpaces === "function" ? minSpaces(pool) : pool;
         const dest = window.appData?.destinations?.find(
           (d) => d.slug === "acrisure-amphitheater",
         );
         const dLat = dest?.latitude ?? dest?.location?.latitude;
         const dLng = dest?.longitude ?? dest?.location?.longitude;
         if (
-          !pool.length ||
+          !eligibleBest.length ||
           typeof globalThis.__chooseBestParkingStartSpotIdForTest !==
             "function" ||
           typeof dLat !== "number" ||
@@ -949,8 +963,10 @@ test.describe("Parking map (#/visit)", () => {
         const chosenRow = pool.find((m) => m.spotId === chosenId);
         const bandPool =
           chosenRow != null
-            ? pool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
-            : pool;
+            ? eligibleBest.filter(
+                (m) => isPublicPin(m) === isPublicPin(chosenRow),
+              )
+            : eligibleBest;
         let maxVenueMi = -Infinity;
         for (const m of bandPool) {
           const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
@@ -996,15 +1012,19 @@ test.describe("Parking map (#/visit)", () => {
         const markers = globalThis.__getAllParkingSpotMarkersForTest();
         const buildPool =
           globalThis.__buildParkingRecommendationMarkerPoolForTest;
+        const minSpaces =
+          globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest;
         const pool =
           typeof buildPool === "function" ? buildPool(markers) : markers;
+        const eligibleBest =
+          typeof minSpaces === "function" ? minSpaces(pool) : pool;
         const dest = window.appData?.destinations?.find(
           (d) => d.slug === "acrisure-amphitheater",
         );
         const dLat = dest?.latitude ?? dest?.location?.latitude;
         const dLng = dest?.longitude ?? dest?.location?.longitude;
         if (
-          !pool.length ||
+          !eligibleBest.length ||
           typeof globalThis.__chooseBestParkingStartSpotIdForTest !==
             "function" ||
           typeof dLat !== "number" ||
@@ -1022,8 +1042,10 @@ test.describe("Parking map (#/visit)", () => {
         const chosenRow = pool.find((m) => m.spotId === chosenId);
         const bandPool =
           chosenRow != null
-            ? pool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
-            : pool;
+            ? eligibleBest.filter(
+                (m) => isPublicPin(m) === isPublicPin(chosenRow),
+              )
+            : eligibleBest;
         let maxVenueMi = -Infinity;
         for (const m of bandPool) {
           const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
@@ -1070,15 +1092,19 @@ test.describe("Parking map (#/visit)", () => {
           const markers = globalThis.__getAllParkingSpotMarkersForTest();
           const buildPool =
             globalThis.__buildParkingRecommendationMarkerPoolForTest;
+          const minSpaces =
+            globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest;
           const pool =
             typeof buildPool === "function" ? buildPool(markers) : markers;
+          const eligibleBest =
+            typeof minSpaces === "function" ? minSpaces(pool) : pool;
           const dest = window.appData?.destinations?.find(
             (d) => d.slug === "acrisure-amphitheater",
           );
           const dLat = dest?.latitude ?? dest?.location?.latitude;
           const dLng = dest?.longitude ?? dest?.location?.longitude;
           if (
-            !pool.length ||
+            !eligibleBest.length ||
             typeof globalThis.__chooseBestParkingStartSpotIdForTest !==
               "function" ||
             typeof dLat !== "number" ||
@@ -1097,8 +1123,10 @@ test.describe("Parking map (#/visit)", () => {
           const chosenRow = pool.find((m) => m.spotId === chosenId);
           const bandPool =
             chosenRow != null
-              ? pool.filter((m) => isPublicPin(m) === isPublicPin(chosenRow))
-              : pool;
+              ? eligibleBest.filter(
+                  (m) => isPublicPin(m) === isPublicPin(chosenRow),
+                )
+              : eligibleBest;
           let maxVenueMi = -Infinity;
           for (const m of bandPool) {
             const d = gridWalkMiles(m.lat, m.lng, dLat, dLng);
@@ -1126,11 +1154,11 @@ test.describe("Parking map (#/visit)", () => {
     });
 
     /**
-     * 601 Ottawa Lot — prose free-evening tier in `data/parking/public/lots-arcgis.json`.
+     * 601 Ottawa Lot has only **80** spaces — below the **120** minimum for the star pick.
      * Use **`walk=1.5`** so door-to-door grid miles to GLC stay within the cap; default **0.5** mi excludes
      * this north lot while still listing closer ramps (see Acrisure **`walk=0.5`** regression test).
      */
-    test("GLC Live + finite pay can recommend farthest multimodal free lot (601 Ottawa)", async ({
+    test("GLC Live + finite pay: no star when only eligible lots are under 120 spaces", async ({
       page,
     }) => {
       await page.goto("/#/visit/glc-live-at-20-monroe?pay=5&walk=1.5");
@@ -1140,11 +1168,29 @@ test.describe("Parking map (#/visit)", () => {
       const id = await page.evaluate(() =>
         globalThis.__chooseBestParkingStartSpotIdForTest(),
       );
-      expect(id).toBe("public-lot:42.974095,-85.670505");
+      expect(id).toBeUndefined();
     });
 
-    /** Area 8 Lot in `data/parking/public/lots-arcgis.json`; default walk 0.8 mi, pay $40. */
-    test("Acrisure default walk recommends farthest multimodal paid lot (Area 8)", async ({
+    test("best pick requires at least 120 known spaces", async ({ page }) => {
+      await page.goto("/#/visit/van-andel-arena?pay=50&walk=0.4");
+      await waitForParkingData(page);
+      await waitForParkingLeafletMap(page);
+
+      const r = await page.evaluate(() => {
+        const id = globalThis.__chooseBestParkingStartSpotIdForTest();
+        const markers = globalThis.__getAllParkingSpotMarkersForTest() || [];
+        const row = markers.find((m) => m.spotId === id);
+        const min =
+          globalThis.__PARKING_BEST_RECOMMENDATION_MIN_SPACES_FOR_TEST ?? 120;
+        return { id, totalSpaces: row?.totalSpaces, min };
+      });
+
+      expect(r.id).toBeTruthy();
+      expect(r.totalSpaces).toBeGreaterThanOrEqual(r.min);
+    });
+
+    /** Government Center Ramp (910 spaces) in `data/parking/public/garages-arcgis.json`; default walk 0.8 mi, pay $40. Area 8 Lot (110 spaces) is below the star minimum. */
+    test("Acrisure default walk recommends best pick among lots with at least 120 spaces", async ({
       page,
     }) => {
       await page.goto("/#/visit/acrisure-amphitheater");
@@ -1154,7 +1200,7 @@ test.describe("Parking map (#/visit)", () => {
       const id = await page.evaluate(() =>
         globalThis.__chooseBestParkingStartSpotIdForTest(),
       );
-      expect(id).toBe("public-lot:42.969938,-85.681874");
+      expect(id).toBe("public-garage:42.969055,-85.671037");
     });
 
     test("Acrisure private-garage and private-lot only still auto-picks", async ({
