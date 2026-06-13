@@ -1752,6 +1752,25 @@ function buildParkingRecommendationMarkerPool(markers) {
   return filterParkingMarkersExcludeFreeWhenPaidExists(markers);
 }
 
+/** Minimum {@link parseTotalSpacesFromAvailability} count for the **best** (star) auto-pick only. */
+const PARKING_BEST_RECOMMENDATION_MIN_SPACES = 120;
+
+/**
+ * **Best**-role pool: markers with known capacity at least {@link PARKING_BEST_RECOMMENDATION_MIN_SPACES}.
+ * Pins without parseable spaces are excluded from the star pick.
+ *
+ * @param {Array<{ totalSpaces: number | null }>} markers
+ */
+function filterParkingMarkersForBestRecommendationMinSpaces(markers) {
+  if (!Array.isArray(markers) || markers.length === 0) return [];
+  return markers.filter(
+    (m) =>
+      typeof m.totalSpaces === "number" &&
+      Number.isFinite(m.totalSpaces) &&
+      m.totalSpaces >= PARKING_BEST_RECOMMENDATION_MIN_SPACES,
+  );
+}
+
 /**
  * When the user is willing to pay and **any** eligible marker has a known paid (**> $0**) ceiling,
  * exclude known-free **`$0`** markers so auto-pick matches farther paid lots. If only free pins fit the
@@ -1952,7 +1971,8 @@ function compareParkingMarkersForRecommendation(a, b) {
 }
 
 /**
- * Best parking pin for auto **`start`** — {@link buildParkingRecommendationMarkerPool} then
+ * Best parking pin for auto **`start`** — {@link buildParkingRecommendationMarkerPool}, then
+ * {@link filterParkingMarkersForBestRecommendationMinSpaces}, then
  * {@link compareParkingMarkersForRecommendation}.
  *
  * @param {Set<string>|string[]|undefined} enabledKeysOverride — when provided (e.g. category toggle **before** hash updates), use this instead of **`location=`** from the URL.
@@ -1965,8 +1985,9 @@ function chooseBestParkingStartSpotId(enabledKeysOverride) {
         ? getAllParkingSpotMarkers(enabledKeysOverride)
         : getAllParkingSpotMarkers();
   const pool = buildParkingRecommendationMarkerPool(markers);
-  if (pool.length === 0) return undefined;
-  const sorted = [...pool].sort(compareParkingMarkersForRecommendation);
+  const bestPool = filterParkingMarkersForBestRecommendationMinSpaces(pool);
+  if (bestPool.length === 0) return undefined;
+  const sorted = [...bestPool].sort(compareParkingMarkersForRecommendation);
   return sorted[0].spotId;
 }
 
@@ -2036,7 +2057,13 @@ function chooseTopParkingStartSpotIds(enabledKeysOverride) {
     }
   };
 
-  pickRole([...pool].sort(compareParkingMarkersForRecommendation), "best");
+  const bestPool = filterParkingMarkersForBestRecommendationMinSpaces(pool);
+  if (bestPool.length > 0) {
+    pickRole(
+      [...bestPool].sort(compareParkingMarkersForRecommendation),
+      "best",
+    );
+  }
 
   if (Array.isArray(destLl) && destLl.length >= 2) {
     /** Use estimated **total walk miles** (walk-to-DASH-stop + walk-from-alight) so the
@@ -2092,6 +2119,10 @@ if (typeof globalThis !== "undefined") {
     filterParkingMarkersForRecommendation;
   globalThis.__buildParkingRecommendationMarkerPoolForTest =
     buildParkingRecommendationMarkerPool;
+  globalThis.__filterParkingMarkersForBestRecommendationMinSpacesForTest =
+    filterParkingMarkersForBestRecommendationMinSpaces;
+  globalThis.__PARKING_BEST_RECOMMENDATION_MIN_SPACES_FOR_TEST =
+    PARKING_BEST_RECOMMENDATION_MIN_SPACES;
   globalThis.__filterParkingMarkersExcludeFreeWhenPaidExistsForTest =
     filterParkingMarkersExcludeFreeWhenPaidExists;
   globalThis.__getParkingEffectiveStartSpotIdForTest =
