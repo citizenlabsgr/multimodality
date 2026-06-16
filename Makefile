@@ -1,6 +1,9 @@
+PLAYWRIGHT_VERSION := 1.60.0
+
 .PHONY: install
 install:
-	npm install --no-save @playwright/test
+	- asdf install
+	npm install --no-save @playwright/test@$(PLAYWRIGHT_VERSION)
 	npx playwright install chromium
 
 .PHONY: all

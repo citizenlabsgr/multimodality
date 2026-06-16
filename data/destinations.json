@@ -26,6 +26,14 @@
       }
     },
     {
+      "name": "Studio Park",
+      "slug": "studio-park",
+      "location": {
+        "latitude": 42.96044,
+        "longitude": -85.67079
+      }
+    },
+    {
       "name": "The Intersection",
       "slug": "the-intersection",
       "location": {
